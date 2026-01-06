@@ -2,12 +2,14 @@
 
 
 /******************************* Get SOIL sensor readings and update ThingSpeak *********************/   
-void get_new_readings( uint32_t &duration, bool &watering_needed )
+bool get_new_readings( uint32_t &duration, bool &watering_needed )
 {
 
+    bool success = true;  // Assume true to allow for function to return true in cases where watering_needed == true
+    
     if ( watering_needed == false )  // Don't keep getting new readings if watering is not needed
     {
-        DBG( F( "\n===== SYSTEM CYCLE START =====" ) );
+        DBG( F( "[STATUS] ===== SYSTEM CYCLE START =====" ) );
 
         // -------- Read Soil Sensor --------
         DBG( F( "[RS485] Reading soil sensor" ) );
@@ -15,10 +17,9 @@ void get_new_readings( uint32_t &duration, bool &watering_needed )
         uint8_t result = node.readHoldingRegisters( 0x0000, 7 );
 
         if ( result != node.ku8MBSuccess )
-        {
             DBGf( "[RS485][ERROR] Modbus error code: %u\n", result );
-            return;
-        }
+        
+    
 
         uint16_t rawMoisture = node.getResponseBuffer( 0 );
         uint16_t rawTemp     = node.getResponseBuffer( 1 );
@@ -33,20 +34,20 @@ void get_new_readings( uint32_t &duration, bool &watering_needed )
         float ec       = rawEC;
         float ph       = rawPH / 10.0;
 
-        DBGf( "[DATA] Moisture: %.1f %\n", moisture );
-        DBGf( "[DATA] Temp: %.1f F\n", temp );
-        DBGf( "[DATA] EC: %.0f uS/cm\n", ec );
+        DBGf( "[DATA] Moisture: %.1f %%\n", moisture );
+        DBGf( "[DATA] Temp: %.1f °F\n", temp );
+        DBGf( "[DATA] EC: %.0f µS/cm\n", ec );
         DBGf( "[DATA] pH: %.1f\n", ph );
-        DBGf( "[DATA] NPK: %u / %u / %u\n", rawN, rawP, rawK );
+        DBGf( "[DATA] NPK: %u / %u / %u mg/kg\n", rawN, rawP, rawK );
 
         // -------- ThingSpeak Upload --------
-        sendThingSpeak( moisture, temp, ec, ph, rawN, rawP, rawK );
+        success = ( result == node.ku8MBSuccess ) && sendThingSpeak( moisture, temp, ec, ph, rawN, rawP, rawK );
 
         // -------- Read Control Settings --------
 
         uint8_t threshold;  // Water content by volume percentage minimum threshold to trigger watering cycle
         
-        getSettings( threshold, duration );
+        success = success && getSettings( threshold, duration );
 
         // -------- Weather Check --------
         bool rain = rainExpectedSoon();
@@ -55,9 +56,13 @@ void get_new_readings( uint32_t &duration, bool &watering_needed )
 
         if ( moisture < threshold && rain == false )
             watering_needed = true;
+
+        return success;
     
     }
 
+    else
+        return success;
 }
 
 
@@ -90,9 +95,9 @@ void  water_soil( bool &watering_needed,  bool &solenoid_closed, uint32_t durati
 
             char buffer[30];
 
-            strftime( buffer, sizeof(buffer), "%m-%d-%Y %H:%M:%S", localTime );
+            strftime( buffer, sizeof(buffer), "%m-%d-%Y %l:%M:%S %p", localTime );
            
-            DBGf( "Watering start time: %s\n", buffer );
+            DBGf( "[IRRIGATION] Watering start time: %s\n", buffer );
 
             solenoid_closed = false;
         }
@@ -108,7 +113,7 @@ void  water_soil( bool &watering_needed,  bool &solenoid_closed, uint32_t durati
 
             uint32_t watering_time_remaining = duration - elapsed_sec;
   
-            DBGf( "Watering time remaining: %ld sec\n", watering_time_remaining );
+            DBGf( "[IRRIGATION] Watering time remaining: %ld sec\n", watering_time_remaining );
 
             if( watering_time_remaining == 0 )
             {
@@ -140,7 +145,7 @@ void deep_sleep_function( bool watering_needed,  bool &solenoid_closed )
         }
 
         esp_sleep_enable_timer_wakeup( UPDATE_INTERVAL );  // Initiate CPU sleep cycle
-        DBG( F( "===== Entering Deep Sleep =====" ) );  // Inform user that system is about to go into deep sleep mode
+        DBG( F( "[STATUS] ===== Entering Deep Sleep =====" ) );  // Inform user that system is about to go into deep sleep mode
         esp_deep_sleep_start();  // Go into deep sleep
     }
 

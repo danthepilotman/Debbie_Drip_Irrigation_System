@@ -1,7 +1,6 @@
 #include "thingspeak.h"
 
 
-
 const char* TS_WRITE_KEY = "60SYG2RIJ0TW4D32";
 const char* TS_READ_KEY  = "IN57T91RJ0C8NPFK";
 const char* TS_CHANNEL   = "3211645";
@@ -9,18 +8,16 @@ const char* TS_TALKBACK_ID = "56070";
 const char* TS_TALKBACK_KEY = "EJ3TTWSNK2Q6PXSO";
 
 
-
-
 // ==================================================
 // ================= THINGSPEAK =====================
 // ==================================================
-void sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k )
+bool sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k )
 {
 
     if ( isnan( m ) || isnan( t ) || isnan( ph ) )
     {
         Serial.println( F( "[THINGSPEAK][ERROR] NaN value detected, aborting upload" ) );
-        return;
+        return false;
     }
 
     String url = "http://api.thingspeak.com/update?api_key=";
@@ -44,10 +41,13 @@ void sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k )
     Serial.println( code );
 
     http.end();
+
+    return code == HTTP_CODE_OK ? true : false;
+  
 }
 
 
-void getSettings( uint8_t &threshold, uint32_t &duration )
+bool getSettings( uint8_t &threshold, uint32_t &duration )
 {
     DBG( F( "[THINGSPEAK] Reading control settings" ) );
 
@@ -62,7 +62,7 @@ void getSettings( uint8_t &threshold, uint32_t &duration )
     int code = http.GET();
     DBGf( "[THINGSPEAK] Read HTTP code: %d\n", code );
 
-    if (code != HTTP_CODE_OK)
+    if ( code != HTTP_CODE_OK )
         http.end();
     
 
@@ -71,8 +71,6 @@ void getSettings( uint8_t &threshold, uint32_t &duration )
 
     payload.trim();
 
-    //DBGf("[TALKBACK] Command: %s\n", payload.c_str());
- 
    // Expected format: TH=45;DUR=120
     int thPos  = payload.indexOf("TH=");
     int durPos = payload.indexOf("DUR=");
@@ -84,7 +82,8 @@ void getSettings( uint8_t &threshold, uint32_t &duration )
         duration = payload.substring(durPos + 4).toInt();
 
 
-
     DBGf( "[THINGSPEAK] Moisture threshold: %u %%\n", threshold );
     DBGf( "[THINGSPEAK] Water duration: %u sec\n", duration );
+
+    return code == HTTP_CODE_OK ? true : false;
 }

@@ -22,7 +22,7 @@ void setup_Serial()
     
   delay( 1000 );
 
-  DBG( F( "\n=== ESP32 SOIL IRRIGATION SYSTEM ===" ) ); 
+  DBG( F( "\n[STATUS] === ESP32 SOIL IRRIGATION SYSTEM ===" ) ); 
 
 }
 
@@ -50,6 +50,28 @@ void setup_RS485()
 
 
 // ==================================================
+// ================= WIFI ===========================
+// ==================================================
+void connect_WiFi()
+{
+    Serial.print( F( "[WIFI] Connecting" ) );
+
+    WiFi.begin( WIFI_SSID, WIFI_PASS );
+
+    while ( WiFi.status() != WL_CONNECTED )
+    {
+        delay( 500 );
+        Serial.print( "." );
+    }
+
+    Serial.println();
+    DBG( F( "[WIFI] Connected" ) );
+    DBGf( "[WIFI] IP: %s\n", WiFi.localIP().toString().c_str() ) ;
+    DBGf( "[WIFI] RSSI: %d dBm\n", WiFi.RSSI() ) ;
+}
+
+
+// ==================================================
 // ================= NTP ===========================
 // ==================================================
 void setup_NTP()
@@ -64,25 +86,4 @@ void setup_NTP()
 
   DBG( F ( "[NTP] Got good time update from NTP server." ) );
 
-}
-
-
-// ==================================================
-// ================= WIFI ===========================
-// ==================================================
-void connect_WiFi()
-{
-    DBG( F( "[WIFI] Connecting..." ) );
-
-    WiFi.begin( WIFI_SSID, WIFI_PASS );
-
-    while ( WiFi.status() != WL_CONNECTED )
-    {
-        delay( 500 );
-        Serial.print( "." );
-    }
-
-    Serial.println();
-    DBG( F( "[WIFI] Connected" ) );
-    DBGf( "[WIFI] IP: %s\n", WiFi.localIP().toString().c_str() ) ;
 }

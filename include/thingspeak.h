@@ -15,7 +15,7 @@ extern const char* TS_TALKBACK_ID;
 extern const char* TS_TALKBACK_KEY;
 
 
-void sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k );
-void getSettings( uint8_t &threshold, uint32_t &duration );
+bool sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k );
+bool getSettings( uint8_t &threshold, uint32_t &duration );
 
 #endif

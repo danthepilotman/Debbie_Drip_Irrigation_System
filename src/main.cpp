@@ -34,8 +34,7 @@ void loop()
 
     static bool solenoid_closed = true;  // Store solenoid open/close state
 
-    
-    get_new_readings( duration, watering_needed );  // Get readings for soil sensor and send to ThingSpeak. Also get weather forecast
+    while ( get_new_readings( duration, watering_needed ) == false);  // Get readings for soil sensor and send to ThingSpeak. Also get weather forecast
 
     water_soil( watering_needed,  solenoid_closed, duration );  // Water soil if needed for the proper duration
 

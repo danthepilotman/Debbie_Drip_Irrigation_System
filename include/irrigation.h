@@ -2,7 +2,7 @@
 #include "thingspeak.h"
 #include "weather.h"
 
-void get_new_readings( uint32_t &duration, bool &watering_needed );
+bool get_new_readings( uint32_t &duration, bool &watering_needed );
 
 void  water_soil( bool &watering_needed, bool &solenoid_closed, uint32_t duration );
 
