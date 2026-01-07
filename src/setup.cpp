@@ -1,19 +1,30 @@
 #include "setup.h"
 
 
-HardwareSerial rs485( 2 );
-ModbusMaster node;
-
-
+// User interface serial port setup paramters
 const unsigned long SERIAL_BAUD_RATE = 115200;
 
+
+// Create a hardware serial instance for RS485 communication
+const int8_t RS485_TX_PIN = 17;
+const int8_t RS485_RX_PIN = 16;
+
+const unsigned long RS485_BAUD = 4800;
+
+HardwareSerial RS485Serial(2); // Use UART2
+
+
+// Wifi network paramters
 const char* WIFI_SSID = "Bobo";
 const char* WIFI_PASS = "ryrie9219";
 
+
+// NTP paramters
 const char *timeZone = "EST5EDT,M3.2.0,M11.1.0";  // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
 const char *ntpServer_1 = "pool.ntp.org";
 const char *ntpServer_2 = "time.nist.gov";
 const char *ntpServer_3 = "north-america.pool.ntp.org";
+
 
 void setup_Serial()
 {
@@ -40,9 +51,7 @@ void setup_Digital()
 void setup_RS485()
 {
 
-    rs485.begin( 4800, SERIAL_8N1, RS485_RX, RS485_TX );
-
-    node.begin( 1, rs485 ); // slave ID = 1
+    RS485Serial.begin( RS485_BAUD, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN );
 
     DBG( F( "[RS485] Modbus initialized" ) );
 

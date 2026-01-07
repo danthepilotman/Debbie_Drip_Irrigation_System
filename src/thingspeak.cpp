@@ -11,7 +11,7 @@ const char* TS_TALKBACK_KEY = "EJ3TTWSNK2Q6PXSO";
 // ==================================================
 // ================= THINGSPEAK =====================
 // ==================================================
-bool sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k )
+bool sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k, time_t status_time )
 {
 
     if ( isnan( m ) || isnan( t ) || isnan( ph ) )
@@ -29,6 +29,9 @@ bool sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k )
     url += "&field5=" + String( n );
     url += "&field6=" + String( p );
     url += "&field7=" + String( k );
+     
+    // --- Add Status field ---
+    url += "&status=" + String( status_time );  // Use timestamp for status updates
 
     Serial.print( F( "[THINGSPEAK] URL: " ) );
     Serial.println( url );
@@ -47,7 +50,7 @@ bool sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k )
 }
 
 
-bool getSettings( uint8_t &threshold, uint32_t &duration )
+bool getSettings( uint8_t &threshold, uint32_t &duration, bool &rain_expected, bool &watering_needed, time_t status_time_TS )
 {
     DBG( F( "[THINGSPEAK] Reading control settings" ) );
 
@@ -71,9 +74,14 @@ bool getSettings( uint8_t &threshold, uint32_t &duration )
 
     payload.trim();
 
+    //DBGf( "[THINGSPEAK] Talk back: %s\n", payload.c_str() );
+
    // Expected format: TH=45;DUR=120
     int thPos  = payload.indexOf("TH=");
     int durPos = payload.indexOf("DUR=");
+    int rnPos  = payload.indexOf("RAIN=");
+    int wtrPos = payload.indexOf("WATER=");
+    int stsPos = payload.indexOf("STATUS=");
 
     if (thPos >= 0)
         threshold = payload.substring(thPos + 3).toInt();
@@ -81,9 +89,21 @@ bool getSettings( uint8_t &threshold, uint32_t &duration )
     if (durPos >= 0)
         duration = payload.substring(durPos + 4).toInt();
 
+    if (rnPos >= 0)
+        rain_expected = payload.substring(rnPos + 5).toInt();
+
+    if (wtrPos >= 0)
+        watering_needed = payload.substring(wtrPos + 6).toInt();
+
+    if (stsPos >= 0)
+        status_time_TS = payload.substring(stsPos + 7).toInt();
+
 
     DBGf( "[THINGSPEAK] Moisture threshold: %u %%\n", threshold );
     DBGf( "[THINGSPEAK] Water duration: %u sec\n", duration );
+    DBGf( "[THINGSPEAK] Rain expected: %s\n", rain_expected ? "true" : "false" );
+    DBGf( "[THINGSPEAK] Watering needed: %s\n", watering_needed ? "true" : "false" );
+    DBGf( "[THINGSPEAK] Status: %lu\n", status_time_TS );
 
     return code == HTTP_CODE_OK ? true : false;
 }

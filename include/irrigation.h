@@ -1,4 +1,5 @@
 #include "setup.h"
+#include "RS485.h"
 #include "thingspeak.h"
 #include "weather.h"
 

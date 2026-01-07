@@ -4,8 +4,8 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <ModbusMaster.h>
 #include <time.h>
+#include <HardwareSerial.h>
 
 
 // ==================================================
@@ -21,8 +21,12 @@ const unsigned long UPDATE_INTERVAL = 2UL * 60UL * 1000UL; // 10 minutes
 #define UPDATE_INTERVAL 6ULL * 60ULL * 60ULL * 1000000ULL  // 6 hours
 #endif
 
+// Declare RS485Serial as external so other .cpp files can see it
+extern HardwareSerial RS485Serial;
 
 extern const unsigned long SERIAL_BAUD_RATE;
+
+
 
 // ==================================================
 // ================= WIFI SETTINGS ==================
@@ -33,11 +37,10 @@ extern const char* WIFI_PASS;
 // ==================================================
 // ================= HARDWARE =======================
 // ==================================================
-#define RS485_RX   16
-#define RS485_TX   17
+
 #define RELAY_PIN  21
 
-extern ModbusMaster node;
+// extern ModbusMaster node;
 
 // ==================================================
 // ================= DEBUG MACROS ===================
