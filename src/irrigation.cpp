@@ -2,7 +2,7 @@
 
 
 /******************************* Get SOIL sensor readings and update ThingSpeak *********************/   
-bool get_new_readings( uint32_t &duration, bool &watering_needed_ESP32 )
+bool get_new_readings()
 {
 
     bool success = true;  // Assume true to allow for function to return true in cases where watering_needed == true
@@ -70,7 +70,7 @@ bool get_new_readings( uint32_t &duration, bool &watering_needed_ESP32 )
             watering_needed_ESP32 = true;
 
         if ( ( rain_expected_ESP32 == rain_expected_TS ) && ( watering_needed_ESP32 == watering_needed_TS ) && ( status_time_ESP32 == status_time_TS ) )
-            Serial.println( F( "[LOGIC] Local ESP32 and ThingSpeak rain and watering match") );
+            Serial.println( F( "[LOGIC] Local ESP32 & ThingSpeak rain, watering, status match") );
 
         return success;
     
@@ -81,7 +81,7 @@ bool get_new_readings( uint32_t &duration, bool &watering_needed_ESP32 )
 }
 
 
-void  water_soil( bool &watering_needed,  bool &solenoid_closed, uint32_t duration )
+void  water_soil()
 {
 
     static time_t watering_start_time;  // Record timestamp when watering started
@@ -89,11 +89,8 @@ void  water_soil( bool &watering_needed,  bool &solenoid_closed, uint32_t durati
     static time_t lastPrint;  // Remember timestamp of last serial print
 
     /************************ Continue watering if needed ******************************/    
-
-#ifndef DISABLE_RELAY 
-       
-    // -------- Irrigation Logic --------
-    if ( watering_needed )
+     
+    if ( watering_needed_ESP32 )
     {
 
         if( solenoid_closed )
@@ -101,6 +98,10 @@ void  water_soil( bool &watering_needed,  bool &solenoid_closed, uint32_t durati
             DBG( F( "[LOGIC] Watering conditions MET" ) );
   
             digitalWrite( RELAY_PIN, HIGH );  // Open solenoid valve
+
+            solenoid_closed = false;
+
+            solenoid_state_Update();
 
             time( &watering_start_time );  // Record timestamp when watering started
 
@@ -114,10 +115,9 @@ void  water_soil( bool &watering_needed,  bool &solenoid_closed, uint32_t durati
            
             DBGf( "[IRRIGATION] Watering start time: %s\n", buffer );
 
-            solenoid_closed = false;
+            
         }
 
-   
         time_t now = time(nullptr);
 
         if( now - lastPrint >= 1 )
@@ -130,45 +130,44 @@ void  water_soil( bool &watering_needed,  bool &solenoid_closed, uint32_t durati
   
             DBGf( "[IRRIGATION] Watering time remaining: %ld sec\n", watering_time_remaining );
 
-            if( watering_time_remaining == 0 )
+            if( watering_time_remaining == 0 )  // Check if watering cyle has completed
             {
-                watering_needed = false;
+                
+                digitalWrite( RELAY_PIN, LOW );  // Remove power from solenoid to close
+
+                solenoid_closed = true;  // Update solenoid valve state
+
+                watering_needed_ESP32 = false;
+
+                solenoid_state_Update();
+
+                DBG( F( "[LOGIC] Watering NOT required" ) );  // Inform user that watering is not needed
+
             }
     
         }    
 
     }
 
-#endif
-
 }
 
 
-void deep_sleep_function( bool watering_needed,  bool &solenoid_closed )
+void solenoid_state_Update()
 {
 
-/****************************** Stop watering and go to sleep ***********************************/    
+    String url = "http://api.thingspeak.com/update?api_key=";
+            
+    url += TS_WRITE_KEY;
+    url += "&field8=" + String( !solenoid_closed );
+            
+    Serial.print( F( "[THINGSPEAK] URL: " ) );
+    Serial.println( url );
 
-    if ( watering_needed == false )  // Only go to sleep if watering is no longer needed
-    {
-        
-        if ( solenoid_closed == false )  // Check if solenoid is open
-        {
+    HTTPClient http;
+    http.begin( url );   // NOTE: http, not https
+    int code = http.GET();
 
-            digitalWrite( RELAY_PIN, LOW );  // Remove power from solenoid to close
-
-            solenoid_closed = true;  // Update solenoid valve state
-
-            DBG( F( "[LOGIC] Watering NOT required" ) );  // Inform user that watering is not needed
-
-        }
-
-        esp_sleep_enable_timer_wakeup( UPDATE_INTERVAL );  // Initiate CPU sleep cycle
-
-        DBG( F( "[STATUS] ===== Entering Deep Sleep =====" ) );  // Inform user that system is about to go into deep sleep mode
-
-        esp_deep_sleep_start();  // Go into deep sleep
-
-    }
+    Serial.print( F( "[THINGSPEAK] HTTP code: " ) );
+    Serial.println( code );
 
 }

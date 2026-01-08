@@ -50,7 +50,7 @@ bool sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k, 
 }
 
 
-bool getSettings( uint8_t &threshold, uint32_t &duration, bool &rain_expected, bool &watering_needed, time_t status_time_TS )
+bool getSettings( uint8_t &threshold, uint32_t &duration, bool &rain_expected, bool &watering_needed, time_t &status_time_TS )
 {
     DBG( F( "[THINGSPEAK] Reading control settings" ) );
 

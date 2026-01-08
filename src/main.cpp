@@ -2,6 +2,7 @@
 #include "thingspeak.h"
 #include "weather.h"
 #include "irrigation.h"
+#include "sleep_timer.h"
 
 
 // ==================================================
@@ -22,23 +23,24 @@ void setup()
 }
 
 
+uint32_t duration;  // Watering time in seconds
+   
+bool watering_needed_ESP32 = false;  // Watering needed (yes or no)
+
+bool solenoid_closed = true;  // Store solenoid open/close state
+
 // ==================================================
 // ================= LOOP ===========================
 // ==================================================
 void loop()
 {
  
-    static uint32_t duration;  // Watering time in seconds
-   
-    static bool watering_needed = false;  // Watering needed (yes or no)
+    if ( watering_needed_ESP32 == false )  // Don't sleep if watering needed
+        deep_sleep_function();  // Go to sleep until next update cycle
 
-    static bool solenoid_closed = true;  // Store solenoid open/close state
+    if ( solenoid_closed == true )  // Only get new soil readings if not currently watering
+        while ( get_new_readings() == false);  // Get readings for soil sensor and send to ThingSpeak. Also get weather forecast
 
-    while ( get_new_readings( duration, watering_needed ) == false);  // Get readings for soil sensor and send to ThingSpeak. Also get weather forecast
+    water_soil();  // Water soil if needed for the proper duration
 
-    water_soil( watering_needed,  solenoid_closed, duration );  // Water soil if needed for the proper duration
-
-    deep_sleep_function( watering_needed, solenoid_closed );  // Close solenoid valve and go to sleep until next update cycle
-    
- 
 }
