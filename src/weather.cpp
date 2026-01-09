@@ -25,15 +25,15 @@ bool rainExpectedSoon()
 
     DBGf( "[WEATHER] HTTP code: %d\n", code );
 
-    if ( code != 200 )
+    if ( code != 200 )  // Check for errors
     {
         http.end();
         return false;
     }
 
-    JsonDocument doc;
+    JsonDocument doc;  // Create JSON document instance
 
-    DeserializationError err = deserializeJson( doc, http.getString() );
+    DeserializationError err = deserializeJson( doc, http.getString() );  // Process JSON document
 
     http.end();
 
@@ -43,21 +43,21 @@ bool rainExpectedSoon()
         return false;
     }
 
-    int checks = 0;
+    uint8_t checks = 0;
 
-    for ( JsonObject item : doc["list"].as<JsonArray>() )
+    for ( JsonObject item : doc["list"].as<JsonArray>() )  // Loop through the forecast JSON doc
     {
         if ( checks++ > 4 )
             break; // next 12 hours
 
-        String main = item["weather"][0]["main"];
+        String main = item["weather"][0]["main"];  // Retrieve main weather forecast
 
-        DBGf( "[WEATHER] Forecast: %s\n", main.c_str() );
+        DBGf( "[WEATHER] Forecast: %s\n", main.c_str() );  // Print main forecast
 
-        if ( main == "Rain" || main == "Drizzle" || main == "Thunderstorm" )
+        if ( main == "Rain" || main == "Drizzle" || main == "Thunderstorm" )  // Check for "rain" events
             return true;
     }
     
-    return false;
+    return false;  // If you made it past the for loop without finding any precip then no rain is expected
 
 }

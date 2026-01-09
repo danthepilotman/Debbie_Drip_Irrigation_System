@@ -13,10 +13,10 @@ typedef struct
 } ScheduleTime;
 
 static const ScheduleTime SCHEDULE[] = {
-    { 0,  0, 0 },
+    { 0,  0, 0 },  // HH:MM:SS
     { 6,  0, 0 },
     { 12, 0, 0 },
-    { 18, 00, 0 }
+    { 22, 56, 0 }
 };
 
 static const size_t SCHEDULE_COUNT =
@@ -27,7 +27,9 @@ static const size_t SCHEDULE_COUNT =
 #define ONE_SECOND_US          1000000ULL
 
 
-
+// ==================================================
+// ========= Prototype Functions ===========
+// ==================================================
 void printLocalTime(const char *tag);
 void printTargetTime(time_t target);
 time_t nextTargetTime();

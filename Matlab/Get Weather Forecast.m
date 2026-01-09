@@ -2,51 +2,84 @@
 clear; clc;
 
 %% --- Configuration ---
-soilChannelID =  3211645;           % Your soil sensor channel
-soilReadKey = 'IN57T91RJ0C8NPFK';   % Channel read API key
-talkbackID = 56070;                 % TalkBack ID for W/R flags
-writeKey = 'EJ3TTWSNK2Q6PXSO';      % TalkBack write API key
+soilChannelID     = 3211645;           % Your soil sensor channel
+soilReadKey       = 'IN57T91RJ0C8NPFK'; % Channel read API key
+talkbackID        = 56070;              % TalkBack ID for W/R flags
+writeKey          = 'EJ3TTWSNK2Q6PXSO'; % TalkBack write API key
 
 % Existing TalkBack Command IDs
-wateringCommandID = 57124375;        % Command for WATER
-rainCommandID = 57124557;            % Command for RAIN
+rainCommandID     = 57124375;        % Command for RAIN
+wateringCommandID = 57124557;        % Command for WATER
 statusCommandID   = 57127064;        % Command for STATUS
-targetMoistureCommandID = 56711077;  % Command for target soil moisture TH=XX
+
+% Target moisture (fallback)
+targetMoisture = 30;
 
 % OpenWeatherMap settings
-lat = '28.027';
-lon = '-80.631';
+lat           = '28.027';
+lon           = '-80.631';
 weatherAPIKey = '1f237060a56d83d3827815039317d2a9';
 
+% Number of points to read from ThingSpeak
+numPointsToRead = 10;
 
-%% --- 0. Read target moisture from TalkBack ---
-targetMoisture = 30; % default fallback
-
-optionsGET = weboptions('Timeout',10);
+%% --- 0. Read latest soil moisture ---
+optionsTS = weboptions('Timeout',10);
 try
-    targetURL = sprintf('https://api.thingspeak.com/talkbacks/%d/commands/%d.json?api_key=%s', ...
-                        talkbackID, targetMoistureCommandID, writeKey);
-    targetCommand = webread(targetURL, optionsGET);
-    
-    % The command string should be like "TH=30"
-    cmdStr = targetCommand.command_string;
-    
-    % Extract numeric value after '='
-    eqIdx = strfind(cmdStr, '=');
-    if ~isempty(eqIdx)
-        targetMoisture = str2double(cmdStr(eqIdx+1:end));
+    feeds = thingSpeakRead(soilChannelID, ...
+        'NumPoints', numPointsToRead, ...   % last N points
+        'Fields', 1, ...                    % field1 = soil moisture
+        'OutputFormat', 'matrix', ...       % fixed
+        'ReadKey', soilReadKey);
+
+    % Find the most recent entry with valid soil moisture
+    validIdx = find(~isnan(feeds(:,1)), 1, 'last');
+    if isempty(validIdx)
+        error('No valid soil moisture entries found in last %d points.', numPointsToRead);
     end
-    
-    fprintf('Target moisture read from TalkBack: %.1f%%\n', targetMoisture);
+
+    moisture = feeds(validIdx,1);
+    fprintf('[THINGSPEAK] Latest soil moisture: %.1f%% (matrix row=%d)\n', moisture, validIdx);
+
 catch ME
-    disp('[WARN] Failed to read target moisture from TalkBack, using default 30%');
+    warning('[ERROR] Failed to read soil moisture from ThingSpeak:');
     disp(ME.message);
+    moisture = NaN;
+    validIdx = [];
 end
 
+%% --- 1. Read latest status from the same feed entry ---
+if ~isempty(validIdx)
+    try
+        % Read feeds JSON including status
+        statusURL = sprintf('https://api.thingspeak.com/channels/%d/feeds.json?results=%d&status=true&api_key=%s', ...
+                            soilChannelID, numPointsToRead, soilReadKey);
+        rawJSON = webread(statusURL, optionsTS);
+        feedsJSON = rawJSON.feeds; % struct array
 
-%% --- 1. Read latest soil moisture ---
-moisture = thingSpeakRead(soilChannelID,'Fields',1,'NumPoints',1);
-disp(['Latest soil moisture: ', num2str(moisture)]);
+        % Find the feed with the latest valid soil moisture
+        moistureEntries = find(~cellfun(@isempty, {feedsJSON.field1}));
+        if isempty(moistureEntries)
+            channelStatus = 'NO_FEED_STATUS';
+        else
+            lastMoistureFeedIdx = moistureEntries(end);
+            if isfield(feedsJSON(lastMoistureFeedIdx), 'status') && ~isempty(feedsJSON(lastMoistureFeedIdx).status)
+                channelStatus = feedsJSON(lastMoistureFeedIdx).status;
+            else
+                channelStatus = 'NO_FEED_STATUS';
+            end
+        end
+
+        fprintf('[THINGSPEAK] Latest channel status: %s (JSON feed idx=%d)\n', channelStatus, lastMoistureFeedIdx);
+
+    catch ME
+        warning('[ERROR] Failed to read status from ThingSpeak:');
+        disp(ME.message);
+        channelStatus = 'NO_FEED_STATUS';
+    end
+else
+    channelStatus = 'NO_FEED_STATUS';
+end
 
 %% --- 2. Get weather forecast from OpenWeatherMap ---
 url = sprintf('https://api.openweathermap.org/data/2.5/forecast?lat=%s&lon=%s&appid=%s', ...
@@ -68,7 +101,7 @@ rain_expected_soon = false;
 try
     nForecasts = min(5, length(rawJSON.list)); % next ~12 hours
     for i = 1:nForecasts
-        item = rawJSON.list{i};            % unwrap cell
+        item = rawJSON.list{i};
         mainWeather = item.weather(1).main;
         fprintf('Forecast %d: %s\n', i, mainWeather);
         if any(strcmp(mainWeather, {'Rain','Drizzle','Thunderstorm'}))
@@ -79,79 +112,49 @@ try
 catch ME
     disp('[ERROR] JSON parsing failed:');
     disp(ME.message);
-    rain_expected_soon = false; % fallback
+    rain_expected_soon = false;
 end
 
 disp(['rain_expected_soon = ', num2str(rain_expected_soon)]);
 
 %% --- 4. Compute watering_needed ---
 watering_needed = (moisture < targetMoisture) && ~rain_expected_soon;
-disp(['watering_needed = ', num2str(watering_needed)]);
+fprintf('[INFO] watering_needed = %d\n', watering_needed);
 
-%% --- 5. Overwrite existing TalkBack commands via PUT ---
+%% --- 5. Update TalkBack commands ---
+optionsPUT = weboptions('RequestMethod','put','ContentType','json','Timeout',10);
 
-optionsPUT = weboptions('RequestMethod','put', 'ContentType','json', 'Timeout',10);
-
-% Update rain_expected_soon command
-rainPayload = sprintf('RAIN=%d', rain_expected_soon);
-rainURL = sprintf('https://api.thingspeak.com/talkbacks/%d/commands/%d.json', talkbackID, rainCommandID);
-
+% Update RAIN command
 try
+    rainPayload = sprintf('%d', rain_expected_soon);
+    rainURL = sprintf('https://api.thingspeak.com/talkbacks/%d/commands/%d.json', talkbackID, rainCommandID);
     responseRain = webwrite(rainURL, struct('api_key', writeKey, 'command_string', rainPayload), optionsPUT);
-    disp(['Updated rain_expected_soon command: ', rainPayload]);
-    disp(responseRain);
+    fprintf('Updated RAIN command: %s\n', rainPayload);
 catch ME
-    disp('[ERROR] Failed to update rain_expected_soon command:');
+    warning('[ERROR] Failed to update RAIN command:');
     disp(ME.message);
 end
 
-% Update watering_needed command
-wateringPayload = sprintf('WATER=%d', watering_needed);
-wateringURL = sprintf('https://api.thingspeak.com/talkbacks/%d/commands/%d.json', talkbackID, wateringCommandID);
-
+% Update WATER command
 try
-    responseWatering = webwrite(wateringURL, struct('api_key', writeKey, 'command_string', wateringPayload), optionsPUT);
-    disp(['Updated watering_needed command: ', wateringPayload]);
-    disp(responseWatering);
+    wateringPayload = sprintf('%d', watering_needed);
+    wateringURL = sprintf('https://api.thingspeak.com/talkbacks/%d/commands/%d.json', talkbackID, wateringCommandID);
+    responseWater = webwrite(wateringURL, struct('api_key', writeKey, 'command_string', wateringPayload), optionsPUT);
+    fprintf('Updated WATER command: %s\n', wateringPayload);
 catch ME
-    disp('[ERROR] Failed to update watering_needed command:');
+    warning('[ERROR] Failed to update WATER command:');
     disp(ME.message);
 end
 
-% Update status command
+% Update STATUS command
 try
-    statusURLRead = sprintf( ...
-        'https://api.thingspeak.com/channels/%d/status.json?results=1&api_key=%s', ...
-        soilChannelID, soilReadKey);
-
-    statusData = webread(statusURLRead, optionsGET);
-
-    if isfield(statusData, 'feeds') && ~isempty(statusData.feeds)
-        feed = statusData.feeds(1);
-        if isfield(feed, 'status') && ~isempty(feed.status)
-            channelStatus = feed.status;
-        else
-            channelStatus = 'NO_FEED_STATUS';
-        end
-    else
-        channelStatus = 'NO_FEEDS';
-    end
-
-    statusPayload = sprintf('STATUS=%s', channelStatus);
-    statusURL = sprintf('https://api.thingspeak.com/talkbacks/%d/commands/%d.json', ...
-                        talkbackID, statusCommandID);
-
-    responseStatus = webwrite(statusURL, ...
-        struct('api_key', writeKey, 'command_string', statusPayload), optionsPUT);
-
-    disp(['Updated STATUS command: ', statusPayload]);
-    disp(responseStatus);
-
+    statusPayload = sprintf('%s', channelStatus);
+    statusURL = sprintf('https://api.thingspeak.com/talkbacks/%d/commands/%d.json', talkbackID, statusCommandID);
+    responseStatus = webwrite(statusURL, struct('api_key', writeKey, 'command_string', statusPayload), optionsPUT);
+    fprintf('Updated STATUS command: %s\n', statusPayload);
 catch ME
-    disp('[ERROR] Failed to update STATUS command:');
+    warning('[ERROR] Failed to update STATUS command:');
     disp(ME.message);
 end
 
-
-
-disp('MATLAB Analysis script completed successfully.');
+disp('MATLAB ThingSpeak Analysis script completed successfully.');

@@ -3,7 +3,6 @@
 
 
 #include "setup.h"
-#include "ArduinoJson.h"
 
 
 // ==================================================
@@ -13,6 +12,9 @@ extern const char* WEATHER_API_KEY;
 extern const char* LAT;
 extern const char* LON;
 
+// ==================================================
+// ========= Prototype Functions ===========
+// ==================================================
 bool rainExpectedSoon();
 
 #endif

@@ -6,28 +6,21 @@
 #include <HTTPClient.h>
 #include <time.h>
 #include <HardwareSerial.h>
+#include "ArduinoJson.h"
 
+// ==================================================
+// ================= LOGIC DEFINITION ================
+// ==================================================
+#define ON true
+#define OFF false
+
+#define YES true
+#define NO false
 
 // ==================================================
 // ================== BUILD OPTIONS =================
 // ==================================================
 #define DEBUG_ENABLED
-
-// ==================================================
-// ================= WIFI SETTINGS ==================
-// ==================================================
-extern const char* WIFI_SSID;
-extern const char* WIFI_PASS;
-
-// ==================================================
-// ================= HARDWARE =======================
-// ==================================================
-
-const int RELAY_PIN = 21;  // Pin used to drive solenoid valve via MOSFET driver circuit
-
-extern HardwareSerial RS485Serial;  // Declare RS485Serial as external so other .cpp files can see it
-
-extern const unsigned long SERIAL_BAUD_RATE;  // Set UI serial baud rate
 
 // ==================================================
 // ================= DEBUG MACROS ===================
@@ -41,6 +34,22 @@ extern const unsigned long SERIAL_BAUD_RATE;  // Set UI serial baud rate
 #endif
 
 // ==================================================
+// ================= HARDWARE =======================
+// ==================================================
+
+const int RELAY_PIN = 21;  // Pin used to drive solenoid valve via MOSFET driver circuit
+
+extern HardwareSerial RS485Serial;  // Declare RS485Serial as external so other .cpp files can see it
+
+extern const unsigned long SERIAL_BAUD_RATE;  // Set UI serial baud rate
+
+// ==================================================
+// ================= WIFI SETTINGS ==================
+// ==================================================
+extern const char* WIFI_SSID;
+extern const char* WIFI_PASS;
+
+// ==================================================
 // ================= NTP ===================
 // ==================================================
 extern const char *timeZone;  // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
@@ -48,15 +57,15 @@ extern const char *ntpServer_1;
 extern const char *ntpServer_2;
 extern const char *ntpServer_3;
 
-
-
+// ==================================================
+// =============== GLOBAL VARIABLES =================
+// ==================================================
 
 extern uint32_t duration;  // Watering time in seconds
    
 extern bool watering_needed_ESP32;  // Watering needed (yes or no)
 
-extern bool solenoid_closed;  // Store solenoid open/close state
-
+extern bool solenoid_state;  // Store solenoid open/close state
 
 
 // ==================================================

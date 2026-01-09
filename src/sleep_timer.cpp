@@ -106,7 +106,7 @@ void deep_sleep_function()
     if (sleep_seconds < 1)
         sleep_seconds = 1;
 
-    uint64_t sleep_us = (uint64_t)sleep_seconds * ONE_SECOND_US;
+    uint64_t sleep_us = uint64_t(sleep_seconds) * ONE_SECOND_US;
 
     DBGf("[POWER] Sleeping for %.0f seconds (early buffer = %ds)\n",
          sleep_seconds, WAKE_EARLY_BUFFER_SEC);

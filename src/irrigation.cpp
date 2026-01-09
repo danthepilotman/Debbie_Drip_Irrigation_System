@@ -1,5 +1,5 @@
 #include "irrigation.h"
-
+#include "thingspeak.h"
 
 /******************************* Get SOIL sensor readings and update ThingSpeak *********************/   
 bool get_new_readings()
@@ -7,7 +7,7 @@ bool get_new_readings()
 
     bool success = true;  // Assume true to allow for function to return true in cases where watering_needed == true
     
-    if ( watering_needed_ESP32 == false )  // Don't keep getting new readings if watering is not needed
+    if ( watering_needed_ESP32 == NO)  // Don't keep getting new readings if watering is not needed
     {
         DBG( F( "[STATUS] ===== SYSTEM CYCLE START =====" ) );
 
@@ -53,7 +53,7 @@ bool get_new_readings()
 
         bool rain_expected_TS, watering_needed_TS;
 
-        delay( 30000 );
+        delay( 60000 );
         
         time_t status_time_TS;
         
@@ -67,7 +67,7 @@ bool get_new_readings()
         DBGf( "[LOGIC] Rain expected soon: %s\n", rain_expected_ESP32 ? "YES" : "NO" );
 
         if ( moisture < threshold && rain_expected_ESP32 == false )
-            watering_needed_ESP32 = true;
+            watering_needed_ESP32 = YES;
 
         if ( ( rain_expected_ESP32 == rain_expected_TS ) && ( watering_needed_ESP32 == watering_needed_TS ) && ( status_time_ESP32 == status_time_TS ) )
             Serial.println( F( "[LOGIC] Local ESP32 & ThingSpeak rain, watering, status match") );
@@ -90,16 +90,16 @@ void  water_soil()
 
     /************************ Continue watering if needed ******************************/    
      
-    if ( watering_needed_ESP32 )
+    if ( watering_needed_ESP32 == YES )
     {
 
-        if( solenoid_closed )
+        if( solenoid_state == OFF)
         {
             DBG( F( "[LOGIC] Watering conditions MET" ) );
   
             digitalWrite( RELAY_PIN, HIGH );  // Open solenoid valve
 
-            solenoid_closed = false;
+            solenoid_state = ON;
 
             solenoid_state_Update();
 
@@ -135,9 +135,9 @@ void  water_soil()
                 
                 digitalWrite( RELAY_PIN, LOW );  // Remove power from solenoid to close
 
-                solenoid_closed = true;  // Update solenoid valve state
+                solenoid_state = OFF;  // Update solenoid valve state
 
-                watering_needed_ESP32 = false;
+                watering_needed_ESP32 = NO;
 
                 solenoid_state_Update();
 
@@ -148,26 +148,5 @@ void  water_soil()
         }    
 
     }
-
-}
-
-
-void solenoid_state_Update()
-{
-
-    String url = "http://api.thingspeak.com/update?api_key=";
-            
-    url += TS_WRITE_KEY;
-    url += "&field8=" + String( !solenoid_closed );
-            
-    Serial.print( F( "[THINGSPEAK] URL: " ) );
-    Serial.println( url );
-
-    HTTPClient http;
-    http.begin( url );   // NOTE: http, not https
-    int code = http.GET();
-
-    Serial.print( F( "[THINGSPEAK] HTTP code: " ) );
-    Serial.println( code );
 
 }

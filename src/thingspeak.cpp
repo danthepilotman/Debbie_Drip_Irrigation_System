@@ -50,60 +50,138 @@ bool sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k, 
 }
 
 
-bool getSettings( uint8_t &threshold, uint32_t &duration, bool &rain_expected, bool &watering_needed, time_t &status_time_TS )
+bool getSettings(uint8_t &threshold, uint32_t &duration, bool &rain_expected, bool &watering_needed, time_t &status_time_TS)
 {
-    DBG( F( "[THINGSPEAK] Reading control settings" ) );
+    DBG(F("[THINGSPEAK] Reading control settings..."));
 
     HTTPClient http;
 
-     String url = "https://api.thingspeak.com/talkbacks/" +
+    String url = "https://api.thingspeak.com/talkbacks/" +
                  String(TS_TALKBACK_ID) +
                  "/commands.json?api_key=" +
                  String(TS_TALKBACK_KEY);
 
-    http.begin( url );
-    int code = http.GET();
-    DBGf( "[THINGSPEAK] Read HTTP code: %d\n", code );
+    http.begin(url);
 
-    if ( code != HTTP_CODE_OK )
+    int code = http.GET();
+
+    DBGf("[THINGSPEAK] HTTP code: %d\n", code);
+
+    if (code != HTTP_CODE_OK) {
         http.end();
-    
+        return false;
+    }
 
     String payload = http.getString();
+
     http.end();
 
     payload.trim();
 
-    //DBGf( "[THINGSPEAK] Talk back: %s\n", payload.c_str() );
+    // Parse the JSON array from ThingSpeak TalkBack
+   
+    JsonDocument doc;  // Create JSON document instance
 
-   // Expected format: TH=45;DUR=120
-    int thPos  = payload.indexOf("TH=");
-    int durPos = payload.indexOf("DUR=");
-    int rnPos  = payload.indexOf("RAIN=");
-    int wtrPos = payload.indexOf("WATER=");
-    int stsPos = payload.indexOf("STATUS=");
+    DeserializationError error = deserializeJson(doc, payload);
+    if (error)
+    {
+        DBGf("[ERROR] Failed to parse TalkBack JSON: %s\n", error.c_str());
+        return false;
+    }
 
-    if (thPos >= 0)
-        threshold = payload.substring(thPos + 3).toInt();
+    JsonArray arr = doc.as<JsonArray>();
 
-    if (durPos >= 0)
-        duration = payload.substring(durPos + 4).toInt();
+    // Loop through the commands
+    for (JsonObject cmd : arr)
+    {
+        // We rely on the 'position' field to identify the command
+        int position = cmd["position"] | 0;  // fallback to 0 if missing
 
-    if (rnPos >= 0)
-        rain_expected = payload.substring(rnPos + 5).toInt();
+        String cmdStr = cmd["command_string"] | "";
 
-    if (wtrPos >= 0)
-        watering_needed = payload.substring(wtrPos + 6).toInt();
+        switch (position)
+        {
+            case 1:  // target soil moisture
+                threshold = cmdStr.toInt();
+                break;
+            case 2:  // watering duration
+                duration = cmdStr.toInt();
+                break;
+            case 3:  // rain expected
+                rain_expected = cmdStr.toInt() != 0;
+                break;
+            case 4:  // watering needed
+                watering_needed = cmdStr.toInt() != 0;
+                break;
+            case 5:  // status (string)
+                status_time_TS = cmdStr.toInt();
+                break;
+            default:
+                break;
+        }
+    }
 
-    if (stsPos >= 0)
-        status_time_TS = payload.substring(stsPos + 7).toInt();
+    DBGf("[THINGSPEAK] Moisture threshold: %ld %%\n", threshold);
+    DBGf("[THINGSPEAK] Water duration: %ld sec\n", duration);
+    DBGf("[THINGSPEAK] Rain expected: %s\n", rain_expected ? "true" : "false");
+    DBGf("[THINGSPEAK] Watering needed: %s\n", watering_needed ? "true" : "false");
+    DBGf("[THINGSPEAK] Channel status: %ld\n", status_time_TS);
+
+    return true;
+}
 
 
-    DBGf( "[THINGSPEAK] Moisture threshold: %u %%\n", threshold );
-    DBGf( "[THINGSPEAK] Water duration: %u sec\n", duration );
-    DBGf( "[THINGSPEAK] Rain expected: %s\n", rain_expected ? "true" : "false" );
-    DBGf( "[THINGSPEAK] Watering needed: %s\n", watering_needed ? "true" : "false" );
-    DBGf( "[THINGSPEAK] Status: %lu\n", status_time_TS );
 
-    return code == HTTP_CODE_OK ? true : false;
+// String urlEncode(const String &s)
+// {
+//     String encoded = "";
+//     char c;
+//     char buf[4];
+
+//     for (int i = 0; i < s.length(); i++) {
+//         c = s.charAt(i);
+//         if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+//             encoded += c;
+//         } else {
+//             sprintf(buf, "%%%02X", (unsigned char)c);
+//             encoded += buf;
+//         }
+//     }
+//     return encoded;
+// }
+
+
+void solenoid_state_Update()
+{
+    time_t now;
+    time(&now);
+
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+
+    char timeStr[25];
+    strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
+
+    String url = "http://api.thingspeak.com/update?api_key=";
+    url += TS_WRITE_KEY;
+    url += "&field8=" + String(solenoid_state);
+
+    // String statusMsg =
+    //     "Watering " +
+    //     String(solenoid_state ? "started" : "stopped") +
+    //     " at " +
+    //     String(timeStr);
+
+    // url += "&status=" + urlEncode(statusMsg);
+
+    DBGf("[IRRIGATION] Solenoid is now %s", solenoid_state ? "ON" : "OFF");
+    Serial.println("[THINGSPEAK] URL:");
+    Serial.println(url);
+
+    HTTPClient http;
+    http.begin(url);
+    int code = http.GET();
+
+    Serial.print("[THINGSPEAK] HTTP code: ");
+    Serial.println(code);
 }
