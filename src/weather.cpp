@@ -15,8 +15,8 @@ bool rainExpectedSoon()
 
     HTTPClient http;
 
-    String url = "https://api.openweathermap.org/data/2.5/forecast?lat=" +
-                 String(LAT) + "&lon=" + String(LON) +
+    String url = "https://api.openweathermap.org/data/3.0/onecall?lat=" +
+                 String(LAT) + "&lon=" + String(LON) + "&exclude=current,daily,minutely,alerts" +
                  "&appid=" + WEATHER_API_KEY;
 
     http.begin( url );
@@ -45,17 +45,22 @@ bool rainExpectedSoon()
 
     uint8_t checks = 0;
 
-    for ( JsonObject item : doc["list"].as<JsonArray>() )  // Loop through the forecast JSON doc
+    for ( JsonObject item : doc["hourly"].as<JsonArray>() )  // Loop through the forecast JSON doc
     {
-        if ( checks++ > 4 )
-            break; // next 12 hours
+        if ( checks++ > 5 )  // next 6 hours since forecast are hourly
+            break; 
 
         String main = item["weather"][0]["main"];  // Retrieve main weather forecast
 
-        DBGf( "[WEATHER] Forecast: %s\n", main.c_str() );  // Print main forecast
+        String pop = item["weather"]["pop"];  // Retrieve probability of precipitation
 
-        if ( main == "Rain" || main == "Drizzle" || main == "Thunderstorm" )  // Check for "rain" events
+        float precip_prob = pop.toFloat();  // Convert to floating point number
+       
+        DBGf( "[WEATHER] Forecast: %s\tPop: %.2f\n", main.c_str(),  precip_prob );  // Print main forecast
+
+        if ( ( main == "Rain" || main == "Drizzle" || main == "Thunderstorm" ) && precip_prob > rain_prob_min )  // Check for "rain" events
             return true;
+        
     }
     
     return false;  // If you made it past the for loop without finding any precip then no rain is expected

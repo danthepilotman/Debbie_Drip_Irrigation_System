@@ -12,6 +12,9 @@ extern const char* WEATHER_API_KEY;
 extern const char* LAT;
 extern const char* LON;
 
+const float rain_prob_min = 0.40;  // Minimum precipitation probability to determine rain expected
+
+
 // ==================================================
 // ========= Prototype Functions ===========
 // ==================================================

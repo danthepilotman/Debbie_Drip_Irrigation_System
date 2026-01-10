@@ -8,13 +8,29 @@ const char* TS_TALKBACK_ID = "56070";
 const char* TS_TALKBACK_KEY = "EJ3TTWSNK2Q6PXSO";
 
 
+String iso8601_Timestamp()
+{
+    struct tm timeinfo;
+
+    if (!getLocalTime(&timeinfo)) 
+        return "1970-01-01T00:00:00Z";  // fallback
+    
+
+    char buf[25];
+
+    strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
+
+    return String(buf);
+}
+
+
 // ==================================================
 // ================= THINGSPEAK =====================
 // ==================================================
-bool sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k, time_t status_time )
+bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
 {
 
-    if ( isnan( m ) || isnan( t ) || isnan( ph ) )
+    if ( isnan( t ) || isnan( ec )|| isnan( ph ) )
     {
         Serial.println( F( "[THINGSPEAK][ERROR] NaN value detected, aborting upload" ) );
         return false;
@@ -22,7 +38,7 @@ bool sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k, 
 
     String url = "http://api.thingspeak.com/update?api_key=";
     url += TS_WRITE_KEY;
-    url += "&field1=" + String( m, 1);
+    url += "&field1=" + String( moisture, 1);
     url += "&field2=" + String( ( 1.8 * t + 32.0 ), 1 );
     url += "&field3=" + String( int( ec ) );
     url += "&field4=" + String( ph, 1 );
@@ -31,7 +47,7 @@ bool sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k, 
     url += "&field7=" + String( k );
      
     // --- Add Status field ---
-    url += "&status=" + String( status_time );  // Use timestamp for status updates
+    url += "&status=" + String("Update%20sent%20at%20") + iso8601_Timestamp();  // Use timestamp for status updates
 
     Serial.print( F( "[THINGSPEAK] URL: " ) );
     Serial.println( url );
@@ -50,16 +66,13 @@ bool sendThingSpeak( float m, float t, float ec, float ph, int n, int p, int k, 
 }
 
 
-bool getSettings(uint8_t &threshold, uint32_t &duration, bool &rain_expected, bool &watering_needed, time_t &status_time_TS)
+bool getSettings()
 {
     DBG(F("[THINGSPEAK] Reading control settings..."));
 
     HTTPClient http;
 
-    String url = "https://api.thingspeak.com/talkbacks/" +
-                 String(TS_TALKBACK_ID) +
-                 "/commands.json?api_key=" +
-                 String(TS_TALKBACK_KEY);
+    String url = "https://api.thingspeak.com/talkbacks/" + String(TS_TALKBACK_ID) + "/commands.json?api_key=" + TS_TALKBACK_KEY;
 
     http.begin(url);
 
@@ -97,7 +110,7 @@ bool getSettings(uint8_t &threshold, uint32_t &duration, bool &rain_expected, bo
         // We rely on the 'position' field to identify the command
         int position = cmd["position"] | 0;  // fallback to 0 if missing
 
-        String cmdStr = cmd["command_string"] | "";
+        String cmdStr = cmd["command_string"] | "";  // fallback to empty string if missing
 
         switch (position)
         {
@@ -108,13 +121,10 @@ bool getSettings(uint8_t &threshold, uint32_t &duration, bool &rain_expected, bo
                 duration = cmdStr.toInt();
                 break;
             case 3:  // rain expected
-                rain_expected = cmdStr.toInt() != 0;
+                rain_expected_TS = cmdStr.toInt() != 0; // Any non-zero value → true
                 break;
             case 4:  // watering needed
-                watering_needed = cmdStr.toInt() != 0;
-                break;
-            case 5:  // status (string)
-                status_time_TS = cmdStr.toInt();
+                watering_needed_TS = cmdStr.toInt() != 0;  // Any non-zero value → true
                 break;
             default:
                 break;
@@ -123,32 +133,11 @@ bool getSettings(uint8_t &threshold, uint32_t &duration, bool &rain_expected, bo
 
     DBGf("[THINGSPEAK] Moisture threshold: %ld %%\n", threshold);
     DBGf("[THINGSPEAK] Water duration: %ld sec\n", duration);
-    DBGf("[THINGSPEAK] Rain expected: %s\n", rain_expected ? "true" : "false");
-    DBGf("[THINGSPEAK] Watering needed: %s\n", watering_needed ? "true" : "false");
-    DBGf("[THINGSPEAK] Channel status: %ld\n", status_time_TS);
-
+    DBGf("[THINGSPEAK] Rain expected: %s\n", rain_expected_TS ? "true" : "false");
+    DBGf("[THINGSPEAK] Watering needed: %s\n", watering_needed_TS ? "true" : "false");
+ 
     return true;
 }
-
-
-
-// String urlEncode(const String &s)
-// {
-//     String encoded = "";
-//     char c;
-//     char buf[4];
-
-//     for (int i = 0; i < s.length(); i++) {
-//         c = s.charAt(i);
-//         if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
-//             encoded += c;
-//         } else {
-//             sprintf(buf, "%%%02X", (unsigned char)c);
-//             encoded += buf;
-//         }
-//     }
-//     return encoded;
-// }
 
 
 void solenoid_state_Update()
@@ -184,4 +173,79 @@ void solenoid_state_Update()
 
     Serial.print("[THINGSPEAK] HTTP code: ");
     Serial.println(code);
+}
+
+
+/******************************* Get SOIL sensor readings and update ThingSpeak *********************/   
+bool get_new_readings()
+{
+
+    bool success = false;  // Assume false
+
+    uint8_t num_of_attemps = 0;
+    
+    if ( watering_needed_ESP32 == NO )  // Don't keep getting new readings if watering is not needed
+    {
+        DBG( F( "[STATUS] ===== SYSTEM CYCLE START =====" ) );
+
+        // -------- Read Soil Sensor --------
+        DBG( F( "[RS485] Reading soil sensor" ) );
+
+        uint16_t values[7]; // Store 7 register values
+
+        RS485_STATUS status;
+
+        for(num_of_attemps = 0; num_of_attemps < 5; num_of_attemps++)
+        {
+            status = read_Registers( RS485Serial, 0x01, 0x0000, 5, values );
+
+            if (status == RS485_GOOD)
+                break;
+        }
+
+        if ( status != RS485_GOOD )
+        {
+            success = false;
+            DBG(  F( "[RS485][ERROR] Modbus error" ) );
+        }
+        
+    
+
+        uint16_t rawMoisture = values[ SOIL_MOISTURE ];
+        uint16_t rawTemp     = values[ SOIL_TEMPERATURE ];
+        uint16_t rawEC       = values[ SOIL_EC];
+        uint16_t rawPH       = values[ SOIL_PH ];
+        uint16_t rawN        = values[ SOIL_N ];
+        uint16_t rawP        = values[ SOIL_P ];
+        uint16_t rawK        = values[ SOIL_K ];
+
+        moisture = float(rawMoisture) / 10.0;
+        float temp     = float( int16_t( rawTemp ) ) / 10.0;
+        float ec       = float(rawEC);
+        float ph       = float(rawPH) / 10.0;
+
+        DBGf( "[DATA] Moisture: %.1f %%\n", moisture );
+        DBGf( "[DATA] Temp: %.1f °C\n", temp );
+        DBGf( "[DATA] EC: %.0f µS/cm\n", ec );
+        DBGf( "[DATA] pH: %.1f\n", ph );
+        DBGf( "[DATA] NPK: %u / %u / %u mg/kg\n", rawN, rawP, rawK );
+
+        // -------- ThingSpeak Upload --------
+
+        success = ( status ==  RS485_GOOD ) && sendThingSpeak( temp, ec, ph, rawN, rawP, rawK );
+
+        // -------- Read Control Settings --------
+
+        float threshold;  // Water content by volume percentage minimum threshold to trigger watering cycle
+
+        delay( 60000 );  // Replace with last update timestamp check
+        
+        success = success && getSettings();
+
+        return success;
+    
+    }
+
+    else
+        return success;
 }

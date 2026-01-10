@@ -7,5 +7,6 @@
 // ==================================================
 // ========= Prototype Functions ===========
 // ==================================================
-bool get_new_readings();
-void  water_soil();
+void water_soil();
+void compute_watering_parameters();
+void solenoid_control();

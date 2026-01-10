@@ -16,7 +16,7 @@ static const ScheduleTime SCHEDULE[] = {
     { 0,  0, 0 },  // HH:MM:SS
     { 6,  0, 0 },
     { 12, 0, 0 },
-    { 22, 56, 0 }
+    { 18, 0, 0 }
 };
 
 static const size_t SCHEDULE_COUNT =

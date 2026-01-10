@@ -54,8 +54,8 @@ extern const char* WIFI_PASS;
 // ==================================================
 extern const char *timeZone;  // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
 extern const char *ntpServer_1;
-extern const char *ntpServer_2;
-extern const char *ntpServer_3;
+// extern const char *ntpServer_2;
+// extern const char *ntpServer_3;
 
 // ==================================================
 // =============== GLOBAL VARIABLES =================
@@ -66,6 +66,14 @@ extern uint32_t duration;  // Watering time in seconds
 extern bool watering_needed_ESP32;  // Watering needed (yes or no)
 
 extern bool solenoid_state;  // Store solenoid open/close state
+
+extern float moisture;
+
+extern float threshold;
+
+extern bool rain_expected_TS;
+
+extern bool watering_needed_TS;
 
 
 // ==================================================

@@ -1,0 +1,6 @@
+https://api.openweathermap.org/data/2.5/forecast?lat=28.027&lon=-80.631&appid=1f237060a56d83d3827815039317d2a9
+https://api.openweathermap.org/data/3.0/onecall?lat=28.03&lon=-80.63&exclude=current,daily,minutely,alerts&appid=1f237060a56d83d3827815039317d2a9
+https://api.thingspeak.com/talkbacks/56070/commands.json?api_key=EJ3TTWSNK2Q6PXSO
+https://api.thingspeak.com/channels/3211645/fields/1/last_data_age.text
+https://api.thingspeak.com/channels/3211645/feeds/last_data_age.text
+https://api.thingspeak.com/talkbacks/56070/commands/execute.json?api_key=EJ3TTWSNK2Q6PXSO

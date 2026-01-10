@@ -22,8 +22,8 @@ const char* WIFI_PASS = "ryrie9219";
 // NTP paramters
 const char *timeZone = "EST5EDT,M3.2.0,M11.1.0";  // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
 const char *ntpServer_1 = "pool.ntp.org";
-const char *ntpServer_2 = "time.nist.gov";
-const char *ntpServer_3 = "north-america.pool.ntp.org";
+// const char *ntpServer_2 = "time.nist.gov";
+// const char *ntpServer_3 = "north-america.pool.ntp.org";
 
 
 void setup_Serial()
@@ -88,11 +88,11 @@ void setup_NTP()
 
   struct tm timeinfo;
 
-  configTzTime( timeZone, ntpServer_1, ntpServer_2, ntpServer_3 );
+  configTzTime( timeZone, ntpServer_1 /*, ntpServer_2, ntpServer_3 */ );
 
   while( getLocalTime( &timeinfo ) == false )
-    DBG( F ( "[NTP] Failed to obtain time from NTP server." ) );
+    DBG( F ( "[NTP] Failed to obtain time from NTP server" ) );
 
-  DBG( F ( "[NTP] Got good time update from NTP server." ) );
+  DBG( F ( "[NTP] Got good time update from NTP server" ) );
 
 }

@@ -85,8 +85,9 @@ void deep_sleep_function()
 
         while (true)
         {
-            now = time(nullptr);
-            double remaining = difftime(target, now);
+            now = time(nullptr);  // Compute now time
+            
+            double remaining = difftime(target, now); // Compute time remaining
 
             if (remaining <= 0)
                 break;
