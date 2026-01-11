@@ -16,7 +16,7 @@ void compute_watering_parameters()
         watering_needed_ESP32 = YES;
 
     if ( ( rain_expected_ESP32 == rain_expected_TS ) && ( watering_needed_ESP32 == watering_needed_TS ) )  // Check if ESP and TS are in agreement
-            Serial.println( F( "[LOGIC] Local ESP32 & ThingSpeak rain, watering") );   
+            Serial.println( F( "[LOGIC] Local ESP32 & ThingSpeak rain expected and watering needed agree") );   
 
 }
 

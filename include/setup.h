@@ -6,7 +6,8 @@
 #include <HTTPClient.h>
 #include <time.h>
 #include <HardwareSerial.h>
-#include "ArduinoJson.h"
+#include <ArduinoJson.h>
+#include <Preferences.h>
 
 // ==================================================
 // ================= LOGIC DEFINITION ================
@@ -54,8 +55,8 @@ extern const char* WIFI_PASS;
 // ==================================================
 extern const char *timeZone;  // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
 extern const char *ntpServer_1;
-// extern const char *ntpServer_2;
-// extern const char *ntpServer_3;
+extern const char *ntpServer_2;
+extern const char *ntpServer_3;
 
 // ==================================================
 // =============== GLOBAL VARIABLES =================
@@ -75,6 +76,8 @@ extern bool rain_expected_TS;
 
 extern bool watering_needed_TS;
 
+extern Preferences prefs;
+
 
 // ==================================================
 // ========= Prototype Functions ===========
@@ -84,5 +87,6 @@ void setup_Digital();
 void setup_RS485();
 void connect_WiFi();
 void setup_NTP();
+void setup_Storage();
 
 #endif

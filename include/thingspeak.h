@@ -6,6 +6,10 @@
 #include "RS485.h"
 
 
+constexpr uint8_t MAX_TRIES = 5;
+constexpr uint8_t TB_DELAY = 10;  // Time to wait for ThingSpeak to process TalkBack
+constexpr uint8_t TB_MAX_DELAY = 10;  // Maximum time between when TB was updated and present time
+
 // ==================================================
 // ================= THINGSPEAK =====================
 // ==================================================
@@ -19,12 +23,14 @@ extern const char* TS_TALKBACK_KEY;
 // ==================================================
 // ========= Prototype Functions ===========
 // ==================================================
-String iso8601_Timestamp();
 bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k );
 bool getSettings();
-String urlEncode(const String &s);
-void solenoid_state_Update();
 bool get_new_readings();
+String urlEncode(const String &input);
+String Timestamp();
+void solenoid_state_Update();
+long secondsSincePosition1(JsonArray arr);
+time_t iso8601ToEpochUsingGmtime(const char* ts);
 
 
 #endif

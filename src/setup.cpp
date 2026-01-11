@@ -1,7 +1,7 @@
 #include "setup.h"
 
 
-// User interface serial port setup paramters
+// User interface serial port setup parameters
 const unsigned long SERIAL_BAUD_RATE = 115200;
 
 
@@ -14,16 +14,19 @@ const unsigned long RS485_BAUD = 4800;
 HardwareSerial RS485Serial(2); // Use UART2
 
 
-// Wifi network paramters
+// Wifi network parameters
 const char* WIFI_SSID = "Bobo";
 const char* WIFI_PASS = "ryrie9219";
 
 
-// NTP paramters
+// NTP parameters
 const char *timeZone = "EST5EDT,M3.2.0,M11.1.0";  // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
 const char *ntpServer_1 = "pool.ntp.org";
-// const char *ntpServer_2 = "time.nist.gov";
-// const char *ntpServer_3 = "north-america.pool.ntp.org";
+const char *ntpServer_2 = "time.nist.gov";
+const char *ntpServer_3 = "north-america.pool.ntp.org";
+
+
+Preferences prefs;
 
 
 void setup_Serial()
@@ -88,11 +91,24 @@ void setup_NTP()
 
   struct tm timeinfo;
 
-  configTzTime( timeZone, ntpServer_1 /*, ntpServer_2, ntpServer_3 */ );
+  configTzTime( timeZone, ntpServer_1, ntpServer_2, ntpServer_3 );
 
   while( getLocalTime( &timeinfo ) == false )
     DBG( F ( "[NTP] Failed to obtain time from NTP server" ) );
 
   DBG( F ( "[NTP] Got good time update from NTP server" ) );
+
+}
+
+
+void setup_Storage()
+{
+
+
+  prefs.begin( "TalkBack", false ); // false = read/write privileges
+
+  threshold = prefs.getFloat( "threshold", 0.0 );
+
+  duration = prefs.getInt( "duration", 0 );
 
 }
