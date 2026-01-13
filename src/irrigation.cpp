@@ -4,13 +4,12 @@
 void compute_watering_parameters()
 {
 
-    static bool rain_expected_ESP32;  // Remember last rain expected determination
+    bool rain_expected_ESP32;  // Remember last rain expected determination
     
     // -------- Weather Check --------
-    if( solenoid_state == OFF);  // Don't recheck rain if we're still watering
-        rain_expected_ESP32 = rainExpectedSoon();  
+    rain_expected_ESP32 = rainExpectedSoon();  
 
-    DBGf( "[LOGIC] Rain expected soon: %s\n", rain_expected_ESP32 ? "YES" : "NO" );  // Report rain expectation
+    DBGf( "[LOGIC] Rain expected soon: %s", rain_expected_ESP32 ? "YES\n" : "NO\n" );  // Report rain expectation
 
     if ( moisture < threshold && rain_expected_ESP32 == false )  // Determine if watering is needed
         watering_needed_ESP32 = YES;
@@ -38,39 +37,54 @@ void  water_soil()
 
     static time_t last_Print;  // Remember timestamp of last serial print
  
-    compute_watering_parameters();  // Compute watering parameters
+    //DBGf("[LOFIC]Solenoid state: %s \t Watering needed: %s", solenoid_state ? "ON" : "OFF", watering_needed_ESP32 ? "YES\n" : "NO\n" );
+    
+    if( solenoid_state == OFF )  // Don't recheck watering parameters if we're still watering
+        compute_watering_parameters();  // Compute watering parameters
     
     if ( watering_needed_ESP32 == YES )
     {
         /*********************** Compute watering time remaining ****************************/
-        time_t now = time(nullptr);
+        
+        time_t now = time(nullptr);  // Get the time right now
 
-        uint32_t elapsed_sec = uint32_t(now - watering_start_time);
+        time_t elapsed_sec;
+        
+        if( solenoid_state == OFF)
+            elapsed_sec = 0;
+        else
+            elapsed_sec = now - watering_start_time;
 
-        uint32_t watering_time_remaining = duration - elapsed_sec;
+        time_t watering_time_remaining = duration - elapsed_sec;
   
-        if( now - last_Print > 1)
+        if( ( now - last_Print ) == 1)
         {
             DBGf( "[IRRIGATION] Watering time remaining: %ld sec\n", watering_time_remaining );
 
             last_Print = now;
         }
 
+        /*********************** Duration exceeded ****************************/
+        
         if( watering_time_remaining == 0 )  // Check if watering cycle has completed
         {
                 
+            watering_needed_ESP32 = NO;  // Update watering needed 
+            
             solenoid_state = OFF;  // Update solenoid valve state
 
-            solenoid_control();
+            solenoid_control();  // Control solenoid valve and report status to ThingSpeak
              
-            DBG( F( "[LOGIC] Watering NOT required" ) );  // Inform user that watering is not needed
-
         }
+         
+        /*********************** Start watering cycle ****************************/
+        
         else if( solenoid_state == OFF )
         {
-            solenoid_state = ON;  // Open solenoid
+            
+            solenoid_state = ON;  // Set variable value
 
-            solenoid_control();
+            solenoid_control();  // Control solenoid valve and report status to ThingSpeak
 
             watering_start_time = time(nullptr);  // Record watering start time
 
@@ -78,11 +92,13 @@ void  water_soil()
       
     }
     
+    /*********************** Stop watering cycle ****************************/
+    
     else if( solenoid_state == ON )
     {
         
-        solenoid_state = OFF;
-        solenoid_control();
+        solenoid_state = OFF;  // Set variable value
+        solenoid_control();  // Control solenoid valve and report status to ThingSpeak
 
     }
 

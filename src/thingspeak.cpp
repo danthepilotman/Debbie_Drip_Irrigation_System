@@ -247,8 +247,7 @@ bool get_new_readings()
 
         // -------- Read Control Settings --------
 
-        delay( TB_DELAY * 1000UL );
-
+        delay( TB_DELAY * 1000UL );  // Wait for ThingSpeak REACT to trigger and run TalkBack updates
         success = success && getSettings();
 
         return success;
@@ -311,9 +310,8 @@ void solenoid_state_Update()
     url+= "&status=" + urlEncode( String("Watering ") + String(solenoid_state ? "started" : "stopped") + " at " + Timestamp() );
 
  
-    DBGf("[IRRIGATION] Solenoid is now %s", solenoid_state ? "ON" : "OFF");
-    Serial.println("[THINGSPEAK] URL:");
-    Serial.println(url);
+    DBGf("[IRRIGATION] Solenoid is now %s", solenoid_state ? "ON\n" : "OFF\n");
+    Serial.printf("[THINGSPEAK] URL: %s\n", url.c_str() );
 
     HTTPClient http;
     http.begin(url);

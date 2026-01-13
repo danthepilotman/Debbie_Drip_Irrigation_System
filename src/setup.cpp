@@ -91,10 +91,15 @@ void setup_NTP()
 
   struct tm timeinfo;
 
+  uint8_t tries = 0;
+
   configTzTime( timeZone, ntpServer_1, ntpServer_2, ntpServer_3 );
 
-  while( getLocalTime( &timeinfo ) == false )
+  while( getLocalTime( &timeinfo ) == false && tries < 5 )
+  {
     DBG( F ( "[NTP] Failed to obtain time from NTP server" ) );
+    tries++;
+  }
 
   DBG( F ( "[NTP] Got good time update from NTP server" ) );
 

@@ -58,6 +58,4 @@ void loop()
                    // Sets watering_needed to OFF if watering not needed.
                    // This then causes deep sleep during the next loop() cycle
 
-    delay(60000);
-
 }
