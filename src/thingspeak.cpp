@@ -288,17 +288,15 @@ String urlEncode(const String &input)
 
 String Timestamp()
 {
-    
     struct tm timeinfo;
+    getLocalTime(&timeinfo);
 
-    getLocalTime(&timeinfo);      
-
-    char buf[25];
-
-    strftime(buf, sizeof(buf), "%m-%d-%Y %H:%M:%S", &timeinfo);
+    char buf[40];
+    strftime(buf, sizeof(buf), "%a %b %d, %Y %I:%M %p", &timeinfo);
 
     return String(buf);
 }
+
 
 
 void solenoid_state_Update()

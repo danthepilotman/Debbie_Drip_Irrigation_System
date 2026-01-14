@@ -37,8 +37,7 @@ void  water_soil()
 
     static time_t last_Print;  // Remember timestamp of last serial print
  
-    //DBGf("[LOFIC]Solenoid state: %s \t Watering needed: %s", solenoid_state ? "ON" : "OFF", watering_needed_ESP32 ? "YES\n" : "NO\n" );
-    
+
     if( solenoid_state == OFF )  // Don't recheck watering parameters if we're still watering
         compute_watering_parameters();  // Compute watering parameters
     
@@ -57,7 +56,7 @@ void  water_soil()
 
         time_t watering_time_remaining = duration - elapsed_sec;
   
-        if( ( now - last_Print ) == 1)
+        if(  now - last_Print  >= 1)
         {
             DBGf( "[IRRIGATION] Watering time remaining: %ld sec\n", watering_time_remaining );
 
