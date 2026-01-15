@@ -46,7 +46,7 @@ bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
 
         http.end();
 
-        Serial.printf( "[THINGSPEAK] HTTP code(update): %d\n", update_code );
+        Serial.printf( "[THINGSPEAK] HTTP code(update): %d\r\n", update_code );
  
         delay(2000);  // Allow some time for ThingSpeak server to process data 
     
@@ -64,13 +64,13 @@ bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
 
         http.end();
 
-        Serial.printf( "[THINGSPEAK] HTTP code(timecheck): %d\n", time_check_code );
+        Serial.printf( "[THINGSPEAK] HTTP code(timecheck): %d\r\n", time_check_code );
 
         payload.trim();  // remove whitespace/newlines
 
         int age = payload.toInt();
 
-        Serial.printf( "[THINGSPEAK] Age: %d\n", age );
+        Serial.printf( "[THINGSPEAK] Age: %d\r\n", age );
       
 
         if ( update_code == HTTP_CODE_OK && time_check_code == HTTP_CODE_OK && age < 10 ) 
@@ -100,7 +100,7 @@ bool getSettings()
 
         int code = http.GET();
 
-        DBGf("[THINGSPEAK] HTTP TB code: %d\n", code);
+        DBGf("[THINGSPEAK] HTTP TB code: %d\r\n", code);
 
         if (code != HTTP_CODE_OK) {
             http.end();
@@ -124,7 +124,7 @@ bool getSettings()
     DeserializationError error = deserializeJson(doc, payload);
     if (error)
     {
-        DBGf("[ERROR] Failed to parse TalkBack JSON: %s\n", error.c_str());
+        DBGf("[ERROR] Failed to parse TalkBack JSON: %s\r\n", error.c_str());
         return false;
     }
 
@@ -133,7 +133,7 @@ bool getSettings()
  
     long ageSeconds = secondsSincePosition1(arr);
 
-    DBGf("[DEBUG] Seconds since TB timestamp: %ld\n", ageSeconds);
+    DBGf("[DEBUG] Seconds since TB timestamp: %ld\r\n", ageSeconds);
 
     if ( ageSeconds - TB_DELAY > TB_MAX_DELAY )
         return false;
@@ -150,7 +150,7 @@ bool getSettings()
         {
             case 1:  // target soil moisture
                 threshold = cmdStr.toFloat();
-                //DBGf("[DEBUG]Threshold: %ld\n", threshold);
+                //DBGf("[DEBUG]Threshold: %ld\r\n", threshold);
                 break;
             case 2:  // watering duration
                 duration = cmdStr.toInt();
@@ -168,10 +168,10 @@ bool getSettings()
 
      /***************** Print TalkBack data ****************/
     
-    DBGf("[THINGSPEAK] Moisture threshold: %.1f %%\n", threshold);
-    DBGf("[THINGSPEAK] Water duration: %ld sec\n", duration);
-    DBGf("[THINGSPEAK] Rain expected: %s\n", rain_expected_TS ? "true" : "false");
-    DBGf("[THINGSPEAK] Watering needed: %s\n", watering_needed_TS ? "true" : "false");
+    DBGf("[THINGSPEAK] Moisture threshold: %.1f %%\r\n", threshold);
+    DBGf("[THINGSPEAK] Water duration: %ld sec\r\n", duration);
+    DBGf("[THINGSPEAK] Rain expected: %s\r\n", rain_expected_TS ? "true" : "false");
+    DBGf("[THINGSPEAK] Watering needed: %s\r\n", watering_needed_TS ? "true" : "false");
 
 
     /***************** Store user parameters if changed from previously store ones ****************/
@@ -235,11 +235,11 @@ bool get_new_readings()
         float ec       = float(rawEC);
         float ph       = float(rawPH) / 10.0;
 
-        DBGf( "[DATA] Moisture: %.1f %%\n", moisture );
-        DBGf( "[DATA] Temp: %.1f °C\n", temp );
-        DBGf( "[DATA] EC: %.0f µS/cm\n", ec );
-        DBGf( "[DATA] pH: %.1f\n", ph );
-        DBGf( "[DATA] NPK: %u / %u / %u mg/kg\n", rawN, rawP, rawK );
+        DBGf( "[DATA] Moisture: %.1f %%\r\n", moisture );
+        DBGf( "[DATA] Temp: %.1f °C\r\n", temp );
+        DBGf( "[DATA] EC: %.0f µS/cm\r\n", ec );
+        DBGf( "[DATA] pH: %.1f\r\n", ph );
+        DBGf( "[DATA] NPK: %u / %u / %u mg/kg\r\n", rawN, rawP, rawK );
 
         // -------- ThingSpeak Upload --------
 
@@ -248,6 +248,7 @@ bool get_new_readings()
         // -------- Read Control Settings --------
 
         delay( TB_DELAY * 1000UL );  // Wait for ThingSpeak REACT to trigger and run TalkBack updates
+        
         success = success && getSettings();
 
         return success;
@@ -289,12 +290,15 @@ String urlEncode(const String &input)
 String Timestamp()
 {
     struct tm timeinfo;
+
+    char buf[32];
+
     getLocalTime(&timeinfo);
 
-    char buf[40];
-    strftime(buf, sizeof(buf), "%a %b %d, %Y %I:%M %p", &timeinfo);
+    strftime(buf, sizeof(buf), "%a, %b %d, %Y %I:%M:%S %p", &timeinfo);
 
     return String(buf);
+
 }
 
 
@@ -308,8 +312,8 @@ void solenoid_state_Update()
     url+= "&status=" + urlEncode( String("Watering ") + String(solenoid_state ? "started" : "stopped") + " at " + Timestamp() );
 
  
-    DBGf("[IRRIGATION] Solenoid is now %s", solenoid_state ? "ON\n" : "OFF\n");
-    Serial.printf("[THINGSPEAK] URL: %s\n", url.c_str() );
+    DBGf("[IRRIGATION] Solenoid is now %s", solenoid_state ? "ON\r\n" : "OFF\r\n");
+    Serial.printf("[THINGSPEAK] URL: %s\r\n", url.c_str() );
 
     HTTPClient http;
     http.begin(url);
@@ -349,12 +353,12 @@ time_t iso8601ToEpochUsingGmtime(const char* ts)
     time_t locEpoch = mktime(&loc);
     long offset = locEpoch - gmtEpoch;  // should be 18,000 = 5 * 3600
 
-    DBGf("Offset: %ld\n",  offset);
+    // DBGf("Offset: %ld\r\n",  offset);
 
     // Parse as local, then remove offset to get UTC
     time_t assumedLocal = mktime(&utc);  // timestamp in epoch 
 
-    DBGf("Assumed local: %ld\n",  assumedLocal - offset);
+    // DBGf("Assumed local: %ld\r\n",  assumedLocal - offset);
     return assumedLocal + offset;
 }
 
@@ -373,19 +377,21 @@ long secondsSincePosition1(JsonArray arr)
         }
     }
 
-    if (!ts) return -1;
+    if (!ts) 
+        return -1;
 
     time_t created = iso8601ToEpochUsingGmtime(ts);
 
-    DBGf("Created time: %ld\n",  created);
+    DBGf("[THINGSPEAK] TB created time: %ld\r\n",  created);
     
-    if (created < 0) return -2;
+    if (created < 0) 
+        return -2;
 
     time_t now = time(nullptr);
 
     long diff = now - created;
 
-    DBGf("Return val: %ld\n",  diff);
+    DBGf("[THINGSPEAK] Time diff: %ld\r\n",  diff);
 
     return (long)(now - created);
 }

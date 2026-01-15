@@ -9,7 +9,7 @@ void compute_watering_parameters()
     // -------- Weather Check --------
     rain_expected_ESP32 = rainExpectedSoon();  
 
-    DBGf( "[LOGIC] Rain expected soon: %s", rain_expected_ESP32 ? "YES\n" : "NO\n" );  // Report rain expectation
+    DBGf( "[LOGIC] Rain expected soon: %s", rain_expected_ESP32 ? "YES\r\n" : "NO\r\n" );  // Report rain expectation
 
     if ( moisture < threshold && rain_expected_ESP32 == false )  // Determine if watering is needed
         watering_needed_ESP32 = YES;
@@ -58,7 +58,7 @@ void  water_soil()
   
         if(  now - last_Print  >= 1)
         {
-            DBGf( "[IRRIGATION] Watering time remaining: %ld sec\n", watering_time_remaining );
+            DBGf( "[IRRIGATION] Watering time remaining: %ld sec\r\n", watering_time_remaining );
 
             last_Print = now;
         }

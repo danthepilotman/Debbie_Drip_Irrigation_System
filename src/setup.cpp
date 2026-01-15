@@ -78,8 +78,8 @@ void connect_WiFi()
 
     Serial.println();
     DBG( F( "[WIFI] Connected" ) );
-    DBGf( "[WIFI] IP: %s\n", WiFi.localIP().toString().c_str() ) ;
-    DBGf( "[WIFI] RSSI: %d dBm\n", WiFi.RSSI() ) ;
+    DBGf( "[WIFI] IP: %s\r\n", WiFi.localIP().toString().c_str() ) ;
+    DBGf( "[WIFI] RSSI: %d dBm\r\n", WiFi.RSSI() ) ;
 }
 
 

@@ -23,7 +23,7 @@ bool rainExpectedSoon()
 
     int code = http.GET();
 
-    DBGf( "[WEATHER] HTTP code: %d\n", code );
+    DBGf( "[WEATHER] HTTP code: %d\r\n", code );
 
     if ( code != 200 )  // Check for errors
     {
@@ -56,7 +56,7 @@ bool rainExpectedSoon()
 
         float precip_prob = pop.toFloat();  // Convert to floating point number
        
-        DBGf( "[WEATHER] Forecast: %s\tPop: %.2f\n", main.c_str(),  precip_prob );  // Print main forecast
+        DBGf( "[WEATHER] Forecast: %s\tPop: %.2f\r\n", main.c_str(),  precip_prob );  // Print main forecast
 
         if ( ( main == "Rain" || main == "Drizzle" || main == "Thunderstorm" ) && precip_prob > rain_prob_min )  // Check for "rain" events
             return true;

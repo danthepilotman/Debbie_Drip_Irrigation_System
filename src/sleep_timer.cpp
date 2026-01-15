@@ -12,7 +12,7 @@ void printLocalTime(const char *tag)
     char buf[32];
     strftime(buf, sizeof(buf), "%m-%d-%Y %H:%M:%S", &timeinfo);
 
-    DBGf("[%s] Local time: %s\n", tag, buf);
+    DBGf("[%s] Local time: %s\r\n", tag, buf);
 }
 
 
@@ -24,7 +24,7 @@ void printTargetTime(time_t target)
     char buf[32];
     strftime(buf, sizeof(buf), "%m-%d-%Y %H:%M:%S", &tm_target);
 
-    DBGf("[TIME] Next target time: %s\n", buf);
+    DBGf("[TIME] Next target time: %s\r\n", buf);
 }
 
 
@@ -75,12 +75,12 @@ void deep_sleep_function()
 
     double seconds_to_target = difftime(target, now);
 
-    DBGf("[TIME] Seconds to target: %.0f\n", seconds_to_target);
+    DBGf("[TIME] Seconds to target: %.0f\r\n", seconds_to_target);
 
     // Case 1: Inside active window → stay awake
     if (seconds_to_target <= ACTIVE_WINDOW_SEC)
     {
-        DBGf("[POWER] Inside active window (%ds) — staying awake\n",
+        DBGf("[POWER] Inside active window (%ds) — staying awake\r\n",
              ACTIVE_WINDOW_SEC);
 
         while (true)
@@ -92,7 +92,7 @@ void deep_sleep_function()
             if (remaining <= 0)
                 break;
 
-            DBGf("[WAIT] %.0f seconds remaining\n", remaining);
+            DBGf("[WAIT] %.0f seconds remaining\r\n", remaining);
             delay(500);
         }
 
@@ -109,7 +109,7 @@ void deep_sleep_function()
 
     uint64_t sleep_us = uint64_t(sleep_seconds) * ONE_SECOND_US;
 
-    DBGf("[POWER] Sleeping for %.0f seconds (early buffer = %ds)\n",
+    DBGf("[POWER] Sleeping for %.0f seconds (early buffer = %ds)\r\n",
          sleep_seconds, WAKE_EARLY_BUFFER_SEC);
 
     esp_sleep_enable_timer_wakeup(sleep_us);
