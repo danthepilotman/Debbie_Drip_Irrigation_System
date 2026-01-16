@@ -3748,7 +3748,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "LED_THT:LED_D3.0mm_Horizontal_O1.27mm_Z2.0mm"
+		(property "Footprint" "LED_THT:LED_D3.0mm"
 			(at 201.93 127 90)
 			(effects
 				(font
@@ -4667,7 +4667,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "LED_THT:LED_D3.0mm_Horizontal_O1.27mm_Z2.0mm"
+		(property "Footprint" "LED_THT:LED_D3.0mm"
 			(at 146.05 173.99 90)
 			(effects
 				(font
@@ -6019,7 +6019,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "LED_THT:LED_D3.0mm_Horizontal_O1.27mm_Z2.0mm"
+		(property "Footprint" "LED_THT:LED_D3.0mm"
 			(at 120.65 173.99 90)
 			(effects
 				(font
