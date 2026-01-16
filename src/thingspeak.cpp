@@ -93,7 +93,7 @@ bool getSettings()
     String url = "https://api.thingspeak.com/talkbacks/" + String(TS_TALKBACK_ID) + "/commands.json?api_key=" + TS_TALKBACK_KEY;
 
     
-    for(uint8_t tries = 0; tries < MAX_TRIES; tries++)
+    for(uint8_t tries = 0; tries < MAX_TRIES; ++tries )
     {
     
         http.begin(url);
@@ -102,17 +102,15 @@ bool getSettings()
 
         DBGf("[THINGSPEAK] HTTP TB code: %d\r\n", code);
 
-        if (code != HTTP_CODE_OK) {
-            http.end();
-            return false;
-        }
-
         payload = http.getString();
 
         http.end();
 
-         if(code == HTTP_CODE_OK)
-             break;
+        if(code == HTTP_CODE_OK)
+            break;
+
+        if (tries == 4)
+            return false;
     }
 
     payload.trim();
@@ -195,68 +193,68 @@ bool get_new_readings()
 
     uint8_t num_of_attemps = 0;
     
-    if ( watering_needed_ESP32 == NO )  // Don't keep getting new readings if watering is not needed
+ 
+    DBG( F( "[STATUS] ===== SYSTEM CYCLE START =====" ) );
+
+    // -------- Read Soil Sensor --------
+    DBG( F( "[RS485] Reading soil sensor" ) );
+
+    uint16_t values[7]; // Store 7 register values
+
+    RS485_STATUS status;
+
+    for(num_of_attemps = 0; num_of_attemps < 5; num_of_attemps++)
     {
-        DBG( F( "[STATUS] ===== SYSTEM CYCLE START =====" ) );
+        status = read_Registers( RS485Serial, 0x01, 0x0000, 5, values );
 
-        // -------- Read Soil Sensor --------
-        DBG( F( "[RS485] Reading soil sensor" ) );
+        if (status == RS485_GOOD)
+            break;
+    }
 
-        uint16_t values[7]; // Store 7 register values
-
-        RS485_STATUS status;
-
-        for(num_of_attemps = 0; num_of_attemps < 5; num_of_attemps++)
-        {
-            status = read_Registers( RS485Serial, 0x01, 0x0000, 5, values );
-
-            if (status == RS485_GOOD)
-                break;
-        }
-
-        if ( status != RS485_GOOD )
-        {
-            success = false;
-            DBG(  F( "[RS485][ERROR] Modbus error" ) );
-        }
+    if ( status != RS485_GOOD )
+    {
+        success = false;
+        DBG(  F( "[RS485][ERROR] Modbus error" ) );
+    }
         
     
+    uint16_t rawMoisture = values[ SOIL_MOISTURE ];
+    uint16_t rawTemp     = values[ SOIL_TEMPERATURE ];
+    uint16_t rawEC       = values[ SOIL_EC];
+    uint16_t rawPH       = values[ SOIL_PH ];
+    uint16_t rawN        = values[ SOIL_N ];
+    uint16_t rawP        = values[ SOIL_P ];
+    uint16_t rawK        = values[ SOIL_K ];
 
-        uint16_t rawMoisture = values[ SOIL_MOISTURE ];
-        uint16_t rawTemp     = values[ SOIL_TEMPERATURE ];
-        uint16_t rawEC       = values[ SOIL_EC];
-        uint16_t rawPH       = values[ SOIL_PH ];
-        uint16_t rawN        = values[ SOIL_N ];
-        uint16_t rawP        = values[ SOIL_P ];
-        uint16_t rawK        = values[ SOIL_K ];
+    moisture = float(rawMoisture) / 10.0;
+    float temp     = float( int16_t( rawTemp ) ) / 10.0;
+    float ec       = float(rawEC);
+    float ph       = float(rawPH) / 10.0;
 
-        moisture = float(rawMoisture) / 10.0;
-        float temp     = float( int16_t( rawTemp ) ) / 10.0;
-        float ec       = float(rawEC);
-        float ph       = float(rawPH) / 10.0;
+    DBGf( "[DATA] Moisture: %.1f %%\r\n", moisture );
+    DBGf( "[DATA] Temp: %.1f °C\r\n", temp );
+    DBGf( "[DATA] EC: %.0f µS/cm\r\n", ec );
+    DBGf( "[DATA] pH: %.1f\r\n", ph );
+    DBGf( "[DATA] NPK: %u / %u / %u mg/kg\r\n", rawN, rawP, rawK );
 
-        DBGf( "[DATA] Moisture: %.1f %%\r\n", moisture );
-        DBGf( "[DATA] Temp: %.1f °C\r\n", temp );
-        DBGf( "[DATA] EC: %.0f µS/cm\r\n", ec );
-        DBGf( "[DATA] pH: %.1f\r\n", ph );
-        DBGf( "[DATA] NPK: %u / %u / %u mg/kg\r\n", rawN, rawP, rawK );
+    // -------- ThingSpeak Upload --------
 
-        // -------- ThingSpeak Upload --------
-
-        success = ( status ==  RS485_GOOD ) && sendThingSpeak( temp, ec, ph, rawN, rawP, rawK );
+    success = ( status ==  RS485_GOOD );
+        
+    if( wifi_connectivity)
+    {
+        success = success && sendThingSpeak( temp, ec, ph, rawN, rawP, rawK );
 
         // -------- Read Control Settings --------
 
         delay( TB_DELAY * 1000UL );  // Wait for ThingSpeak REACT to trigger and run TalkBack updates
-        
+            
         success = success && getSettings();
 
-        return success;
-    
     }
 
-    else
-        return success;
+    return success;
+    
 }
 
 

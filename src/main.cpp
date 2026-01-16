@@ -40,6 +40,8 @@ void setup()
 
     bool watering_needed_TS;  // Set in getSettings()  used in compute_watering_parameters()
 
+    bool wifi_connectivity = false;
+
 // ==================================================
 // ================= LOOP ===========================
 // ==================================================

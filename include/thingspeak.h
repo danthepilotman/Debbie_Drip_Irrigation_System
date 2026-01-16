@@ -7,8 +7,8 @@
 
 
 constexpr uint8_t MAX_TRIES = 5;
-constexpr int16_t TB_DELAY = 30;  // Time to wait for ThingSpeak to process TalkBack
-constexpr int16_t TB_MAX_DELAY = 30;  // Maximum time between when TB was updated and present time
+constexpr int16_t TB_DELAY = 180;  // Time to wait for ThingSpeak to process TalkBack
+constexpr int16_t TB_MAX_DELAY = 180;  // Maximum time between when TB was updated and present time
 
 // ==================================================
 // ================= THINGSPEAK =====================

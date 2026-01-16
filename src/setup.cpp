@@ -66,16 +66,32 @@ void setup_RS485()
 // ==================================================
 void connect_WiFi()
 {
+    
+    uint8_t timeout = 0;
+
     Serial.print( F( "[WIFI] Connecting" ) );
 
     WiFi.begin( WIFI_SSID, WIFI_PASS );
 
-    while ( WiFi.status() != WL_CONNECTED )
+    while ( WiFi.status() != WL_CONNECTED && timeout < 120 )
     {
         delay( 500 );
         Serial.print( "." );
+        timeout++;
     }
 
+ 
+    if ( WiFi.status() == WL_CONNECTED )
+      wifi_connectivity = true;
+    
+      else
+    {
+      wifi_connectivity = false;
+      DBG( F( "[WIFI] Unable to connect to WiFi" ) );
+      return;
+    }
+
+    
     Serial.println();
     DBG( F( "[WIFI] Connected" ) );
     DBGf( "[WIFI] IP: %s\r\n", WiFi.localIP().toString().c_str() ) ;
@@ -101,7 +117,12 @@ void setup_NTP()
     tries++;
   }
 
-  DBG( F ( "[NTP] Got good time update from NTP server" ) );
+  
+  if (getLocalTime( &timeinfo ) == false )
+    return;
+    
+  else
+    DBG( F ( "[NTP] Got good time update from NTP server" ) );
 
 }
 

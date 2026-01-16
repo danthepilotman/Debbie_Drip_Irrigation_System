@@ -4,10 +4,12 @@
 void compute_watering_parameters()
 {
 
-    bool rain_expected_ESP32;  // Remember last rain expected determination
+    bool rain_expected_ESP32 = false;  // Remember last rain expected determination
     
     // -------- Weather Check --------
-    rain_expected_ESP32 = rainExpectedSoon();  
+    if ( wifi_connectivity == true)
+        rain_expected_ESP32 = rainExpectedSoon();
+      
 
     DBGf( "[LOGIC] Rain expected soon: %s", rain_expected_ESP32 ? "YES\r\n" : "NO\r\n" );  // Report rain expectation
 
@@ -25,7 +27,9 @@ void solenoid_control()
 
     digitalWrite( RELAY_PIN, solenoid_state );  // Set power to solenoid based on solenoid_state
 
-    solenoid_state_Update();  // Update TS with watering start/stop events
+    
+    if ( wifi_connectivity == true )
+        solenoid_state_Update();  // Update TS with watering start/stop events
 
 }
 

@@ -50,6 +50,8 @@ extern const unsigned long SERIAL_BAUD_RATE;  // Set UI serial baud rate
 extern const char* WIFI_SSID;
 extern const char* WIFI_PASS;
 
+extern bool wifi_connectivity;
+
 // ==================================================
 // ================= NTP ===================
 // ==================================================
