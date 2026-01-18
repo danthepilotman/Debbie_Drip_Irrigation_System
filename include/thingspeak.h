@@ -31,6 +31,7 @@ String Timestamp();
 void solenoid_state_Update();
 long secondsSincePosition1(JsonArray arr);
 time_t iso8601ToEpochUsingGmtime(const char* ts);
+void update_Schedule ( String cmdStr, uint8_t position );
 
 
 #endif

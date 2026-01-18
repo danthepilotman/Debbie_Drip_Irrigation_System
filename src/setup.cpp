@@ -15,8 +15,16 @@ HardwareSerial RS485Serial(2); // Use UART2
 
 
 // Wifi network parameters
+#ifdef DEBBIE_HOUSE
+
+const char* WIFI_SSID = "SpectrumSetup-5B";
+const char* WIFI_PASS = "cosmicmajor724";
+
+#else
 const char* WIFI_SSID = "Bobo";
 const char* WIFI_PASS = "ryrie9219";
+
+#endif
 
 
 // NTP parameters
@@ -44,9 +52,9 @@ void setup_Serial()
 void setup_Digital()
 {
 
- pinMode( RELAY_PIN, OUTPUT );
- 
- digitalWrite( RELAY_PIN, LOW );
+  pinMode( RELAY_PIN, OUTPUT );
+
+  digitalWrite( RELAY_PIN, LOW );
 
 }
 
@@ -80,7 +88,6 @@ void connect_WiFi()
         timeout++;
     }
 
- 
     if ( WiFi.status() == WL_CONNECTED )
       wifi_connectivity = true;
     

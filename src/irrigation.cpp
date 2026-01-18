@@ -9,7 +9,7 @@ void compute_watering_parameters()
     // -------- Weather Check --------
     if ( wifi_connectivity == true)
         rain_expected_ESP32 = rainExpectedSoon();
-      
+
 
     DBGf( "[LOGIC] Rain expected soon: %s", rain_expected_ESP32 ? "YES\r\n" : "NO\r\n" );  // Report rain expectation
 
@@ -17,7 +17,7 @@ void compute_watering_parameters()
         watering_needed_ESP32 = YES;
 
     if ( ( rain_expected_ESP32 == rain_expected_TS ) && ( watering_needed_ESP32 == watering_needed_TS ) )  // Check if ESP and TS are in agreement
-            Serial.println( F( "[LOGIC] Local ESP32 & ThingSpeak rain expected and watering needed agree") );   
+            Serial.println( F( "[LOGIC] Local ESP32 & ThingSpeak rain expected and watering needed agree") );
 
 }
 
@@ -40,7 +40,6 @@ void  water_soil()
     static time_t watering_start_time;  // Record timestamp when watering started
 
     static time_t last_Print;  // Remember timestamp of last serial print
- 
 
     if( solenoid_state == OFF )  // Don't recheck watering parameters if we're still watering
         compute_watering_parameters();  // Compute watering parameters
@@ -59,7 +58,7 @@ void  water_soil()
             elapsed_sec = now - watering_start_time;
 
         time_t watering_time_remaining = duration - elapsed_sec;
-  
+
         if(  now - last_Print  >= 1)
         {
             DBGf( "[IRRIGATION] Watering time remaining: %ld sec\r\n", watering_time_remaining );
@@ -77,9 +76,9 @@ void  water_soil()
             solenoid_state = OFF;  // Update solenoid valve state
 
             solenoid_control();  // Control solenoid valve and report status to ThingSpeak
-             
+        
         }
-         
+        
         /*********************** Start watering cycle ****************************/
         
         else if( solenoid_state == OFF )
@@ -92,7 +91,7 @@ void  water_soil()
             watering_start_time = time(nullptr);  // Record watering start time
 
         }
-      
+    
     }
     
     /*********************** Stop watering cycle ****************************/

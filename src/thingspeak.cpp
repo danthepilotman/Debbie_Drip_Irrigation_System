@@ -1,5 +1,5 @@
 #include "thingspeak.h"
-
+#include "sleep_timer.h"
 
 const char* TS_CHANNEL   = "3211645";
 const char* TS_WRITE_KEY = "60SYG2RIJ0TW4D32";
@@ -14,6 +14,8 @@ const char* TS_TALKBACK_KEY = "EJ3TTWSNK2Q6PXSO";
 bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
 {
 
+    HTTPClient http;
+    
     if ( isnan( t ) || isnan( ec )|| isnan( ph ) )
     {
         Serial.println( F( "[THINGSPEAK][ERROR] NaN value detected, aborting upload" ) );
@@ -29,14 +31,11 @@ bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
     update_url += "&field5=" + String( n );
     update_url += "&field6=" + String( p );
     update_url += "&field7=" + String( k );
-     
-    // --- Add Status field ---
     update_url += "&status=" + urlEncode( String("Update sent at ") + Timestamp() );  // Use timestamp for status updates
 
     Serial.print( F( "[THINGSPEAK] URL: " ) );
     Serial.println( update_url );
 
-    HTTPClient http;
 
     for( uint8_t tries = 0; tries < MAX_TRIES; tries++ )
     {
@@ -47,15 +46,15 @@ bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
         http.end();
 
         Serial.printf( "[THINGSPEAK] HTTP code(update): %d\r\n", update_code );
- 
-        delay(2000);  // Allow some time for ThingSpeak server to process data 
+
+        delay(2000);  // Allow some time for ThingSpeak server to process data
     
     // -------- Check latest ThingSpeak Upload Time --------
 
         String time_check_url = "https://api.thingspeak.com/channels/";
             time_check_url += TS_CHANNEL;
             time_check_url += "/fields/1/last_data_age.txt";  // Latest soil data upload should have field 1 populated
-     
+    
         http.begin( time_check_url );
             
         int time_check_code = http.GET();
@@ -71,14 +70,24 @@ bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
         int age = payload.toInt();
 
         Serial.printf( "[THINGSPEAK] Age: %d\r\n", age );
-      
+    
 
-        if ( update_code == HTTP_CODE_OK && time_check_code == HTTP_CODE_OK && age < 10 ) 
-            return true;
+        if ( update_code == HTTP_CODE_OK && time_check_code == HTTP_CODE_OK && age < 10 )
+            Serial.println( "[THINGSPEAK] Upload successful" );
     }
 
+    String rssi_url = "http://api.thingspeak.com/update?api_key=VJQGRESCP5X57UVG&field1=" + String( WiFi.RSSI() );
+
+    http.begin( rssi_url );
+        
+    int update_code_RSSI = http.GET();
+
+    http.end();
+
+    Serial.printf( "[THINGSPEAK] HTTP code(RSSI upload): %d\r\n", update_code_RSSI );
+    
     return false;
-  
+
 }
 
 
@@ -128,14 +137,14 @@ bool getSettings()
 
     JsonArray arr = doc.as<JsonArray>();
 
- 
+
     long ageSeconds = secondsSincePosition1(arr);
 
     DBGf("[DEBUG] Seconds since TB timestamp: %ld\r\n", ageSeconds);
 
     if ( ageSeconds - TB_DELAY > TB_MAX_DELAY )
         return false;
-  
+
        // Loop through the commands
     for (JsonObject cmd : arr)
     {
@@ -159,6 +168,18 @@ bool getSettings()
             case 4:  // watering needed
                 watering_needed_TS = cmdStr.toInt() != 0;  // Any non-zero value → true
                 break;
+             case 5:  // update schedule
+                update_Schedule ( cmdStr, position );
+                break;
+            case 6:  // update schedule
+                update_Schedule ( cmdStr, position );
+                break;
+            case 7:  // update schedule
+                update_Schedule ( cmdStr, position );
+                break;
+            case 8:  // update schedule
+                update_Schedule ( cmdStr, position );
+                break;
             default:
                 break;
         }
@@ -179,13 +200,13 @@ bool getSettings()
     
     if ( duration != prefs.getInt( "duration" ,0 ) )
         prefs.putInt( "duration", duration );
- 
+
     return true;
 }
 
 
 
-/******************************* Get SOIL sensor readings and update ThingSpeak *********************/   
+/******************************* Get SOIL sensor readings and update ThingSpeak *********************/
 bool get_new_readings()
 {
 
@@ -193,15 +214,17 @@ bool get_new_readings()
 
     uint8_t num_of_attemps = 0;
     
- 
+
     DBG( F( "[STATUS] ===== SYSTEM CYCLE START =====" ) );
 
-    // -------- Read Soil Sensor --------
-    DBG( F( "[RS485] Reading soil sensor" ) );
-
-    uint16_t values[7]; // Store 7 register values
+    uint16_t values[7] = {227,203,100,70,50,40,30}; // Store 7 register values
 
     RS485_STATUS status;
+
+    // -------- Read Soil Sensor --------
+#ifndef NO_SOIL_SENSOR
+
+    DBG( F( "[RS485] Reading soil sensor" ) );
 
     for(num_of_attemps = 0; num_of_attemps < 5; num_of_attemps++)
     {
@@ -217,7 +240,7 @@ bool get_new_readings()
         DBG(  F( "[RS485][ERROR] Modbus error" ) );
     }
         
-    
+#endif
     uint16_t rawMoisture = values[ SOIL_MOISTURE ];
     uint16_t rawTemp     = values[ SOIL_TEMPERATURE ];
     uint16_t rawEC       = values[ SOIL_EC];
@@ -303,13 +326,13 @@ String Timestamp()
 
 void solenoid_state_Update()
 {
- 
+
     String url = "http://api.thingspeak.com/update?api_key=";
     url += TS_WRITE_KEY;
     url += "&field8=" + String(solenoid_state);
     url+= "&status=" + urlEncode( String("Watering ") + String(solenoid_state ? "started" : "stopped") + " at " + Timestamp() );
 
- 
+
     DBGf("[IRRIGATION] Solenoid is now %s", solenoid_state ? "ON\r\n" : "OFF\r\n");
     Serial.printf("[THINGSPEAK] URL: %s\r\n", url.c_str() );
 
@@ -338,7 +361,7 @@ time_t iso8601ToEpochUsingGmtime(const char* ts)
     utc.tm_sec  = s;
     utc.tm_isdst = 0;
 
- 
+
     // Get current UTC offset
     time_t now = time(nullptr);
     struct tm gmt;
@@ -375,14 +398,14 @@ long secondsSincePosition1(JsonArray arr)
         }
     }
 
-    if (!ts) 
+    if (!ts)
         return -1;
 
     time_t created = iso8601ToEpochUsingGmtime(ts);
 
     DBGf("[THINGSPEAK] TB created time: %ld\r\n",  created);
     
-    if (created < 0) 
+    if (created < 0)
         return -2;
 
     time_t now = time(nullptr);
@@ -392,4 +415,22 @@ long secondsSincePosition1(JsonArray arr)
     DBGf("[THINGSPEAK] Time diff: %ld\r\n",  diff);
 
     return (long)(now - created);
+}
+
+
+void update_Schedule ( String cmdStr, uint8_t position )
+{
+    DBGf( "[SCHEDULE] Updating schedule from TalkBack: %s\r\n", cmdStr.c_str() );  // Expected format: "HH:MM:SS,HH:MM:SS,HH:MM:SS,..."
+
+    int hours, minutes, seconds;
+
+    const char* timeStr = cmdStr.c_str();
+
+    if (sscanf(timeStr, "%d:%d:%d", &hours, &minutes, &seconds) == 3)
+    {
+        SCHEDULE[position - 5].hour = hours;
+        SCHEDULE[position - 5].min = minutes;
+        SCHEDULE[position - 5].sec = seconds;
+    }
+
 }

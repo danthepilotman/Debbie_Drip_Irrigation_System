@@ -12,7 +12,7 @@ typedef struct
     int sec;
 } ScheduleTime;
 
-static const ScheduleTime SCHEDULE[] = {
+static ScheduleTime SCHEDULE[] = {
     { 0,  0, 0 },  // HH:MM:SS
     { 6,  0, 0 },
     { 12, 0, 0 },

@@ -15,7 +15,11 @@ void setup()
 
     setup_Digital();  // Setup GPIO to drive solenoid valve
 
+#ifndef NO_SOIL_SENSOR
+
     setup_RS485();  // Setup RS-485 communication bus for soil sensor
+    
+#endif
 
     connect_WiFi();  // Connect to Wifi network
 
@@ -56,7 +60,7 @@ void loop()
     if ( solenoid_state == OFF )  // Only get new soil readings if not currently watering. This avoids constant updates while watering
        get_new_readings();  // Get readings for soil sensor and send to ThingSpeak. Also get weather forecast
 
-    water_soil();  // Water soil if needed for the proper duration. 
+    water_soil();  // Water soil if needed for the proper duration.
                    // Sets watering_needed to OFF if watering not needed.
                    // This then causes deep sleep during the next loop() cycle
 

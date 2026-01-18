@@ -22,6 +22,9 @@
 // ================== BUILD OPTIONS =================
 // ==================================================
 #define DEBUG_ENABLED
+#define DEBBIE_HOUSE
+#define NO_SOIL_SENSOR
+
 
 // ==================================================
 // ================= DEBUG MACROS ===================
@@ -65,7 +68,7 @@ extern const char *ntpServer_3;
 // ==================================================
 
 extern uint32_t duration;  // Watering time in seconds
-   
+
 extern bool watering_needed_ESP32;  // Watering needed (yes or no)
 
 extern bool solenoid_state;  // Store solenoid open/close state
