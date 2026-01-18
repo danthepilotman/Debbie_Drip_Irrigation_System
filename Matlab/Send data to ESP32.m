@@ -36,6 +36,10 @@ end
 % Positions 1 and 2 are configuration parameters
 moistureThreshold = str2double(cmds(1).command_string);
 wateringDuration  = str2double(cmds(2).command_string);
+wakeup_time_0  = cmds(5).command_string;
+wakeup_time_1  = cmds(6).command_string;
+wakeup_time_2  = cmds(7).command_string;
+wakeup_time_3  = cmds(8).command_string;
 
 fprintf('[TALKBACK] moisture threshold = %g\n', moistureThreshold);
 fprintf('[TALKBACK] watering duration  = %g\n', wateringDuration);
@@ -84,7 +88,7 @@ try
     nForecasts = min(5, length(rawJSON.hourly)); % next ~6 hours
 
     for i = 1:nForecasts
-        item = rawJSON.hourly{i};
+        item = rawJSON.hourly(i);
         mainWeather = item.weather(1).main;
 
         % Probability of precipitation (0.0–1.0)
@@ -146,6 +150,27 @@ webwrite(createURL, struct( ...
 webwrite(createURL, struct( ...
     'api_key', writeKey, ...
     'command_string', num2str(watering_needed)), optionsPUT);
+
+% 5) wakeup_time_0
+webwrite(createURL, struct( ...
+    'api_key', writeKey, ...
+    'command_string', wakeup_time_0), optionsPUT);
+
+% 6) wakeup_time_1
+webwrite(createURL, struct( ...
+    'api_key', writeKey, ...
+    'command_string', wakeup_time_1), optionsPUT);
+
+% 7) wakeup_time_2
+webwrite(createURL, struct( ...
+    'api_key', writeKey, ...
+    'command_string', wakeup_time_2), optionsPUT);
+
+% 8) wakeup_time_3
+webwrite(createURL, struct( ...
+    'api_key', writeKey, ...
+    'command_string', wakeup_time_3), optionsPUT);
+
 
 disp('[TALKBACK] Commands recreated in correct order');
 
