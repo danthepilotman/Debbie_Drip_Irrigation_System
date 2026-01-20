@@ -1,10 +1,11 @@
 #include "thingspeak.h"
-#include "sleep_timer.h"
+
+
 
 const char* TS_CHANNEL   = "3211645";
 const char* TS_WRITE_KEY = "60SYG2RIJ0TW4D32";
 const char* TS_READ_KEY  = "IN57T91RJ0C8NPFK";
-const char* TS_TALKBACK_ID = "56070"; 
+const char* TS_TALKBACK_ID = "56070";
 const char* TS_TALKBACK_KEY = "EJ3TTWSNK2Q6PXSO";
 
 
@@ -73,7 +74,11 @@ bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
     
 
         if ( update_code == HTTP_CODE_OK && time_check_code == HTTP_CODE_OK && age < 10 )
+        {
             Serial.println( "[THINGSPEAK] Upload successful" );
+            break;
+        }
+
     }
 
     String rssi_url = "http://api.thingspeak.com/update?api_key=VJQGRESCP5X57UVG&field1=" + String( WiFi.RSSI() );
@@ -137,7 +142,6 @@ bool getSettings()
 
     JsonArray arr = doc.as<JsonArray>();
 
-
     long ageSeconds = secondsSincePosition1(arr);
 
     DBGf("[DEBUG] Seconds since TB timestamp: %ld\r\n", ageSeconds);
@@ -156,11 +160,11 @@ bool getSettings()
         switch (position)
         {
             case 1:  // target soil moisture
-                threshold = cmdStr.toFloat();
+                settings.threshold = cmdStr.toFloat();
                 //DBGf("[DEBUG]Threshold: %ld\r\n", threshold);
                 break;
             case 2:  // watering duration
-                duration = cmdStr.toInt();
+                settings.duration = cmdStr.toInt();
                 break;
             case 3:  // rain expected
                 rain_expected_TS = cmdStr.toInt() != 0; // Any non-zero value → true
@@ -187,19 +191,17 @@ bool getSettings()
 
      /***************** Print TalkBack data ****************/
     
-    DBGf("[THINGSPEAK] Moisture threshold: %.1f %%\r\n", threshold);
-    DBGf("[THINGSPEAK] Water duration: %ld sec\r\n", duration);
+    DBGf("[THINGSPEAK] Moisture threshold: %.1f %%\r\n", settings.threshold);
+    DBGf("[THINGSPEAK] Water duration: %ld sec\r\n", settings.duration);
     DBGf("[THINGSPEAK] Rain expected: %s\r\n", rain_expected_TS ? "true" : "false");
     DBGf("[THINGSPEAK] Watering needed: %s\r\n", watering_needed_TS ? "true" : "false");
 
 
     /***************** Store user parameters if changed from previously store ones ****************/
     
-    if ( threshold != prefs.getFloat( "threshold" ,0 ) )
-        prefs.putFloat( "threshold", threshold );
-    
-    if ( duration != prefs.getInt( "duration" ,0 ) )
-        prefs.putInt( "duration", duration );
+    if ( check_new_settings() == true)
+        saveSettings();   // write ONLY if something changed
+
 
     return true;
 }
@@ -207,22 +209,20 @@ bool getSettings()
 
 
 /******************************* Get SOIL sensor readings and update ThingSpeak *********************/
-bool get_new_readings()
+void get_new_readings()
 {
-
-    bool success = false;  // Assume false
 
     uint8_t num_of_attemps = 0;
     
 
     DBG( F( "[STATUS] ===== SYSTEM CYCLE START =====" ) );
 
-    uint16_t values[7] = {227,203,100,70,50,40,30}; // Store 7 register values
+    const uint16_t values[7] = {227,203,100,70,50,40,30}; // Store 7 register values
 
     RS485_STATUS status;
 
     // -------- Read Soil Sensor --------
-#ifndef NO_SOIL_SENSOR
+#ifdef SOIL_SENSOR
 
     DBG( F( "[RS485] Reading soil sensor" ) );
 
@@ -236,7 +236,6 @@ bool get_new_readings()
 
     if ( status != RS485_GOOD )
     {
-        success = false;
         DBG(  F( "[RS485][ERROR] Modbus error" ) );
     }
         
@@ -262,175 +261,16 @@ bool get_new_readings()
 
     // -------- ThingSpeak Upload --------
 
-    success = ( status ==  RS485_GOOD );
-        
     if( wifi_connectivity)
     {
-        success = success && sendThingSpeak( temp, ec, ph, rawN, rawP, rawK );
+        sendThingSpeak( temp, ec, ph, rawN, rawP, rawK );
 
         // -------- Read Control Settings --------
 
         delay( TB_DELAY * 1000UL );  // Wait for ThingSpeak REACT to trigger and run TalkBack updates
             
-        success = success && getSettings();
+        getSettings();
 
     }
-
-    return success;
     
-}
-
-
-String urlEncode(const String &input)
-{
-    String encoded = "";
-    char c;
-    char buf[4];
-
-    for (int i = 0; i < input.length(); i++)
-    {
-        c = input[i];
-
-        // Unreserved characters according to RFC 3986
-        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~')
-        {
-            encoded += c;
-        }
-        else
-        {
-            // Percent-encode everything else
-            snprintf(buf, sizeof(buf), "%%%02X", (unsigned char)c);
-            encoded += buf;
-        }
-    }
-
-    return encoded;
-}
-
-
-String Timestamp()
-{
-    struct tm timeinfo;
-
-    char buf[32];
-
-    getLocalTime(&timeinfo);
-
-    strftime(buf, sizeof(buf), "%a, %b %d, %Y %I:%M:%S %p", &timeinfo);
-
-    return String(buf);
-
-}
-
-
-
-void solenoid_state_Update()
-{
-
-    String url = "http://api.thingspeak.com/update?api_key=";
-    url += TS_WRITE_KEY;
-    url += "&field8=" + String(solenoid_state);
-    url+= "&status=" + urlEncode( String("Watering ") + String(solenoid_state ? "started" : "stopped") + " at " + Timestamp() );
-
-
-    DBGf("[IRRIGATION] Solenoid is now %s", solenoid_state ? "ON\r\n" : "OFF\r\n");
-    Serial.printf("[THINGSPEAK] URL: %s\r\n", url.c_str() );
-
-    HTTPClient http;
-    http.begin(url);
-    int code = http.GET();
-
-    Serial.print("[THINGSPEAK] HTTP code: ");
-    Serial.println(code);
-}
-
-
-time_t iso8601ToEpochUsingGmtime(const char* ts)
-{
-    int Y, M, D, h, m, s;
-    if (sscanf(ts, "%4d-%2d-%2dT%2d:%2d:%2dZ",
-               &Y, &M, &D, &h, &m, &s) != 6)
-        return -1;
-
-    struct tm utc = {};
-    utc.tm_year = Y - 1900;
-    utc.tm_mon  = M - 1;
-    utc.tm_mday = D;
-    utc.tm_hour = h;
-    utc.tm_min  = m;
-    utc.tm_sec  = s;
-    utc.tm_isdst = 0;
-
-
-    // Get current UTC offset
-    time_t now = time(nullptr);
-    struct tm gmt;
-    gmtime_r(&now, &gmt);  // gmt has the now time in epoch
-    
-    struct tm loc;
-    localtime_r(&now, &loc);  // loc has the time now in epoch adjust for my timezone
-
-    time_t gmtEpoch = mktime(&gmt);
-    time_t locEpoch = mktime(&loc);
-    long offset = locEpoch - gmtEpoch;  // should be 18,000 = 5 * 3600
-
-    // DBGf("Offset: %ld\r\n",  offset);
-
-    // Parse as local, then remove offset to get UTC
-    time_t assumedLocal = mktime(&utc);  // timestamp in epoch 
-
-    // DBGf("Assumed local: %ld\r\n",  assumedLocal - offset);
-    return assumedLocal + offset;
-}
-
-
-
-long secondsSincePosition1(JsonArray arr)
-{
-    const char* ts = nullptr;
-
-    for (JsonObject obj : arr)
-    {
-        if ( (int)obj["position"] == 1)
-        {
-            ts = obj["created_at"];
-            break;
-        }
-    }
-
-    if (!ts)
-        return -1;
-
-    time_t created = iso8601ToEpochUsingGmtime(ts);
-
-    DBGf("[THINGSPEAK] TB created time: %ld\r\n",  created);
-    
-    if (created < 0)
-        return -2;
-
-    time_t now = time(nullptr);
-
-    long diff = now - created;
-
-    DBGf("[THINGSPEAK] Time diff: %ld\r\n",  diff);
-
-    return (long)(now - created);
-}
-
-
-void update_Schedule ( String cmdStr, uint8_t position )
-{
-    DBGf( "[SCHEDULE] Updating schedule from TalkBack: %s\r\n", cmdStr.c_str() );  // Expected format: "HH:MM:SS,HH:MM:SS,HH:MM:SS,..."
-
-    int hours, minutes, seconds;
-
-    const char* timeStr = cmdStr.c_str();
-
-    if (sscanf(timeStr, "%d:%d:%d", &hours, &minutes, &seconds) == 3)
-    {
-        SCHEDULE[position - 5].hour = hours;
-        SCHEDULE[position - 5].min = minutes;
-        SCHEDULE[position - 5].sec = seconds;
-    }
-
 }

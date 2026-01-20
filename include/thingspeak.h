@@ -4,6 +4,7 @@
 
 #include "setup.h"
 #include "RS485.h"
+#include "helper.h"
 
 
 constexpr uint8_t MAX_TRIES = 5;
@@ -16,7 +17,7 @@ constexpr int16_t TB_MAX_DELAY = 180;  // Maximum time between when TB was updat
 extern const char* TS_WRITE_KEY;
 extern const char* TS_READ_KEY;
 extern const char* TS_CHANNEL;
-extern const char* TS_TALKBACK_ID; 
+extern const char* TS_TALKBACK_ID;
 extern const char* TS_TALKBACK_KEY;
 
 
@@ -25,13 +26,8 @@ extern const char* TS_TALKBACK_KEY;
 // ==================================================
 bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k );
 bool getSettings();
-bool get_new_readings();
-String urlEncode(const String &input);
-String Timestamp();
-void solenoid_state_Update();
-long secondsSincePosition1(JsonArray arr);
-time_t iso8601ToEpochUsingGmtime(const char* ts);
-void update_Schedule ( String cmdStr, uint8_t position );
+void get_new_readings();
+
 
 
 #endif

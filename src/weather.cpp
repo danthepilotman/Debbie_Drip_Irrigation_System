@@ -2,8 +2,18 @@
 
 
 const char* WEATHER_API_KEY = "1f237060a56d83d3827815039317d2a9";
+
+#ifdef DEBBIE_HOUSE
+
+const char* LAT = "29.524";
+const char* LON = "-81.205";
+
+#else
+
 const char* LAT = "28.027";
 const char* LON = "-80.631";
+
+#endif
 
 
 // ==================================================

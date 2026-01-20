@@ -34,7 +34,15 @@ const char *ntpServer_2 = "time.nist.gov";
 const char *ntpServer_3 = "north-america.pool.ntp.org";
 
 
-Preferences prefs;
+// Default initialization (optional)
+Settings settings = {
+    33.0,  // threshold
+    1800,  // duration
+    {{0,0,0},  // times
+    {6,0,0},
+    {12,0,0},
+    {15,40,0}}
+};
 
 
 void setup_Serial()
@@ -44,7 +52,7 @@ void setup_Serial()
     
   delay( 1000 );
 
-  DBG( F( "\n[STATUS] === ESP32 SOIL IRRIGATION SYSTEM ===" ) ); 
+  DBG( F( "\n[STATUS] === ESP32 SOIL IRRIGATION SYSTEM ===" ) );
 
 }
 
@@ -130,18 +138,5 @@ void setup_NTP()
     
   else
     DBG( F ( "[NTP] Got good time update from NTP server" ) );
-
-}
-
-
-void setup_Storage()
-{
-
-
-  prefs.begin( "TalkBack", false ); // false = read/write privileges
-
-  threshold = prefs.getFloat( "threshold", 0.0 );
-
-  duration = prefs.getInt( "duration", 0 );
 
 }

@@ -7201,6 +7201,18 @@
 			(justify left bottom)
 		)
 	)
+	(gr_text "GIZMO LTD\nIoT Irrigation Control\nand Soil Monitoring System\nver 1.0\nJan 2026"
+		(at 163 100.5 270)
+		(layer "B.SilkS")
+		(uuid "8515ab25-43e0-4528-bf33-807873133d36")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.1)
+			)
+			(justify left bottom mirror)
+		)
+	)
 	(segment
 		(start 155.5 133.75)
 		(end 151.55 133.75)

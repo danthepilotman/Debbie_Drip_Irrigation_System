@@ -15,7 +15,7 @@ void setup()
 
     setup_Digital();  // Setup GPIO to drive solenoid valve
 
-#ifndef NO_SOIL_SENSOR
+#ifdef SOIL_SENSOR
 
     setup_RS485();  // Setup RS-485 communication bus for soil sensor
     
@@ -25,16 +25,14 @@ void setup()
 
     setup_NTP();  // Connect to NTP and setup internal RTC
 
-    setup_Storage();  // Setup non-volatile storage
+    initFlashFS();  // Setup non-volatile storage
+
+    loadSettings();  // Load settings from non-volatile storage
     
 }
 
 
     float moisture = 0.0;  // Set in get_new_readings(), used in sendThingSpeak() and compute_watering_parameters()
-
-    float threshold;  // Set in getSettings() used in compute_watering_parameters()
-
-    uint32_t duration;  // Set in getSettings() used in water_soil()
 
     bool watering_needed_ESP32 = NO;  // Set in compute_watering_parameters() used in water_soil() and loop()
 

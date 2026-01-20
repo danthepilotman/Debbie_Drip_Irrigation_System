@@ -40,9 +40,9 @@ time_t nextTargetTime()
     {
         struct tm tm_target = tm_now;
 
-        tm_target.tm_hour = SCHEDULE[i].hour;
-        tm_target.tm_min  = SCHEDULE[i].min;
-        tm_target.tm_sec  = SCHEDULE[i].sec;
+        tm_target.tm_hour = settings.times[i].hour;
+        tm_target.tm_min  = settings.times[i].min;
+        tm_target.tm_sec  = settings.times[i].sec;
 
         time_t candidate = mktime(&tm_target);
 
@@ -56,9 +56,9 @@ time_t nextTargetTime()
     // All today's schedule times have passed → first one tomorrow
     struct tm tm_target = tm_now;
     tm_target.tm_mday += 1;
-    tm_target.tm_hour = SCHEDULE[0].hour;
-    tm_target.tm_min  = SCHEDULE[0].min;
-    tm_target.tm_sec  = SCHEDULE[0].sec;
+    tm_target.tm_hour = settings.times[0].hour;
+    tm_target.tm_min  = settings.times[0].min;
+    tm_target.tm_sec  = settings.times[0].sec;
 
     return mktime(&tm_target);
 }

@@ -1,5 +1,5 @@
 #include "irrigation.h"
-#include "thingspeak.h"
+
 
 void compute_watering_parameters()
 {
@@ -13,7 +13,7 @@ void compute_watering_parameters()
 
     DBGf( "[LOGIC] Rain expected soon: %s", rain_expected_ESP32 ? "YES\r\n" : "NO\r\n" );  // Report rain expectation
 
-    if ( moisture < threshold && rain_expected_ESP32 == false )  // Determine if watering is needed
+    if ( moisture < settings.threshold && rain_expected_ESP32 == false )  // Determine if watering is needed
         watering_needed_ESP32 = YES;
 
     if ( ( rain_expected_ESP32 == rain_expected_TS ) && ( watering_needed_ESP32 == watering_needed_TS ) )  // Check if ESP and TS are in agreement
@@ -57,7 +57,7 @@ void  water_soil()
         else
             elapsed_sec = now - watering_start_time;
 
-        time_t watering_time_remaining = duration - elapsed_sec;
+        time_t watering_time_remaining = settings.duration - elapsed_sec;
 
         if(  now - last_Print  >= 1)
         {

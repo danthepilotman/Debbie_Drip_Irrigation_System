@@ -7,7 +7,8 @@
 #include <time.h>
 #include <HardwareSerial.h>
 #include <ArduinoJson.h>
-#include <Preferences.h>
+#include <LittleFS.h>
+
 
 // ==================================================
 // ================= LOGIC DEFINITION ================
@@ -23,7 +24,7 @@
 // ==================================================
 #define DEBUG_ENABLED
 #define DEBBIE_HOUSE
-#define NO_SOIL_SENSOR
+//#define SOIL_SENSOR
 
 
 // ==================================================
@@ -67,7 +68,22 @@ extern const char *ntpServer_3;
 // =============== GLOBAL VARIABLES =================
 // ==================================================
 
-extern uint32_t duration;  // Watering time in seconds
+typedef struct TimeSet
+{
+    uint8_t hour;
+    uint8_t min;
+    uint8_t sec;
+} ScheduleTime;
+
+struct Settings {
+  float threshold;  // Soil moisture threshold to trigger watering
+  uint32_t duration;  // Watering time in seconds
+  TimeSet times[4];  // Up to 4 watering times per day
+};
+
+extern Settings settings;
+
+constexpr uint8_t SCHEDULE_COUNT = sizeof(settings.times) / sizeof(settings.times[0]);
 
 extern bool watering_needed_ESP32;  // Watering needed (yes or no)
 
@@ -75,13 +91,11 @@ extern bool solenoid_state;  // Store solenoid open/close state
 
 extern float moisture;
 
-extern float threshold;
-
 extern bool rain_expected_TS;
 
 extern bool watering_needed_TS;
 
-extern Preferences prefs;
+
 
 
 // ==================================================
@@ -92,6 +106,6 @@ void setup_Digital();
 void setup_RS485();
 void connect_WiFi();
 void setup_NTP();
-void setup_Storage();
+
 
 #endif
