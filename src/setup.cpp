@@ -36,12 +36,12 @@ const char *ntpServer_3 = "north-america.pool.ntp.org";
 
 // Default initialization (optional)
 Settings settings = {
-    33.0,  // threshold
+    32.1,  // threshold
     1800,  // duration
     {{0,0,0},  // times
     {6,0,0},
     {12,0,0},
-    {15,40,0}}
+    {16,0,0}}
 };
 
 

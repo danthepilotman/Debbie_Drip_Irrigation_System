@@ -32,23 +32,31 @@ bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
     update_url += "&field5=" + String( n );
     update_url += "&field6=" + String( p );
     update_url += "&field7=" + String( k );
-    update_url += "&status=" + urlEncode( String("Update sent at ") + Timestamp() );  // Use timestamp for status updates
+    update_url += "&status=" + urlEncode( String( "Update sent " ) + Timestamp() );  // Use timestamp for status updates
 
-    Serial.print( F( "[THINGSPEAK] URL: " ) );
-    Serial.println( update_url );
+    Serial.printf( "[THINGSPEAK] URL: %s", update_url.c_str() );
+    
 
-
-    for( uint8_t tries = 0; tries < MAX_TRIES; tries++ )
+    for( uint8_t tries = 1; tries <= MAX_TRIES; tries++ )
     {
-        http.begin( update_url );   // NOTE: http, not https
+
+        int update_code, time_check_code ;  // Store HTTP response codes
+
+        String payload;
         
-        int update_code = http.GET();
+        if( tries == 1 || update_code !=  HTTP_CODE_OK )  // Try updating at least once or if not getting a good HTTP response code
+        {
+            http.begin( update_url );   // NOTE: http, not https
+            
+            update_code = http.GET();  // Use GET to send HTTP update to TS and retrieve response code
 
-        http.end();
+            http.end();
 
-        Serial.printf( "[THINGSPEAK] HTTP code(update): %d\r\n", update_code );
+            Serial.printf( "[THINGSPEAK] HTTP code(update): %d\r\n", update_code );
 
-        delay(2000);  // Allow some time for ThingSpeak server to process data
+            delay( TS_DELAY );  // Allow some time for ThingSpeak server to process data
+
+        }
     
     // -------- Check latest ThingSpeak Upload Time --------
 
@@ -56,13 +64,16 @@ bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
             time_check_url += TS_CHANNEL;
             time_check_url += "/fields/1/last_data_age.txt";  // Latest soil data upload should have field 1 populated
     
-        http.begin( time_check_url );
-            
-        int time_check_code = http.GET();
+        if( tries == 1 || time_check_code !=  HTTP_CODE_OK )  // Try updating at least once or if not getting a good HTTP response code
+        {
+            http.begin( time_check_url );
+                
+            time_check_code = http.GET();
 
-        String payload = http.getString();
+            payload = http.getString();
 
-        http.end();
+            http.end();
+        }
 
         Serial.printf( "[THINGSPEAK] HTTP code(timecheck): %d\r\n", time_check_code );
 
@@ -73,7 +84,7 @@ bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
         Serial.printf( "[THINGSPEAK] Age: %d\r\n", age );
     
 
-        if ( update_code == HTTP_CODE_OK && time_check_code == HTTP_CODE_OK && age < 10 )
+        if ( update_code == HTTP_CODE_OK && time_check_code == HTTP_CODE_OK && age <= ( TS_DELAY/1000UL * MAX_TRIES ) )
         {
             Serial.println( "[THINGSPEAK] Upload successful" );
             break;
@@ -96,9 +107,9 @@ bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
 }
 
 
-bool getSettings()
+void getSettings()
 {
-    DBG(F("[THINGSPEAK] Reading control settings..."));
+    DBG( F( "[THINGSPEAK] Reading control settings..." ) );
 
     HTTPClient http;
 
@@ -107,24 +118,27 @@ bool getSettings()
     String url = "https://api.thingspeak.com/talkbacks/" + String(TS_TALKBACK_ID) + "/commands.json?api_key=" + TS_TALKBACK_KEY;
 
     
-    for(uint8_t tries = 0; tries < MAX_TRIES; ++tries )
+    for( uint8_t tries = 1; tries <= MAX_TRIES; ++tries )
     {
     
-        http.begin(url);
+        delay( TB_DELAY );
+        
+        http.begin( url );
 
         int code = http.GET();
 
-        DBGf("[THINGSPEAK] HTTP TB code: %d\r\n", code);
+        DBGf( "[THINGSPEAK] HTTP TB code: %d\r\n", code );
 
         payload = http.getString();
 
         http.end();
 
-        if(code == HTTP_CODE_OK)
+        if( code == HTTP_CODE_OK )
             break;
 
-        if (tries == 4)
-            return false;
+        if ( tries == MAX_TRIES )
+            return;
+ 
     }
 
     payload.trim();
@@ -133,35 +147,32 @@ bool getSettings()
     
     JsonDocument doc;  // Create JSON document instance
 
-    DeserializationError error = deserializeJson(doc, payload);
+    DeserializationError error = deserializeJson( doc, payload );
     if (error)
     {
-        DBGf("[ERROR] Failed to parse TalkBack JSON: %s\r\n", error.c_str());
-        return false;
+        DBGf( "[ERROR] Failed to parse TalkBack JSON: %s\r\n", error.c_str() );
+        return;
     }
 
     JsonArray arr = doc.as<JsonArray>();
 
-    long ageSeconds = secondsSincePosition1(arr);
+    long ageSeconds = secondsSincePosition1( arr );
 
-    DBGf("[DEBUG] Seconds since TB timestamp: %ld\r\n", ageSeconds);
+    DBGf( "[DEBUG] Seconds since TB timestamp: %ld\r\n", ageSeconds );
 
-    if ( ageSeconds - TB_DELAY > TB_MAX_DELAY )
-        return false;
 
        // Loop through the commands
-    for (JsonObject cmd : arr)
+    for ( JsonObject cmd : arr )
     {
         // We rely on the 'position' field to identify the command
         int position = cmd["position"] | 0;  // fallback to 0 if missing
 
         String cmdStr = cmd["command_string"] | "";  // fallback to empty string if missing
 
-        switch (position)
+        switch ( position )
         {
             case 1:  // target soil moisture
                 settings.threshold = cmdStr.toFloat();
-                //DBGf("[DEBUG]Threshold: %ld\r\n", threshold);
                 break;
             case 2:  // watering duration
                 settings.duration = cmdStr.toInt();
@@ -191,19 +202,17 @@ bool getSettings()
 
      /***************** Print TalkBack data ****************/
     
-    DBGf("[THINGSPEAK] Moisture threshold: %.1f %%\r\n", settings.threshold);
-    DBGf("[THINGSPEAK] Water duration: %ld sec\r\n", settings.duration);
-    DBGf("[THINGSPEAK] Rain expected: %s\r\n", rain_expected_TS ? "true" : "false");
-    DBGf("[THINGSPEAK] Watering needed: %s\r\n", watering_needed_TS ? "true" : "false");
+    DBGf( "[THINGSPEAK] Moisture threshold: %.1f %%\r\n", settings.threshold );
+    DBGf( "[THINGSPEAK] Water duration: %ld sec\r\n", settings.duration );
+    DBGf( "[THINGSPEAK] Rain expected: %s\r\n", rain_expected_TS ? "true" : "false" );
+    DBGf( "[THINGSPEAK] Watering needed: %s\r\n", watering_needed_TS ? "true" : "false" );
 
 
     /***************** Store user parameters if changed from previously store ones ****************/
     
-    if ( check_new_settings() == true)
+    if ( check_new_settings() == true )
         saveSettings();   // write ONLY if something changed
 
-
-    return true;
 }
 
 
@@ -217,7 +226,7 @@ void get_new_readings()
 
     DBG( F( "[STATUS] ===== SYSTEM CYCLE START =====" ) );
 
-    const uint16_t values[7] = {227,203,100,70,50,40,30}; // Store 7 register values
+    uint16_t values[7] = {227,203,100,70,50,40,30}; // Store 7 register values
 
     RS485_STATUS status;
 
@@ -226,7 +235,7 @@ void get_new_readings()
 
     DBG( F( "[RS485] Reading soil sensor" ) );
 
-    for(num_of_attemps = 0; num_of_attemps < 5; num_of_attemps++)
+    for( num_of_attemps = 0; num_of_attemps < 5; num_of_attemps++ )
     {
         status = read_Registers( RS485Serial, 0x01, 0x0000, 5, values );
 
@@ -236,7 +245,7 @@ void get_new_readings()
 
     if ( status != RS485_GOOD )
     {
-        DBG(  F( "[RS485][ERROR] Modbus error" ) );
+        DBG( F( "[RS485][ERROR] Modbus error" ) );
     }
         
 #endif
@@ -259,17 +268,12 @@ void get_new_readings()
     DBGf( "[DATA] pH: %.1f\r\n", ph );
     DBGf( "[DATA] NPK: %u / %u / %u mg/kg\r\n", rawN, rawP, rawK );
 
-    // -------- ThingSpeak Upload --------
-
-    if( wifi_connectivity)
+    
+    if( wifi_connectivity )
     {
-        sendThingSpeak( temp, ec, ph, rawN, rawP, rawK );
+        sendThingSpeak( temp, ec, ph, rawN, rawP, rawK );  // -------- ThingSpeak Upload --------
 
-        // -------- Read Control Settings --------
-
-        delay( TB_DELAY * 1000UL );  // Wait for ThingSpeak REACT to trigger and run TalkBack updates
-            
-        getSettings();
+        getSettings();  // -------- Read Control Settings --------
 
     }
     

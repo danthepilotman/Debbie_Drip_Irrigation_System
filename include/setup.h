@@ -23,8 +23,8 @@
 // ================== BUILD OPTIONS =================
 // ==================================================
 #define DEBUG_ENABLED
-#define DEBBIE_HOUSE
-//#define SOIL_SENSOR
+//#define DEBBIE_HOUSE
+#define SOIL_SENSOR
 
 
 // ==================================================
@@ -83,7 +83,7 @@ struct Settings {
 
 extern Settings settings;
 
-constexpr uint8_t SCHEDULE_COUNT = sizeof(settings.times) / sizeof(settings.times[0]);
+constexpr uint8_t SCHEDULE_COUNT = sizeof( settings.times ) / sizeof( settings.times[0] );
 
 extern bool watering_needed_ESP32;  // Watering needed (yes or no)
 
@@ -96,8 +96,6 @@ extern bool rain_expected_TS;
 extern bool watering_needed_TS;
 
 
-
-
 // ==================================================
 // ========= Prototype Functions ===========
 // ==================================================
@@ -106,6 +104,5 @@ void setup_Digital();
 void setup_RS485();
 void connect_WiFi();
 void setup_NTP();
-
 
 #endif
