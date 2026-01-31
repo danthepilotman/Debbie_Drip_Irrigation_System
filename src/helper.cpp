@@ -8,7 +8,7 @@ String urlEncode( const String &input )  // URL-encode input
     char c;  // Character being processed
     char buf[4];  // Buffer for percent-encoding
 
-    for (uint8_t i = 0; i < input.length(); ++i )  // Loop through each character in input string
+    for ( uint8_t i = 0; i < input.length(); ++i )  // Loop through each character in input string
     {
         c = input[i];  // Get current character
 
@@ -46,41 +46,46 @@ String Timestamp()  // Return formatted current time
 void solenoid_state_Update()  // Report solenoid state to ThingSpeak
 {
 
-    char url[256];  // Char array to hold URL
+  char url[256];  // Char array to hold URL
 
-    String status_str = urlEncode( String("Watering ") + String(solenoid_state ? "started " : "stopped ") + Timestamp() );  // URL encode status string
+  String status_str = urlEncode( String("Watering ") + String(solenoid_state ? "started " : "stopped ") + Timestamp() );  // URL encode status string
 
-    char status_c[128];  // Char array to hold URL encoded status string
+  char status_c[128];  // Char array to hold URL encoded status string
 
-    status_str.toCharArray(status_c, sizeof(status_c));  // Convert to C-string
-
-    // Build URL for ThingSpeak update
-    snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=%s&field8=%d&status=%s", TS_WRITE_KEY, solenoid_state ? 1 : 0, status_c ); 
+  HTTPClient http;  // Create HTTP client object
 
 
-    DBGf( "[IRRIGATION] Solenoid is now %s", solenoid_state ? "ON\r\n" : "OFF\r\n" );  // Print solenoid state
-    Serial.printf( "[THINGSPEAK] URL: %s\r\n", url );  // Print URL being used
+  status_str.toCharArray(status_c, sizeof(status_c));  // Convert to C-string
 
-    HTTPClient http;  // Create HTTP client object
+  // Build URL for ThingSpeak update
+  snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=%s&field8=%d&status=%s", TS_WRITE_KEY, solenoid_state ? 1 : 0, status_c ); 
 
-    for( uint8_t tries = 1; tries <= MAX_TRIES; tries++ )  // Try updating up to MAX_TRIES times
-    {
 
-      int code;  // Store HTTP response codes
+  DBGf( "[IRRIGATION] Solenoid is now %s", solenoid_state ? "ON\r\n" : "OFF\r\n" );  // Print solenoid state
+  Serial.printf( "[THINGSPEAK] URL: %s\r\n", url );  // Print URL being used
 
-      if( tries == 1 || code !=  HTTP_CODE_OK )  // Try at least once or if not getting a good HTTP response code
-      {
-        http.begin( url );  // Start HTTP session
-        
-        code = http.GET();  // Use GET to send HTTP update to TS and retrieve response code
-
-        http.end(); // End HTTP session
-
-        Serial.printf("[THINGSPEAK] HTTP code: %d\r\n", code );  // Print HTTP response code
-      }
-
-    }
    
+  for( uint8_t tries = 1; tries <= MAX_TRIES; tries++ )  // Try updating up to MAX_TRIES times
+  {
+
+    int code = HTTP_CODE_BAD_REQUEST;  // Store HTTP response codes. Initialized to bad code to force retry if needed
+
+    if( code !=  HTTP_CODE_OK )  // Try if not getting a good HTTP response code
+    {
+      http.begin( url );  // Start HTTP session
+        
+      code = http.GET();  // Use GET to send HTTP update to TS and retrieve response code
+
+      http.end(); // End HTTP session
+    }
+
+    Serial.printf("[THINGSPEAK] HTTP code: %d\r\n", code );  // Print HTTP response code
+
+    if( code == HTTP_CODE_OK )  // Successful update
+      break;  // Exit retry loop if successful
+
+  }
+
 }
 
 

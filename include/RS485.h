@@ -29,7 +29,8 @@ enum SOIL_REG {  // indices for sensor registers
     SOIL_PH,
     SOIL_N,
     SOIL_P,
-    SOIL_K
+    SOIL_K,
+    SOIL_REG_SIZE
 };
 
 enum RS485_STATUS : uint8_t { RS485_GOOD, RESPONSE_INCOMPLETE, CRC_MISMATCH, INVALID_PARAM };  // RS485 status codes

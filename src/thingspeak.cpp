@@ -109,6 +109,8 @@ void getSettings()
 {
     DBG( F( "[THINGSPEAK] Reading control settings..." ) );  // indicate TalkBack fetch
 
+    uint8_t tries;
+    
     HTTPClient http;
 
     char url[128];  // buffer for TalkBack URL
@@ -118,7 +120,7 @@ void getSettings()
     snprintf( url, sizeof(url), "https://api.thingspeak.com/talkbacks/%s/commands.json?api_key=%s", TS_TALKBACK_ID, TS_TALKBACK_KEY );  // build TalkBack commands URL
 
     
-    for( uint8_t tries = 1; tries <= MAX_TRIES; ++tries )  // retry loop for TalkBack fetch
+    for( tries = 1; tries <= MAX_TRIES; ++tries )  // retry loop for TalkBack fetch
     {
     
         delay( TB_DELAY );  // delay between retries
@@ -130,7 +132,10 @@ void getSettings()
         DBGf( "[THINGSPEAK] HTTP TB code: %d\r\n", code );  // log TB HTTP status
 
         if( code != HTTP_CODE_OK )  // skip if not OK
+        {
+            http.end();
             continue;
+        }
 
         doc.clear(); // Clear previous JSON document
         
@@ -144,16 +149,13 @@ void getSettings()
             return;
         }
 
-        if ( tries == MAX_TRIES )  // give up after max tries
-            return;
-
         arr = doc.as<JsonArray>();  // root is array
 
         long ageSeconds = secondsSincePosition1( arr );  // compute age since position 1
 
         DBGf( "[THINGSPEAK] Seconds since TB timestamp: %ld\r\n", ageSeconds );  // debug print ageSeconds
         
-        if (ageSeconds >= 0 && ageSeconds <= ( MAX_TRIES * ( TB_DELAY / 1000UL ) ) )  // validate freshness of TB data
+        if ( ageSeconds >= 0 && ageSeconds <= ( MAX_TRIES * ( TB_DELAY / 1000UL ) ) )  // validate freshness of TB data
         {
             DBG( F( "[THINGSPEAK] Valid TalkBack data received" ) );
             break;
@@ -161,6 +163,9 @@ void getSettings()
         }
 
     }
+
+    if ( tries == MAX_TRIES )  // give up after max tries
+            return;  // Exit function if no valid TalkBack data
 
         
        // Loop through the commands
@@ -203,7 +208,7 @@ void getSettings()
     }
 
     
-    doc.clear();
+    doc.clear();  // Clear JSON document to free memory
     
     /***************** Print TalkBack data ****************/
     
@@ -224,13 +229,10 @@ void getSettings()
 /******************************* Get SOIL sensor readings and update ThingSpeak *********************/
 void get_new_readings()
 {
-
-    uint8_t num_of_attempts = 0;  // attempts counter for sensor reads
     
-
     DBG( F( "[STATUS] ===== SYSTEM CYCLE START =====" ) );  // mark cycle start
 
-    uint16_t values[7] = {227,203,100,70,50,40,30}; // Store 7 register values
+    uint16_t values[SOIL_REG_SIZE]; // = {227,203,100,70,50,40,30}; // Store 7 register values
 
     RS485_STATUS status;  // RS485 operation status
 
@@ -239,19 +241,17 @@ void get_new_readings()
 
     DBG( F( "[RS485] Reading soil sensor" ) );
 
-    for( num_of_attempts = 0; num_of_attempts < 5; num_of_attempts++ )  // try up to 5 times
+    for( uint8_t num_of_attempts = 0; num_of_attempts < MAX_TRIES; ++num_of_attempts )  // try up to 5 times
     {
         status = read_Registers( RS485Serial, 0x01, 0x0000, 5, values );  // read registers via Modbus
 
-        if (status == RS485_GOOD)
+        if ( status == RS485_GOOD )
             break;
-    }
+        else
+            DBG( F( "[RS485][ERROR] Modbus error" ) );
 
-    if ( status != RS485_GOOD )  // log Modbus error
-    {
-        DBG( F( "[RS485][ERROR] Modbus error" ) );
     }
-        
+       
 #endif
     uint16_t rawMoisture = values[ SOIL_MOISTURE ];  // raw moisture register
     uint16_t rawTemp     = values[ SOIL_TEMPERATURE ];  // raw temperature register
