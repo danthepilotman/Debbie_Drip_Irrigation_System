@@ -73,7 +73,7 @@ bool rainExpectedSoon()
 
         String main = item["weather"][0]["main"];  // main description (Rain/Drizzle/etc)
 
-        String pop = item["weather"]["pop"];  // probability (as string)
+        String pop = item["pop"];  // probability (as string)
 
         float precip_prob = pop.toFloat();  // numeric probability value
        
