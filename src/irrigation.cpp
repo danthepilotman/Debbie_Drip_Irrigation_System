@@ -1,10 +1,10 @@
 #include "irrigation.h"
 
 
-void compute_watering_parameters()
+void compute_watering_parameters()  // evaluate if watering is needed
 {
 
-    bool rain_expected_ESP32 = false;  // Remember last rain expected determination
+    bool rain_expected_ESP32 = false;  // rain expected flag (local) 
     
     // -------- Weather Check --------
     if ( wifi_connectivity == true)
@@ -22,10 +22,10 @@ void compute_watering_parameters()
 }
 
 
-void solenoid_control()
+void solenoid_control()  // apply solenoid state and report
 {
 
-    digitalWrite( RELAY_PIN, solenoid_state );  // Set power to solenoid based on solenoid_state
+    digitalWrite( RELAY_PIN, solenoid_state );  // drive solenoid MOSFET
 
     
     if ( wifi_connectivity == true )
@@ -34,12 +34,12 @@ void solenoid_control()
 }
 
 
-void  water_soil()
+void  water_soil()  // perform watering flow control
 {
 
-    static time_t watering_start_time;  // Record timestamp when watering started
+    static time_t watering_start_time;  // timestamp when watering started
 
-    static time_t last_Print;  // Remember timestamp of last serial print
+    static time_t last_Print;  // last printed time timestamp
 
     if( solenoid_state == OFF )  // Don't recheck watering parameters if we're still watering
         compute_watering_parameters();  // Compute watering parameters
@@ -50,12 +50,12 @@ void  water_soil()
         
         time_t now = time(nullptr);  // Get the time right now
 
-        time_t elapsed_sec;
+        time_t elapsed_sec;  // elapsed watering seconds
         
         if( solenoid_state == OFF)
-            elapsed_sec = 0;
+            elapsed_sec = 0;  // not running
         else
-            elapsed_sec = now - watering_start_time;
+            elapsed_sec = now - watering_start_time;  // compute elapsed time
 
         time_t watering_time_remaining = settings.duration - elapsed_sec;
 

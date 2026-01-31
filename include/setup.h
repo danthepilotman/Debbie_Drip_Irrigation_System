@@ -1,30 +1,30 @@
 #ifndef SETUP_FUNCTIONS_H
 #define SETUP_FUNCTIONS_H
 
-#include <Arduino.h>
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <time.h>
-#include <HardwareSerial.h>
-#include <ArduinoJson.h>
-#include <LittleFS.h>
+#include <Arduino.h>  // Arduino core
+#include <WiFi.h>  // WiFi library
+#include <HTTPClient.h>  // HTTP client helper
+#include <time.h>  // time functions
+#include <HardwareSerial.h>  // hardware serial support
+#include <ArduinoJson.h>  // ArduinoJson library
+#include <LittleFS.h>  // LittleFS filesystem
 
 
 // ==================================================
 // ================= LOGIC DEFINITION ================
 // ==================================================
-#define ON true
-#define OFF false
+#define ON true  // logical on
+#define OFF false  // logical off
 
-#define YES true
-#define NO false
+#define YES true  // yes/true alias
+#define NO false  // no/false alias
 
 // ==================================================
 // ================== BUILD OPTIONS =================
 // ==================================================
-#define DEBUG_ENABLED
-//#define DEBBIE_HOUSE
-#define SOIL_SENSOR
+#define DEBUG_ENABLED  // enable debug logging
+//#define DEBBIE_HOUSE  // define for Debbie's house config
+#define SOIL_SENSOR  // include soil sensor support
 
 
 // ==================================================
@@ -51,18 +51,18 @@ extern const unsigned long SERIAL_BAUD_RATE;  // Set UI serial baud rate
 // ==================================================
 // ================= WIFI SETTINGS ==================
 // ==================================================
-extern const char* WIFI_SSID;
-extern const char* WIFI_PASS;
+extern const char* WIFI_SSID;  // WiFi SSID
+extern const char* WIFI_PASS;  // WiFi password
 
-extern bool wifi_connectivity;
+extern bool wifi_connectivity;  // WiFi connection status
 
 // ==================================================
 // ================= NTP ===================
 // ==================================================
-extern const char *timeZone;  // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
-extern const char *ntpServer_1;
-extern const char *ntpServer_2;
-extern const char *ntpServer_3;
+extern const char *timeZone;  // timezone setting
+extern const char *ntpServer_1;  // primary NTP server
+extern const char *ntpServer_2;  // secondary NTP server
+extern const char *ntpServer_3;  // tertiary NTP server
 
 // ==================================================
 // =============== GLOBAL VARIABLES =================
@@ -70,9 +70,9 @@ extern const char *ntpServer_3;
 
 typedef struct TimeSet
 {
-    uint8_t hour;
-    uint8_t min;
-    uint8_t sec;
+    uint8_t hour;  // hour component
+    uint8_t min;   // minute component
+    uint8_t sec;   // second component
 } ScheduleTime;
 
 struct Settings {
@@ -81,28 +81,30 @@ struct Settings {
   TimeSet times[4];  // Up to 4 watering times per day
 };
 
-extern Settings settings;
+extern Settings settings;  // global settings struct
 
-constexpr uint8_t SCHEDULE_COUNT = sizeof( settings.times ) / sizeof( settings.times[0] );
+constexpr uint8_t SCHEDULE_COUNT = sizeof( settings.times ) / sizeof( settings.times[0] );  // number of schedule slots
 
-extern bool watering_needed_ESP32;  // Watering needed (yes or no)
+extern bool watering_needed_ESP32;  // watering state from ESP32
 
-extern bool solenoid_state;  // Store solenoid open/close state
+extern bool solenoid_state;  // solenoid open/close state
 
-extern float moisture;
+extern float moisture;  // current moisture reading
 
-extern bool rain_expected_TS;
+extern bool rain_expected_TS;  // rain flag from ThingSpeak
 
-extern bool watering_needed_TS;
+extern bool watering_needed_TS;  // watering needed flag from ThingSpeak
+
+extern JsonDocument doc;  // JSON document instance (shared)
 
 
 // ==================================================
 // ========= Prototype Functions ===========
 // ==================================================
-void setup_Serial();
-void setup_Digital();
-void setup_RS485();
-void connect_WiFi();
-void setup_NTP();
+void setup_Serial(); // Initialize Serial and debug output
+void setup_Discretes(); // Configure GPIOs, relays, and discrete I/O
+void setup_RS485(); // Initialize RS485 hardware and serial settings
+void connect_WiFi(); // Connect to WiFi network (blocking until success)
+void setup_NTP(); // Configure NTP and synchronize system time
 
 #endif

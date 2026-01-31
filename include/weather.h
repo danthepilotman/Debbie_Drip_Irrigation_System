@@ -2,15 +2,15 @@
 #define WEATHER_FUNCTIONS_H
 
 
-#include "setup.h"
+#include "setup.h"  // project config
 
 
 // ==================================================
 // ================= OPENWEATHER ====================
 // ==================================================
-extern const char* WEATHER_API_KEY;
-extern const char* LAT;
-extern const char* LON;
+extern const char* WEATHER_API_KEY;  // OpenWeather API key
+extern const char* LAT;  // latitude for forecast
+extern const char* LON;  // longitude for forecast
 
 const float rain_prob_min = 0.40;  // Minimum precipitation probability to determine rain expected
 
@@ -18,6 +18,6 @@ const float rain_prob_min = 0.40;  // Minimum precipitation probability to deter
 // ==================================================
 // ========= Prototype Functions ===========
 // ==================================================
-bool rainExpectedSoon();
+bool rainExpectedSoon();  // check upcoming hourly forecast for rain
 
 #endif

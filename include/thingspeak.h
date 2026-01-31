@@ -2,31 +2,31 @@
 #define TS_FUNCTIONS_H
 
 
-#include "setup.h"
-#include "RS485.h"
-#include "helper.h"
+#include "setup.h"  // project configuration
+#include "RS485.h"  // RS485 interface
+#include "helper.h"  // helper utilities
 
 
-constexpr uint8_t MAX_TRIES = 5;  // Max tries x TB_DELAY = Max time allowed for TB update via REACT on ThingSpeak
-constexpr uint32_t TB_DELAY = 60000UL;  // Time to wait for ThingSpeak to process TalkBack [ms]
-constexpr uint32_t TS_DELAY = 15000UL;  // Time to wait for ThingSpeak to process update [ms]
+constexpr uint8_t MAX_TRIES = 5;  // retry attempts
+constexpr uint32_t TB_DELAY = 60000UL;  // TalkBack processing delay [ms]
+constexpr uint32_t TS_DELAY = 15000UL;  // ThingSpeak update delay [ms]
 
 // ==================================================
 // ================= THINGSPEAK =====================
 // ==================================================
-extern const char* TS_WRITE_KEY;
-extern const char* TS_READ_KEY;
-extern const char* TS_CHANNEL;
-extern const char* TS_TALKBACK_ID;
-extern const char* TS_TALKBACK_KEY;
+extern const char* TS_WRITE_KEY;  // ThingSpeak write API key
+extern const char* TS_READ_KEY;  // ThingSpeak read API key
+extern const char* TS_CHANNEL;  // ThingSpeak channel ID
+extern const char* TS_TALKBACK_ID;  // TalkBack ID
+extern const char* TS_TALKBACK_KEY;  // TalkBack key
 
 
 // ==================================================
 // ========= Prototype Functions ===========
 // ==================================================
-bool sendThingSpeak( float t, float ec, float ph, int n, int p, int k );
-void getSettings();
-void get_new_readings();
+void sendThingSpeak( float t, float ec, float ph, int n, int p, int k );  // upload readings
+void getSettings();  // fetch TalkBack settings
+void get_new_readings();  // read sensors and upload
 
 
 

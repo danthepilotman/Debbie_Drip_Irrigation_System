@@ -13,7 +13,7 @@ void setup()
     
     setup_Serial();  // Setup serial port for debug statements
 
-    setup_Digital();  // Setup GPIO to drive solenoid valve
+    setup_Discretes();  // Setup GPIO to drive solenoid valve
 
 #ifdef SOIL_SENSOR
 
@@ -42,7 +42,7 @@ void setup()
 
     bool watering_needed_TS;  // Set in getSettings()  used in compute_watering_parameters()
 
-    bool wifi_connectivity = false;
+    bool wifi_connectivity = false;  // WiFi connection status: true when connected
 
 // ==================================================
 // ================= LOOP ===========================
@@ -59,7 +59,7 @@ void loop()
        get_new_readings();  // Get readings for soil sensor and send to ThingSpeak. Also get weather forecast
 
     water_soil();  // Water soil if needed for the proper duration.
-                   // Sets watering_needed to OFF if watering not needed.
+                   // Sets watering_needed to NO if watering not needed.
                    // This then causes deep sleep during the next loop() cycle
 
 }

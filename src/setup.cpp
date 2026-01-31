@@ -1,68 +1,72 @@
-#include "setup.h"
+#include "setup.h"  // project-wide definitions and prototypes
 
 
 // User interface serial port setup parameters
-const unsigned long SERIAL_BAUD_RATE = 115200;
+const unsigned long SERIAL_BAUD_RATE = 115200;  // Serial baud rate for debug output
 
 
 // Create a hardware serial instance for RS485 communication
-const int8_t RS485_TX_PIN = 17;
-const int8_t RS485_RX_PIN = 16;
+const int8_t RS485_TX_PIN = 17;  // RS485 TX pin (GPIO)
+const int8_t RS485_RX_PIN = 16;  // RS485 RX pin (GPIO)
 
-const unsigned long RS485_BAUD = 4800;
+const unsigned long RS485_BAUD = 4800;  // RS485 bus baud rate (sensor)
 
-HardwareSerial RS485Serial(2); // Use UART2
+HardwareSerial RS485Serial(2); // Use UART2 instance for RS485 communication
 
 
 // Wifi network parameters
 #ifdef DEBBIE_HOUSE
 
-const char* WIFI_SSID = "SpectrumSetup-5B";
-const char* WIFI_PASS = "cosmicmajor724";
+const char* WIFI_SSID = "SpectrumSetup-5B"; // WiFi SSID for Debbie's house
+const char* WIFI_PASS = "cosmicmajor724"; // WiFi password for Debbie's house
 
 #else
-const char* WIFI_SSID = "Bobo";
-const char* WIFI_PASS = "ryrie9219";
+const char* WIFI_SSID = "Bobo"; // default WiFi SSID
+const char* WIFI_PASS = "ryrie9219"; // default WiFi password
 
 #endif
 
 
 // NTP parameters
-const char *timeZone = "EST5EDT,M3.2.0,M11.1.0";  // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
-const char *ntpServer_1 = "pool.ntp.org";
-const char *ntpServer_2 = "time.nist.gov";
-const char *ntpServer_3 = "north-america.pool.ntp.org";
+const char *timeZone = "EST5EDT,M3.2.0,M11.1.0";  // POSIX timezone string for EST/EDT
+const char *ntpServer_1 = "pool.ntp.org"; // primary NTP server
+const char *ntpServer_2 = "time.nist.gov"; // secondary NTP server
+const char *ntpServer_3 = "north-america.pool.ntp.org"; // tertiary NTP server
 
 
 // Default initialization (optional)
 Settings settings = {
-    32.1,  // threshold
-    1800,  // duration
-    {{0,0,0},  // times
-    {6,0,0},
-    {12,0,0},
-    {16,0,0}}
+    32.1,  // threshold (soil moisture threshold percent)
+    1800,  // duration (watering seconds)
+    {{0,0,0},  // times - schedule slot 0
+    {6,0,0},   // schedule slot 1
+    {12,0,0},  // schedule slot 2
+    {16,0,0}}  // schedule slot 3
 };
+
+
+JsonDocument doc;  // Create global JSON document instance (shared across modules)
+
 
 
 void setup_Serial()
 {
 
-  Serial.begin( SERIAL_BAUD_RATE );
+  Serial.begin( SERIAL_BAUD_RATE ); // Start Serial at configured baud
     
-  delay( 1000 );
+  delay( 1000 ); // allow Serial to initialize
 
-  DBG( F( "\n[STATUS] === ESP32 SOIL IRRIGATION SYSTEM ===" ) );
+  DBG( F( "\n[STATUS] === ESP32 SOIL IRRIGATION SYSTEM ===" ) ); // print startup banner
 
 }
 
 
-void setup_Digital()
+void setup_Discretes()
 {
 
-  pinMode( RELAY_PIN, OUTPUT );
+  pinMode( RELAY_PIN, OUTPUT ); // Configure relay pin as output
 
-  digitalWrite( RELAY_PIN, LOW );
+  digitalWrite( RELAY_PIN, LOW ); // Ensure relay is off by default
 
 }
 
@@ -70,9 +74,9 @@ void setup_Digital()
 void setup_RS485()
 {
 
-    RS485Serial.begin( RS485_BAUD, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN );
+    RS485Serial.begin( RS485_BAUD, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN ); // Initialize RS485 UART
 
-    DBG( F( "[RS485] Modbus initialized" ) );
+    DBG( F( "[RS485] Modbus initialized" ) ); // Log RS485 initialization
 
 }
 
@@ -83,34 +87,34 @@ void setup_RS485()
 void connect_WiFi()
 {
     
-    uint8_t timeout = 0;
+    uint8_t timeout = 0; // timeout counter for connection attempts
 
-    Serial.print( F( "[WIFI] Connecting" ) );
+    Serial.print( F( "[WIFI] Connecting" ) ); // indicate start of connection
 
-    WiFi.begin( WIFI_SSID, WIFI_PASS );
+    WiFi.begin( WIFI_SSID, WIFI_PASS ); // attempt to connect to WiFi
 
-    while ( WiFi.status() != WL_CONNECTED && timeout < 120 )
+    while ( WiFi.status() != WL_CONNECTED && timeout < 120 ) // wait up to ~60 seconds
     {
-        delay( 500 );
-        Serial.print( "." );
-        timeout++;
+        delay( 500 ); // wait half a second between dots
+        Serial.print( "." ); // progress indicator
+        timeout++; // increment timeout
     }
 
     if ( WiFi.status() == WL_CONNECTED )
-      wifi_connectivity = true;
+      wifi_connectivity = true;  // set connectivity flag when connected
     
       else
     {
-      wifi_connectivity = false;
-      DBG( F( "[WIFI] Unable to connect to WiFi" ) );
-      return;
+      wifi_connectivity = false;  // clear connectivity flag on failure
+      DBG( F( "[WIFI] Unable to connect to WiFi" ) ); // log failure
+      return; // bail out if not connected
     }
 
     
-    Serial.println();
-    DBG( F( "[WIFI] Connected" ) );
-    DBGf( "[WIFI] IP: %s\r\n", WiFi.localIP().toString().c_str() ) ;
-    DBGf( "[WIFI] RSSI: %d dBm\r\n", WiFi.RSSI() ) ;
+    Serial.println(); // finish progress line
+    DBG( F( "[WIFI] Connected" ) ); // log successful connection
+    DBGf( "[WIFI] IP: %s\r\n", WiFi.localIP().toString().c_str() ) ; // print assigned IP
+    DBGf( "[WIFI] RSSI: %d dBm\r\n", WiFi.RSSI() ) ; // print signal strength
 }
 
 
@@ -120,23 +124,23 @@ void connect_WiFi()
 void setup_NTP()
 {
 
-  struct tm timeinfo;
+  struct tm timeinfo; // allocate time info struct
 
-  uint8_t tries = 0;
+  uint8_t tries = 0; // retry counter for NTP
 
-  configTzTime( timeZone, ntpServer_1, ntpServer_2, ntpServer_3 );
+  configTzTime( timeZone, ntpServer_1, ntpServer_2, ntpServer_3 ); // configure timezone and NTP servers
 
-  while( getLocalTime( &timeinfo ) == false && tries < 5 )
+  while( getLocalTime( &timeinfo ) == false && tries < 5 ) // attempt to get time with retries
   {
-    DBG( F ( "[NTP] Failed to obtain time from NTP server" ) );
-    tries++;
+    DBG( F ( "[NTP] Failed to obtain time from NTP server" ) ); // log retry attempt
+    tries++;  // retry a few times
   }
 
   
-  if (getLocalTime( &timeinfo ) == false )
-    return;
+  if (getLocalTime( &timeinfo ) == false ) // final check after retries
+    return; // give up if still no time
     
   else
-    DBG( F ( "[NTP] Got good time update from NTP server" ) );
+    DBG( F ( "[NTP] Got good time update from NTP server" ) ); // log success
 
 }
