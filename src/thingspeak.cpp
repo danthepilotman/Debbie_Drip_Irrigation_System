@@ -91,17 +91,7 @@ void sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
 
     }
 
-    char rssi_url[128];  // URL for RSSI upload (connectivity monitoring)
-    snprintf( rssi_url, sizeof(rssi_url), "https://api.thingspeak.com/update?api_key=VJQGRESCP5X57UVG&field1=%d", WiFi.RSSI() );  // build RSSI upload URL
-
-    http.begin( rssi_url );  // send RSSI
-        
-    int update_code_RSSI = http.GET();  // get RSSI upload HTTP code
-
-    http.end();  // close connection
-
-    Serial.printf( "[THINGSPEAK] HTTP code(RSSI upload): %d\r\n", update_code_RSSI );  // log RSSI upload status
-    
+    send_RSSI();
 }
 
 
@@ -253,6 +243,7 @@ void get_new_readings()
     }
        
 #endif
+
     uint16_t rawMoisture = values[ SOIL_MOISTURE ];  // raw moisture register
     uint16_t rawTemp     = values[ SOIL_TEMPERATURE ];  // raw temperature register
     uint16_t rawEC       = values[ SOIL_EC];  // raw EC register
@@ -280,5 +271,72 @@ void get_new_readings()
         getSettings();  // -------- Read Control Settings --------
 
     }
+    
+}
+
+
+void ping_ThingSpeak()
+{
+
+  char url[128];  // Char array to hold URL
+
+  String status_str = "First waking at " + urlEncode( Timestamp() );  // URL encode status string
+
+  char status_c[64];  // Char array to hold URL encoded status string
+
+  HTTPClient http;  // Create HTTP client object
+
+
+  status_str.toCharArray(status_c, sizeof(status_c));  // Convert to C-string
+
+  // Build URL for ThingSpeak update
+  snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=VJQGRESCP5X57UVG&status=%s", status_c ); 
+
+
+  DBGf( "[STATUS] Sending first wake status message to ThingSpeak" );  // Print solenoid state
+  Serial.printf( "[THINGSPEAK] URL: %s\r\n", url );  // Print URL being used
+
+   
+  for( uint8_t tries = 1; tries <= MAX_TRIES; tries++ )  // Try updating up to MAX_TRIES times
+  {
+
+    int code = HTTP_CODE_BAD_REQUEST;  // Store HTTP response codes. Initialized to bad code to force retry if needed
+
+    if( code !=  HTTP_CODE_OK )  // Try if not getting a good HTTP response code
+    {
+      http.begin( url );  // Start HTTP session
+        
+      code = http.GET();  // Use GET to send HTTP update to TS and retrieve response code
+
+      http.end(); // End HTTP session
+    }
+
+    Serial.printf("[THINGSPEAK] HTTP code: %d\r\n", code );  // Print HTTP response code
+
+    if( code == HTTP_CODE_OK )  // Successful update
+      break;  // Exit retry loop if successful
+
+  }
+
+  send_RSSI();  // Send WiFi RSSI to ThingSpeak Channel
+
+}
+
+
+void send_RSSI()
+{
+
+    HTTPClient http;  // Create HTTP client object
+
+    char rssi_url[128];  // URL for RSSI upload (connectivity monitoring)
+    snprintf( rssi_url, sizeof(rssi_url), "https://api.thingspeak.com/update?api_key=VJQGRESCP5X57UVG&field1=%d", WiFi.RSSI() );  // build RSSI upload URL
+
+    http.begin( rssi_url );  // send RSSI
+        
+    int update_code_RSSI = http.GET();  // get RSSI upload HTTP code
+
+    http.end();  // close connection
+
+    Serial.printf( "[THINGSPEAK] HTTP code(RSSI upload): %d\r\n", update_code_RSSI );  // log RSSI upload status
     
 }

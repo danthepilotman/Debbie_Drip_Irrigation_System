@@ -27,7 +27,7 @@ extern const char* TS_TALKBACK_KEY;  // TalkBack key
 void sendThingSpeak( float t, float ec, float ph, int n, int p, int k );  // upload readings
 void getSettings();  // fetch TalkBack settings
 void get_new_readings();  // read sensors and upload
-
-
+void ping_ThingSpeak();  // Transmit status message to ThingSpeak Channel
+void send_RSSI();  // Send Wifi RSSI to ThingSpeak channel
 
 #endif

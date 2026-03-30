@@ -28,7 +28,12 @@ void setup()
     initFlashFS();  // Setup non-volatile storage
 
     loadSettings();  // Load settings from non-volatile storage
+
+    esp_reset_reason_t resetReason = esp_reset_reason();
     
+    if ( resetReason  == ESP_RST_POWERON || resetReason == ESP_RST_EXT )  // Check for power applied (cold boot) or reset button press
+        ping_ThingSpeak();  // Transmit status message to ThingSpeak Channel
+        
 }
 
 

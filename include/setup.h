@@ -23,7 +23,7 @@
 // ================== BUILD OPTIONS =================
 // ==================================================
 #define DEBUG_ENABLED  // enable debug logging
-//#define DEBBIE_HOUSE  // define for Debbie's house config
+#define DEBBIE_HOUSE  // define for Debbie's house config
 #define SOIL_SENSOR  // include soil sensor support
 
 
