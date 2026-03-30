@@ -4,20 +4,23 @@
 void compute_watering_parameters()  // evaluate if watering is needed
 {
 
-    bool rain_expected_ESP32 = false;  // rain expected flag (local) 
+#ifdef ESP32_WX
+
+    rainExpectedSoon();  // Get NWS weather forecast
+
+#endif
     
-    // -------- Weather Check --------
-    if ( wifi_connectivity == true)
-        rain_expected_ESP32 = rainExpectedSoon();
+#ifdef DEBUG_ENABLED
 
+    DBGf( "[LOGIC] Rain expected soon: %s", rain_expected_TS ? "YES\r\n" : "NO\r\n" );  // Report rain expectation
 
-    DBGf( "[LOGIC] Rain expected soon: %s", rain_expected_ESP32 ? "YES\r\n" : "NO\r\n" );  // Report rain expectation
+#endif
 
-    if ( moisture < settings.threshold && rain_expected_ESP32 == false )  // Determine if watering is needed
+    if ( moisture < settings.threshold && rain_expected_TS == false )  // Determine if watering is needed
         watering_needed_ESP32 = YES;
 
-    if ( ( rain_expected_ESP32 == rain_expected_TS ) && ( watering_needed_ESP32 == watering_needed_TS ) )  // Check if ESP and TS are in agreement
-            Serial.println( F( "[LOGIC] Local ESP32 & ThingSpeak rain expected and watering needed agree") );
+    if ( watering_needed_ESP32 == watering_needed_TS )  // Check if ESP and TS are in agreement
+            Serial.println( F( "[LOGIC] Local ESP32 & ThingSpeak watering needed agree") );
 
 }
 
@@ -61,8 +64,12 @@ void  water_soil()  // perform watering flow control
 
         if(  now - last_Print  >= 1)
         {
+
+#ifdef DEBUG_ENABLED
+
             DBGf( "[IRRIGATION] Watering time remaining: %ld sec\r\n", watering_time_remaining );
 
+#endif
             last_Print = now;
         }
 

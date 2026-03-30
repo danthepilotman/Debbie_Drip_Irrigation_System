@@ -97,7 +97,12 @@ void sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
 
 void getSettings()
 {
+    
+#ifdef DEBUG_ENABLED
+
     DBG( F( "[THINGSPEAK] Reading control settings..." ) );  // indicate TalkBack fetch
+
+#endif
 
     uint8_t tries;
     
@@ -119,7 +124,11 @@ void getSettings()
 
         int code = http.GET();  // HTTP response code
 
+#ifdef DEBUG_ENABLED
+
         DBGf( "[THINGSPEAK] HTTP TB code: %d\r\n", code );  // log TB HTTP status
+
+#endif
 
         if( code != HTTP_CODE_OK )  // skip if not OK
         {
@@ -135,7 +144,12 @@ void getSettings()
         
         if (error)  // abort on parse error
         {
+
+#ifdef DEBUG_ENABLED
+
             DBGf( "[ERROR] Failed to parse TalkBack JSON: %s\r\n", error.c_str() );
+
+#endif
             return;
         }
 
@@ -143,11 +157,20 @@ void getSettings()
 
         long ageSeconds = secondsSincePosition1( arr );  // compute age since position 1
 
+#ifdef DEBUG_ENABLED
+
         DBGf( "[THINGSPEAK] Seconds since TB timestamp: %ld\r\n", ageSeconds );  // debug print ageSeconds
+
+#endif
         
         if ( ageSeconds >= 0 && ageSeconds <= ( MAX_TRIES * ( TB_DELAY / 1000UL ) ) )  // validate freshness of TB data
         {
+
+#ifdef DEBUG_ENABLED
+
             DBG( F( "[THINGSPEAK] Valid TalkBack data received" ) );
+
+#endif
             break;
  
         }
@@ -201,12 +224,14 @@ void getSettings()
     doc.clear();  // Clear JSON document to free memory
     
     /***************** Print TalkBack data ****************/
-    
+#ifdef DEBUG_ENABLED    
+
     DBGf( "[THINGSPEAK] Moisture threshold: %.1f %%\r\n", settings.threshold );  // show threshold
     DBGf( "[THINGSPEAK] Water duration: %ld sec\r\n", settings.duration );  // show duration
     DBGf( "[THINGSPEAK] Rain expected: %s\r\n", rain_expected_TS ? "true" : "false" );  // show rain_expected flag
     DBGf( "[THINGSPEAK] Watering needed: %s\r\n", watering_needed_TS ? "true" : "false" );  // show watering_needed flag
 
+#endif
 
     /***************** Store user parameters if changed from previously store ones ****************/
     
@@ -220,16 +245,24 @@ void getSettings()
 void get_new_readings()
 {
     
+#ifdef DEBUG_ENABLED
+
     DBG( F( "[STATUS] ===== SYSTEM CYCLE START =====" ) );  // mark cycle start
 
-    uint16_t values[SOIL_REG_SIZE]; // = {227,203,100,70,50,40,30}; // Store 7 register values
+#endif
 
     RS485_STATUS status;  // RS485 operation status
 
     // -------- Read Soil Sensor --------
 #ifdef SOIL_SENSOR
 
+    uint16_t values[SOIL_REG_SIZE]; // Store 7 register values
+
+#ifdef DEBUG_ENABLED
+
     DBG( F( "[RS485] Reading soil sensor" ) );
+
+#endif
 
     for( uint8_t num_of_attempts = 0; num_of_attempts < MAX_TRIES; ++num_of_attempts )  // try up to 5 times
     {
@@ -237,11 +270,19 @@ void get_new_readings()
 
         if ( status == RS485_GOOD )
             break;
+        
+#ifdef DEBUG_ENABLED
+
         else
             DBG( F( "[RS485][ERROR] Modbus error" ) );
-
+#endif
+        
     }
        
+#else
+
+    uint16_t values[SOIL_REG_SIZE] = {227,203,100,70,50,40,30}; // Store 7 register values
+
 #endif
 
     uint16_t rawMoisture = values[ SOIL_MOISTURE ];  // raw moisture register
@@ -257,11 +298,15 @@ void get_new_readings()
     float ec       = float(rawEC);  // conductivity µS/cm
     float ph       = float(rawPH) / 10.0;  // pH scaled by 10
 
+#ifdef DEBUG_ENABLED
+
     DBGf( "[DATA] Moisture: %.1f %%\r\n", moisture );  // log moisture
     DBGf( "[DATA] Temp: %.1f °C\r\n", temp );  // log temperature
     DBGf( "[DATA] EC: %.0f µS/cm\r\n", ec );  // log EC
     DBGf( "[DATA] pH: %.1f\r\n", ph );  // log pH
     DBGf( "[DATA] NPK: %u / %u / %u mg/kg\r\n", rawN, rawP, rawK );  // log NPK registers
+
+#endif
 
     
     if( wifi_connectivity )  // upload and refresh settings when WiFi available
@@ -278,23 +323,26 @@ void get_new_readings()
 void ping_ThingSpeak()
 {
 
-  char url[128];  // Char array to hold URL
+  char url[256];  // Char array to hold URL
 
-  String status_str = "First waking at " + urlEncode( Timestamp() );  // URL encode status string
+  String status_str =  urlEncode( "First waking at " )  + urlEncode( Timestamp() );  // URL encode status string
 
-  char status_c[64];  // Char array to hold URL encoded status string
+  char status_c[128];  // Char array to hold URL encoded status string
 
   HTTPClient http;  // Create HTTP client object
 
 
-  status_str.toCharArray(status_c, sizeof(status_c));  // Convert to C-string
+  status_str.toCharArray( status_c, sizeof(status_c) );  // Convert to C-string
 
-  // Build URL for ThingSpeak update
+  // Build URL for ThingSpeak update                                     
   snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=VJQGRESCP5X57UVG&status=%s", status_c ); 
-
-
-  DBGf( "[STATUS] Sending first wake status message to ThingSpeak" );  // Print solenoid state
+                              
+#ifdef DEBUG_ENABLED
+ 
+  DBGf( "[STATUS] Sending first wake status message to ThingSpeak\r\n" );  // Print solenoid state
   Serial.printf( "[THINGSPEAK] URL: %s\r\n", url );  // Print URL being used
+
+#endif
 
    
   for( uint8_t tries = 1; tries <= MAX_TRIES; tries++ )  // Try updating up to MAX_TRIES times

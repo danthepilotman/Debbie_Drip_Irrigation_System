@@ -60,10 +60,12 @@ void solenoid_state_Update()  // Report solenoid state to ThingSpeak
   // Build URL for ThingSpeak update
   snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=%s&field8=%d&status=%s", TS_WRITE_KEY, solenoid_state ? 1 : 0, status_c ); 
 
+#ifdef DEBUG_ENABLED
 
   DBGf( "[IRRIGATION] Solenoid is now %s", solenoid_state ? "ON\r\n" : "OFF\r\n" );  // Print solenoid state
   Serial.printf( "[THINGSPEAK] URL: %s\r\n", url );  // Print URL being used
 
+#endif
    
   for( uint8_t tries = 1; tries <= MAX_TRIES; tries++ )  // Try updating up to MAX_TRIES times
   {
@@ -145,8 +147,11 @@ long secondsSincePosition1( JsonArray arr )  // Seconds since TalkBack position 
         return -1;  // Return error
 
     time_t created = iso8601ToEpochUsingGmtime( ts );  // Convert ISO 8601 to epoch time
+#ifdef DEBUG_ENABLED
 
     DBGf( "[THINGSPEAK] TB created time: %ld\r\n",  created );  // Debug print created time
+
+#endif
     
     if ( created < 0 )  // Error in conversion
         return -2;  // Return error
@@ -155,7 +160,11 @@ long secondsSincePosition1( JsonArray arr )  // Seconds since TalkBack position 
 
     long diff = now - created;  // Calculate time difference
 
+#ifdef DEBUG_ENABLED
+
     DBGf( "[THINGSPEAK] Time diff: %ld\r\n",  diff );  // Debug print time difference
+  
+#endif
 
     return long( now - created );  // Return time difference in seconds
 
@@ -165,7 +174,11 @@ long secondsSincePosition1( JsonArray arr )  // Seconds since TalkBack position 
 void update_Schedule ( String cmdStr, uint8_t position )  // Update schedule from TalkBack
 {
 
+#ifdef DEBUG_ENABLED
+
     DBGf( "[THINGSPEAK] Schedule from TalkBack: %s\r\n", cmdStr.c_str() );  // Expected format: "HH:MM:SS,HH:MM:SS,HH:MM:SS,..."
+
+#endif
 
     int hours, minutes, seconds;  // Time components
 

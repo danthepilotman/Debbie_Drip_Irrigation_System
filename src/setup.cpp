@@ -56,7 +56,11 @@ void setup_Serial()
     
   delay( 1000 ); // allow Serial to initialize
 
+#ifdef DEBUG_ENABLED  
+
   DBG( F( "\n[STATUS] === ESP32 SOIL IRRIGATION SYSTEM ===" ) ); // print startup banner
+
+#endif
 
 }
 
@@ -76,7 +80,11 @@ void setup_RS485()
 
     RS485Serial.begin( RS485_BAUD, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN ); // Initialize RS485 UART
 
+#ifdef DEBUG_ENABLED
+
     DBG( F( "[RS485] Modbus initialized" ) ); // Log RS485 initialization
+
+#endif    
 
 }
 
@@ -106,15 +114,26 @@ void connect_WiFi()
       else
     {
       wifi_connectivity = false;  // clear connectivity flag on failure
+
+#ifdef DEBUG_ENABLED
+
       DBG( F( "[WIFI] Unable to connect to WiFi" ) ); // log failure
+
+#endif    
+
       return; // bail out if not connected
     }
 
-    
     Serial.println(); // finish progress line
+
+#ifdef DEBUG_ENABLED
+
     DBG( F( "[WIFI] Connected" ) ); // log successful connection
     DBGf( "[WIFI] IP: %s\r\n", WiFi.localIP().toString().c_str() ) ; // print assigned IP
     DBGf( "[WIFI] RSSI: %d dBm\r\n", WiFi.RSSI() ) ; // print signal strength
+
+#endif
+
 }
 
 
@@ -132,7 +151,13 @@ void setup_NTP()
 
   while( getLocalTime( &timeinfo ) == false && tries < 5 ) // attempt to get time with retries
   {
+
+#ifdef DEBUG_ENABLED
+
     DBG( F ( "[NTP] Failed to obtain time from NTP server" ) ); // log retry attempt
+
+#endif
+
     tries++;  // retry a few times
   }
 
@@ -141,6 +166,13 @@ void setup_NTP()
     return; // give up if still no time
     
   else
+  {
+
+#ifdef DEBUG_ENABLED
+
     DBG( F ( "[NTP] Got good time update from NTP server" ) ); // log success
+
+#endif
+  }
 
 }

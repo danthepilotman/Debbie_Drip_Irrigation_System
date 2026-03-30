@@ -10,11 +10,6 @@ writeKey          = 'EJ3TTWSNK2Q6PXSO'; % TalkBack write API key
 % Fallback target moisture (unused unless TalkBack fails)
 targetMoisture = 30;
 
-% OpenWeatherMap settings
-lat           = '28.027';
-lon           = '-80.631';
-weatherAPIKey = '1f237060a56d83d3827815039317d2a9';
-
 % Number of points to read from ThingSpeak
 numPointsToRead = 10;
 
@@ -67,9 +62,8 @@ catch ME
 end
 
 %% --- 2. Get weather forecast from OpenWeatherMap ---
-weatherURL = sprintf( ...
-    'https://api.openweathermap.org/data/3.0/onecall?lat=%s&lon=%s&exclude=current,minutely,daily,alerts&appid=%s', ...
-    lat, lon, weatherAPIKey);
+weatherURL = 'https://api.weather.gov/gridpoints/JAX/86,33/forecast/hourly';
+ 
 
 try
     rawJSON = webread(weatherURL, optionsTS);
@@ -77,31 +71,26 @@ try
 catch ME
     disp('[ERROR] Failed to retrieve weather forecast:');
     disp(ME.message);
-    rawJSON = struct('hourly', {});
+    rawJSON = struct('properties', {});
 end
 
 %% --- 3. Parse forecast and compute rain_expected ---
 rain_expected = false;
-rain_prob_min = 0.40;
+rain_prob_min = 40;
 
 try
-    nForecasts = min(5, length(rawJSON.hourly)); % next ~6 hours
-
-    for i = 1:nForecasts
-        item = rawJSON.hourly(i);
-        mainWeather = item.weather(1).main;
-
+      for i = 1:6  % next ~6 hours
+         
         % Probability of precipitation (0.0–1.0)
-        if isfield(item, 'pop')
-            precip_prob = item.pop;
-        else
+        if isfield(rawJSON.properties.periods(i).probabilityOfPrecipitation, 'value')
+            precip_prob = rawJSON.properties.periods(i).probabilityOfPrecipitation.value;
+        else    
             precip_prob = 0;
         end
 
-        fprintf('Forecast %d: %s | POP = %.2f\n', i, mainWeather, precip_prob);
+        fprintf('Forecast POP = %.2f\n', precip_prob );
 
-        if any(strcmp(mainWeather, {'Rain','Drizzle','Thunderstorm'})) && ...
-           (precip_prob > rain_prob_min)
+        if (precip_prob >= rain_prob_min )
             rain_expected = true;
             break;
         end

@@ -16,72 +16,108 @@ const char* LON = "-80.631";  // My house longitude
 #endif
 
 
+
 // ==================================================
 // ================= WEATHER ========================
 // ==================================================
 bool rainExpectedSoon()
 {
+    
+#ifdef DEBUG_ENABLED
+
     DBG( F( "[WEATHER] Checking forecast" ) );  // User debug message
+
+#endif
 
     HTTPClient http;  // HTTP client for OpenWeather requests
 
-    char url[256];  // buffer for constructed URL
-
-    snprintf(url, sizeof(url),
-             "https://api.openweathermap.org/data/3.0/onecall?lat=%s&lon=%s&exclude=current,daily,minutely,alerts&appid=%s",
-             LAT, LON, WEATHER_API_KEY);  // Build URL string
-
-    http.begin( url );  // start the HTTP session using URL
-
-    int code = http.GET();  // Use HTTP GET to fetch the weather data
-
-    DBGf( "[WEATHER] HTTP code: %d\r\n", code );  // Print HTTP response code
-
-    if ( code != HTTP_CODE_OK )  // Check for errors
-    {
-        http.end();  // End HTTP session
-        return false;  // Return no rain expected
-    }
-    
+    char url[] = "https://api.weather.gov/gridpoints/JAX/86,33/forecast/hourly";  // buffer for constructed URL
 
     JsonDocument filter;  // Create JSON filter document
 
-    // Apply the same filter to ALL hourly elements
-    JsonObject hourly = filter["hourly"][0].to<JsonObject>();  // Create Json object for hourly filter
+    // Apply the same filter to ALL period elements
+    for ( uint8_t i = 0; i < 6; ++i )
+    {
+        filter["properties"]["periods"][i]["probabilityOfPrecipitation"]["value"] = true;
+    }
 
-    hourly["pop"] = true;  // Probability of precipitation
-    hourly["weather"][0]["main"] = true;  // Main weather description
+    filter["properties"]["periods"] = true;  // <-- important
+
+    http.begin( url );  // start the HTTP session using URL
+    http.addHeader("User-Agent", "ESP32_Irrigation_Controller");
+    http.addHeader("Accept", "application/geo+json");
+
+    int code = http.GET();  // Use HTTP GET to fetch the weather data
+
+#ifdef DEBUG_ENABLED
+
+    DBGf( "[WEATHER] HTTP code: %d\r\n", code );  // Print HTTP response code
+
+#endif
+
+    // if ( code != HTTP_CODE_OK )  // Check for errors
+    //     return false;  // Return no rain expected
+    
+   String payload = http.getString();
+
+    Serial.println("**** RAW JSON ****");
+    Serial.println(payload);
 
     // Stream-deserialize using the filter to reduce memory usage
-    DeserializationError err = deserializeJson( doc, http.getStream(), DeserializationOption::Filter(filter) );
+    DeserializationError err = deserializeJson( doc, payload, DeserializationOption::Filter(filter) );
 
     http.end();  // End HTTP session after consuming the stream
 
 
     if ( err )  // Check for JSON errors
     {
+
+#ifdef DEBUG_ENABLED
+
         DBG( F( "[WEATHER][ERROR] JSON parse failed" ) );
+
+#endif
         return false;
     }
 
-    uint8_t checks = 0;  // limit checks to next 6 hours
+    
+    Serial.print("Doc size: ");
+    Serial.println(doc.size());
 
-    for ( JsonObject item : doc["hourly"].as<JsonArray>() )  // Loop through the forecast JSON doc
+    JsonArray periods = doc["properties"]["periods"];
+
+    Serial.print("Periods size: ");
+    Serial.println(periods.size());
+    
+
+    Serial.println("**** FILTERED JSON ****");
+    serializeJsonPretty(doc, Serial);
+    Serial.println();
+
+
+    for (JsonObject period : periods)
     {
-        if ( checks++ > 5 )  // next 6 hours since forecast are hourly
-            break; 
+        int precip_prob = period["probabilityOfPrecipitation"]["value"] | 0;
+        Serial.println(precip_prob);
+    }
 
-        String main = item["weather"][0]["main"];  // main description (Rain/Drizzle/etc)
+    uint8_t count = 0;
 
-        String pop = item["pop"];  // probability (as string)
+    for (JsonObject period : periods)
+    {
+        if (count++ >= 6)
+            break;
 
-        float precip_prob = pop.toFloat();  // numeric probability value
-       
-        DBGf( "[WEATHER] Forecast: %s\tPop: %.2f\r\n", main.c_str(),  precip_prob );  // Print main forecast
+        int precip_prob = period["probabilityOfPrecipitation"]["value"] | 0;
 
-        if ( ( main == "Rain" || main == "Drizzle" || main == "Thunderstorm" ) && precip_prob > rain_prob_min )  // Check for "rain" events
+#ifdef DEBUG_ENABLED
+
+        DBGf("[WEATHER] Pop: %d\r\n", precip_prob);
+
+#endif
+
+        if (precip_prob > rain_prob_min)
             return true;
-        
     }
 
     doc.clear();  // release parsed data

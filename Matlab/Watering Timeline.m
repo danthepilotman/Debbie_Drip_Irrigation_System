@@ -9,9 +9,19 @@ if isempty(data)
     error('No data received from ThingSpeak channel.');
 end
 
-%% 2. Convert to binary 0/1
+%% 2. Convert to binary 0/1 with last-good-value fill
 data = double(data);
+
+% Forward-fill NaNs with previous value
+for i = 2:length(data)
+    if isnan(data(i))
+        data(i) = data(i-1);
+    end
+end
+
+% Convert any non-zero value to 1 (ON)
 data(data ~= 0) = 1;
+
 
 %% 3. Extend last value to current time
 currentTime = datetime('now','TimeZone',time.TimeZone);
@@ -50,11 +60,11 @@ transitionIdx = find(diff(data) ~= 0) + 1;
 scatter(time(transitionIdx), data(transitionIdx), 50, 'filled');
 
 %% 7. Format axes
-yticks([0 1]); yticklabels({'Off','On'}); ylim([-0.1 1.1]);
-xlabel('Time'); ylabel('Solenoid State');
+yticks([0 1]); yticklabels({'Off','On'}); ylim([-0.1 1.3]);
+xlabel('Time'); ylabel('Watering');
 xtickformat('MM-dd HH:mm');
 xtickangle(45);
-title('Live Watering Start/Stop Events');
+title('Watering Schedule');
 grid on;
 
 %% 8. Optional: add text labels near transition dots for timestamps

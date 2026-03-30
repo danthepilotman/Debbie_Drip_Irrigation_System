@@ -1,6 +1,8 @@
 #include "setup.h"
 #include "thingspeak.h"
-#include "weather.h"
+#ifdef ESP32_WX
+    #include "weather.h"
+#endif
 #include "irrigation.h"
 #include "sleep_timer.h"
 

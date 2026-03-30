@@ -12,7 +12,12 @@ void printLocalTime( const char *tag )  // Print current local time with tag
     char buf[32];  // formatted timestamp buffer
     strftime( buf, sizeof( buf ), "%m-%d-%Y %H:%M:%S", &timeinfo );  // write human-readable time
 
+#ifdef DEBUG_ENABLED
+
     DBGf( "[%s] Local time: %s\r\n", tag, buf );  // log the timestamp with the provided tag
+
+#endif
+
 }
 
 
@@ -24,7 +29,12 @@ void printTargetTime( time_t target )  // Print next target time
     char buf[32];  // buffer for formatted target time
     strftime( buf, sizeof( buf ), "%m-%d-%Y %H:%M:%S", &tm_target );  // format for logging
 
+#ifdef DEBUG_ENABLED
+
     DBGf( "[TIME] Next target time: %s\r\n", buf );  // log the formatted target time
+
+#endif
+
 }
 
 
@@ -74,12 +84,21 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
     double seconds_to_target = difftime( target, now );  // seconds until the target
 
+#ifdef DEBUG_ENABLED
+
     DBGf( "[TIME] Seconds to target: %.0f\r\n", seconds_to_target );  // log remaining seconds
+
+#endif
 
     // Case 1: Inside active window → stay awake and loop until target
     if ( seconds_to_target <= ACTIVE_WINDOW_SEC )
     {
+
+#ifdef DEBUG_ENABLED
+
         DBGf( "[POWER] Inside active window (%ds) — staying awake\r\n", ACTIVE_WINDOW_SEC );  // debug note
+
+#endif
 
         while ( true )
         {
@@ -90,12 +109,21 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
             if ( remaining <= 0 )  // target reached?
                 break;  // exit loop when time arrives
 
+#ifdef DEBUG_ENABLED
+
             DBGf( "[WAIT] %.0f seconds remaining\r\n", remaining );  // log remaining time periodically
+
+#endif
             delay( 950 );  // small delay to avoid tight-looping and allow background tasks
         }
 
         printLocalTime( "TARGET" );  // log the moment target is reached
+
+#ifdef DEBUG_ENABLED
+
         DBG( "[POWER] Target reached — continuing program" );  // note continuation
+
+#endif
         return;  // return to normal operation
     }
 
@@ -107,11 +135,20 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
     uint64_t sleep_us = uint64_t( sleep_seconds ) * ONE_SECOND_US;  // convert seconds to microseconds for ESP32
 
+#ifdef DEBUG_ENABLED
+
     DBGf( "[POWER] Sleeping for %.0f seconds (early buffer = %ds)\r\n", sleep_seconds, WAKE_EARLY_BUFFER_SEC );  // log planned sleep
+
+#endif 
 
     esp_sleep_enable_timer_wakeup( sleep_us );  // program the wakeup timer
 
+#ifdef DEBUG_ENABLED
+
     DBG( "[STATUS] ===== Entering Deep Sleep =====" );  // final status log
+
+#endif
+
     esp_deep_sleep_start();  // hand off to hardware deep sleep
 
 }
