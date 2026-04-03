@@ -5,14 +5,7 @@
 #include "setup.h"  // project config
 
 
-// ==================================================
-// ================= OPENWEATHER ====================
-// ==================================================
-extern const char* WEATHER_API_KEY;  // OpenWeather API key
-extern const char* LAT;  // latitude for forecast
-extern const char* LON;  // longitude for forecast
-
-const float rain_prob_min = 0.40;  // Minimum precipitation probability to determine rain expected
+const int RAIN_PROB_MIN = 50;  // Minimum precipitation probability percentage [%] to determine rain expected
 
 
 // ==================================================

@@ -8,18 +8,18 @@
 
 
 constexpr uint8_t MAX_TRIES = 5;  // retry attempts
-constexpr uint32_t TB_DELAY = 60000UL;  // TalkBack processing delay [ms]
-constexpr uint32_t TS_DELAY = 15000UL;  // ThingSpeak update delay [ms]
+constexpr uint32_t TS_PROCESS_DELAY = 20000UL;  // ThingSpeak update delay [ms]
+
 
 // ==================================================
 // ================= THINGSPEAK =====================
 // ==================================================
-extern const char* TS_WRITE_KEY;  // ThingSpeak write API key
-extern const char* TS_READ_KEY;  // ThingSpeak read API key
-extern const char* TS_CHANNEL;  // ThingSpeak channel ID
-extern const char* TS_TALKBACK_ID;  // TalkBack ID
-extern const char* TS_TALKBACK_KEY;  // TalkBack key
+extern const char* TS_CHANNEL;  // ThingSpeak channel id
+extern const char* TS_WRITE_KEY;  // ThingSpeak write key
+extern const char* TS_READ_KEY;  // ThingSpeak read key
 
+extern const char* TS_WATERING_ID;  // Watering channel ID used for watering parameters
+extern const char* TS_WATERING_WRITE_KEY;  // Watering channel write key used for watering parameters
 
 // ==================================================
 // ========= Prototype Functions ===========

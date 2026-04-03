@@ -4,23 +4,18 @@
 void compute_watering_parameters()  // evaluate if watering is needed
 {
 
-#ifdef ESP32_WX
+    bool rain_expected_ESP32 = rainExpectedSoon();  // Get NWS weather forecast
 
-    rainExpectedSoon();  // Get NWS weather forecast
-
-#endif
-    
-#ifdef DEBUG_ENABLED
-
-    DBGf( "[LOGIC] Rain expected soon: %s", rain_expected_TS ? "YES\r\n" : "NO\r\n" );  // Report rain expectation
-
-#endif
-
-    if ( moisture < settings.threshold && rain_expected_TS == false )  // Determine if watering is needed
+    if ( moisture < settings.threshold && rain_expected_ESP32 == false )  // Determine if watering is needed
         watering_needed_ESP32 = YES;
 
-    if ( watering_needed_ESP32 == watering_needed_TS )  // Check if ESP and TS are in agreement
-            Serial.println( F( "[LOGIC] Local ESP32 & ThingSpeak watering needed agree") );
+#ifdef DEBUG_ENABLED
+
+    DBGf( "[LOGIC] Rain expected soon: %s", rain_expected_ESP32 ? "YES\r\n" : "NO\r\n" );  // Report rain expectation
+    DBGf( "[LOGIC] Watering needed: %s", watering_needed_ESP32 ? "YES\r\n" : "NO\r\n" );  // Report watering need
+
+#endif
+
 
 }
 

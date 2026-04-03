@@ -3,8 +3,8 @@
 
 /* Leftover for Reference if needed later:
 
-const char* LAT = "29.524";  // Debbie's House latitude
-const char* LON = "-81.205";  // 
+const char* LAT = "29.524";   // Debbie's House latitude
+const char* LON = "-81.205";  // Debbie's House longitude
 
 const char* LAT = "28.027";   // My house latitude
 const char* LON = "-80.631";  // My house longitude
@@ -23,7 +23,15 @@ bool rainExpectedSoon()
 
 #endif
 
-    char url[] = "https://api.weather.gov/gridpoints/JAX/86,33/forecast/hourly";  // buffer for constructed URL    
+#ifdef DEBBIE_HOUSE
+
+    char url[] = "https://api.weather.gov/gridpoints/JAX/86,33/forecast/hourly";  // buffer for constructed URL   
+    
+#else
+
+    char url[] = "https://api.weather.gov/gridpoints/MLB/25,69/forecast/hourly";  // buffer for constructed URL
+
+#endif
 
     HTTPClient http;  // HTTP client for OpenWeather requests
     http.setTimeout(10000);  // 10 seconds
@@ -107,7 +115,7 @@ bool rainExpectedSoon()
 
 #endif
         
-        if ( precip_prob > rain_prob_min )
+        if ( precip_prob > RAIN_PROB_MIN )
             return true;
         
     }

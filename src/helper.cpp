@@ -174,28 +174,44 @@ long secondsSincePosition1( JsonArray arr )  // Seconds since TalkBack position 
 void update_Schedule ( String cmdStr, uint8_t position )  // Update schedule from TalkBack
 {
 
-#ifdef DEBUG_ENABLED
-
-    DBGf( "[THINGSPEAK] Schedule from TalkBack: %s\r\n", cmdStr.c_str() );  // Expected format: "HH:MM:SS,HH:MM:SS,HH:MM:SS,..."
-
-#endif
-
     int hours, minutes, seconds;  // Time components
 
     const char* timeStr = cmdStr.c_str();  // Convert to C-string
 
     if ( sscanf(timeStr, "%d:%d:%d", &hours, &minutes, &seconds) == 3 )  // Parse time components
     {
-        settings.times[position - 5].hour = hours;  // Update hour (position 5 maps to index 0)
-        settings.times[position - 5].min = minutes;  // Update minute
-        settings.times[position - 5].sec = seconds;  // Update second
+        
+      if( hours >= 0 && hours <24 )
+        {
+            settings.times[position - 4].hour = hours;  // Update hour (position 5 maps to index 0)
+        }
+        
+        if( minutes >= 0 && minutes < 60 )
+        {
+             settings.times[position - 4].min = minutes;  // Update minute
+        }
+        
+        if( seconds >= 0 && seconds < 60 )
+        {
+             settings.times[position - 4].sec = seconds;  // Update second
+        }
+
     }
+
+#ifdef DEBUG_ENABLED
+
+    DBGf( "[THINGSPEAK] Schedule from TalkBack: %02d:%02d:%02d\r\n", 
+      settings.times[position - 4].hour, settings.times[position - 4].min, settings.times[position - 4].sec );  // Expected format: "HH:MM:SS,HH:MM:SS,HH:MM:SS,..."
+
+#endif
 
 }
 
 
 bool check_new_settings()  // Compare stored settings with current ones
 {
+  
+  JsonDocument doc;  // Create JSON document for parsing settings file
   
   if ( LittleFS.exists( "/settings.json") == false )  // Settings file does not exist
     return true;  // Need to save settings
@@ -217,7 +233,10 @@ bool check_new_settings()  // Compare stored settings with current ones
   if ( doc["threshold"].as<float>() != settings.threshold )  // threshold differs
     return true;
 
-  if ( doc["duration"].as<int>()  != settings.duration )  // duration differs
+  if ( doc["duration"].as<u32_t>()  != settings.duration )  // duration differs
+    return true;
+
+  if ( doc["rain_min_Prob"].as<uint32_t>()  != settings.rain_min_Prob )  // rain_min_Prob differs
     return true;
 
   // ---- Times ----
@@ -259,6 +278,8 @@ bool initFlashFS()  // Initialize LittleFS
 bool loadSettings()  // Load settings from LittleFS
 {
   
+  JsonDocument doc;  // Create JSON document for parsing settings file
+  
   if ( LittleFS.exists("/settings.json") == false )  // settings file missing
   {
     Serial.println( F( "[FILESYSTEM] Settings file not found" ) );
@@ -285,6 +306,7 @@ bool loadSettings()  // Load settings from LittleFS
 
   settings.threshold = doc["threshold"].as<float>();  // load threshold
   settings.duration  = doc["duration"].as<uint32_t>();  // load duration
+  settings.rain_min_Prob = doc["rain_min_Prob"].as<uint32_t>();  // load rain minimum probability  
 
   JsonArray times = doc["times"].as<JsonArray>();  // load times array
 
@@ -315,6 +337,9 @@ bool loadSettings()  // Load settings from LittleFS
 
 bool saveSettings()
 {
+  
+  JsonDocument doc;  // Create JSON document for saving settings
+
   File file = LittleFS.open("/settings.json", "w");  // open file for writing
   
   if ( file == false )  // open failed
@@ -326,16 +351,16 @@ bool saveSettings()
 
   doc["threshold"] = settings.threshold;  // store threshold
   doc["duration"]  = settings.duration;  // store duration
+  doc["rain_min_Prob"] = settings.rain_min_Prob;  // store rain minimum probability
 
   JsonArray times = doc["times"].to<JsonArray>();  // create times array
 
 
   for ( uint8_t i = 0; i < SCHEDULE_COUNT; ++i )  // add each scheduled time
   {
-    JsonObject t = times.add<JsonObject>();
-    t["h"] = settings.times[i].hour;  // save hour
-    t["m"] = settings.times[i].min;  // save minute
-    t["s"] = settings.times[i].sec;  // save second
+    times[i]["h"] = settings.times[i].hour;  // save hour
+    times[i]["m"] = settings.times[i].min;  // save minute
+    times[i]["s"] = settings.times[i].sec;  // save second
   }
 
   serializeJsonPretty( doc, file );  // write JSON to file
@@ -361,6 +386,9 @@ void printSettings()  // Print current settings to serial
     Serial.println(settings.threshold);  // threshold value
     Serial.print(F("Duration : "));  // label
     Serial.println(settings.duration);  // duration value
+    Serial.print(F("Rain minimum probability: "));  // label
+    Serial.println(settings.rain_min_Prob);  // rain minimum probability value
+
 
     for  (uint8_t i = 0; i < 4; ++i )  // print each scheduled time
     {

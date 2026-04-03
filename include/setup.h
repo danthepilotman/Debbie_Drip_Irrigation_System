@@ -22,10 +22,9 @@
 // ==================================================
 // ================== BUILD OPTIONS =================
 // ==================================================
+//#define DEBBIE_HOUSE  // define for Debbie's house config
+//#define SOIL_SENSOR  // include soil sensor support
 #define DEBUG_ENABLED  // enable debug logging
-#define DEBBIE_HOUSE  // define for Debbie's house config
-#define SOIL_SENSOR  // include soil sensor support
-
 
 // ==================================================
 // ================= DEBUG MACROS ===================
@@ -78,6 +77,7 @@ typedef struct TimeSet
 struct Settings {
   float threshold;  // Soil moisture threshold to trigger watering
   uint32_t duration;  // Watering time in seconds
+  uint32_t rain_min_Prob;  // Minimum probability of rain to set rain_expected flag
   TimeSet times[4];  // Up to 4 watering times per day
 };
 
@@ -90,13 +90,6 @@ extern bool watering_needed_ESP32;  // watering state from ESP32
 extern bool solenoid_state;  // solenoid open/close state
 
 extern float moisture;  // current moisture reading
-
-extern bool rain_expected_TS;  // rain flag from ThingSpeak
-
-extern bool watering_needed_TS;  // watering needed flag from ThingSpeak
-
-extern JsonDocument doc;  // JSON document instance (shared)
-
 
 // ==================================================
 // ========= Prototype Functions ===========

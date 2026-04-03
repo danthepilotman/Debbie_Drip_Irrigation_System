@@ -1,13 +1,30 @@
 #include "thingspeak.h"  // ThingSpeak helpers: upload, TalkBack parsing, and settings
 
 
+#ifdef DEBBIE_HOUSE
 
 const char* TS_CHANNEL   = "3211645";  // ThingSpeak channel id
 const char* TS_WRITE_KEY = "60SYG2RIJ0TW4D32";  // ThingSpeak write key
 const char* TS_READ_KEY  = "IN57T91RJ0C8NPFK";  // ThingSpeak read key
 const char* TS_TALKBACK_ID = "56070";  // TalkBack id
 const char* TS_TALKBACK_KEY = "EJ3TTWSNK2Q6PXSO";  // TalkBack key
+const char* TS_WRITE_KEY_2 = "VJQGRESCP5X57UVG";  // ThingSpeak write key for RSSI updates
 
+#else
+
+const char* TS_CHANNEL   = "3325050";  // ThingSpeak channel id
+const char* TS_WRITE_KEY = "WZ6S3B4NWT6PKXD2";  // ThingSpeak write key
+const char* TS_READ_KEY  = "SQJTM2FB7HICPK6G";  // ThingSpeak read key
+const char* TS_TALKBACK_ID = "56669";  // TalkBack id
+const char* TS_TALKBACK_KEY = "993A55E3RP9ZI8H0";  // TalkBack key
+
+
+const char* TS_WATERING_ID = "3325052";  // Watering channel ID used for watering parameters
+const char* TS_WATERING_WRITE_KEY = "YLGO60STV9UCS8HL";  // Watering channel write key used for watering parameters status updates
+const char* TS_WATERING_READ_KEY = "6LSSZSC5PSPZ0AJQ";  // Watering channel write key used for watering parameters status updates
+
+
+#endif
 
 // ==================================================
 // ================= THINGSPEAK =====================
@@ -24,16 +41,19 @@ void sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
         return;
     }
 
-    char update_url[256];  // buffer for update URL (snprintf protects from overflow)
+    char url[256];  // buffer for update URL (snprintf protects from overflow)
+    
     String status_str = urlEncode( String( "Update sent " ) + Timestamp() );  // status message
+    
     char status_c[128];  // C-string for status
+    
     status_str.toCharArray(status_c, sizeof(status_c));  // copy to C-string
 
-    snprintf( update_url, sizeof(update_url),  // build ThingSpeak update URL
+    snprintf( url, sizeof(url),  // build ThingSpeak update URL
         "https://api.thingspeak.com/update?api_key=%s&field1=%.1f&field2=%.1f&field3=%d&field4=%.1f&field5=%d&field6=%d&field7=%d&status=%s",
         TS_WRITE_KEY, moisture, ( 1.8 * t + 32.0 ), int(ec), ph, n, p, k, status_c );
 
-    Serial.printf( "[THINGSPEAK] URL: %s\r\n", update_url );  // debug: print update URL
+    Serial.printf( "[THINGSPEAK] URL: %s\r\n", url );  // debug: print update URL
     
 
     // Try several times: upload then confirm server saw it by checking last_data_age
@@ -46,7 +66,7 @@ void sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
         
         if( tries == 1 || update_code !=  HTTP_CODE_OK )  // attempt update if first try or previous update failed
         {
-            http.begin( update_url );   // NOTE: http, not https
+            http.begin( url );   // NOTE: http, not https
             
             update_code = http.GET();  // Use GET to send HTTP update to TS and retrieve response code
 
@@ -54,18 +74,18 @@ void sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
 
             Serial.printf( "[THINGSPEAK] HTTP code(update): %d\r\n", update_code );  // log update HTTP status
 
-            delay( TS_DELAY );  // Allow some time for ThingSpeak server to process data
+            delay( 5000 );  // Allow some time for ThingSpeak server to process data
 
         }
     
     // -------- Check latest ThingSpeak Upload Time --------
 
-        char time_check_url[128];
-        snprintf( time_check_url, sizeof(time_check_url), "https://api.thingspeak.com/channels/%s/fields/1/last_data_age.txt", TS_CHANNEL );  // build URL to check last upload age
+       
+        snprintf( url, sizeof(url), "https://api.thingspeak.com/channels/%s/fields/1/last_data_age.txt?api_key=%s", TS_CHANNEL, TS_READ_KEY );  // build URL to check last upload age
     
         if( tries == 1 || time_check_code !=  HTTP_CODE_OK )  // try time check if first try or previous check failed
         {
-            http.begin( time_check_url );  // request last_data_age
+            http.begin(url );  // request last_data_age
                 
             time_check_code = http.GET();  // GET last_data_age
 
@@ -83,7 +103,7 @@ void sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
         Serial.printf( "[THINGSPEAK] Age: %d\r\n", age );  // log age
     
 
-        if ( update_code == HTTP_CODE_OK && time_check_code == HTTP_CODE_OK && age <= ( TS_DELAY/1000UL * MAX_TRIES ) )  // success: HTTP OK and age within threshold
+        if ( update_code == HTTP_CODE_OK && time_check_code == HTTP_CODE_OK && age <= ( 5*(tries + 1) ) )  // success: HTTP OK and age within threshold
         {
             Serial.println( "[THINGSPEAK] Upload successful" );  // confirm success
             break;
@@ -98,28 +118,30 @@ void sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
 void getSettings()
 {
     
+    JsonDocument doc;  // Create JSON document for parsing TalkBack response
+
+    uint8_t tries;
+    
+    HTTPClient http;
+
+    char url[256];  // buffer for TalkBack URL
+
+    JsonArray arr;  // parsed TalkBack commands array
+    
+    snprintf( url, sizeof(url), "https://api.thingspeak.com/talkbacks/%s/commands.json?api_key=%s", TS_TALKBACK_ID, TS_TALKBACK_KEY );  // build TalkBack commands URL
+
 #ifdef DEBUG_ENABLED
 
     DBG( F( "[THINGSPEAK] Reading control settings..." ) );  // indicate TalkBack fetch
 
 #endif
 
-    uint8_t tries;
-    
-    HTTPClient http;
-
-    char url[128];  // buffer for TalkBack URL
-
-    JsonArray arr;  // parsed TalkBack commands array
-    
-    snprintf( url, sizeof(url), "https://api.thingspeak.com/talkbacks/%s/commands.json?api_key=%s", TS_TALKBACK_ID, TS_TALKBACK_KEY );  // build TalkBack commands URL
-
     
     for( tries = 1; tries <= MAX_TRIES; ++tries )  // retry loop for TalkBack fetch
     {
-    
-        delay( TB_DELAY );  // delay between retries
-        
+           
+        /************************ Get watering settings *************************/
+
         http.begin( url );  // request TalkBack commands
 
         int code = http.GET();  // HTTP response code
@@ -147,38 +169,22 @@ void getSettings()
 
 #ifdef DEBUG_ENABLED
 
-            DBGf( "[ERROR] Failed to parse TalkBack JSON: %s\r\n", error.c_str() );
+            DBGf( "[ERROR] Failed to parse Watering JSON: %s\r\n", error.c_str() );
 
 #endif
             return;
         }
 
-        arr = doc.as<JsonArray>();  // root is array
-
-        long ageSeconds = secondsSincePosition1( arr );  // compute age since position 1
-
-#ifdef DEBUG_ENABLED
-
-        DBGf( "[THINGSPEAK] Seconds since TB timestamp: %ld\r\n", ageSeconds );  // debug print ageSeconds
-
-#endif
+        else
+            break;  // success, exit retry loop
         
-        if ( ageSeconds >= 0 && ageSeconds <= ( MAX_TRIES * ( TB_DELAY / 1000UL ) ) )  // validate freshness of TB data
-        {
-
-#ifdef DEBUG_ENABLED
-
-            DBG( F( "[THINGSPEAK] Valid TalkBack data received" ) );
-
-#endif
-            break;
- 
-        }
-
     }
 
-    if ( tries == MAX_TRIES )  // give up after max tries
+    if ( tries > MAX_TRIES )  // give up after max tries
             return;  // Exit function if no valid TalkBack data
+
+
+    arr = doc.as<JsonArray>();  // root is array
 
         
        // Loop through the commands
@@ -192,18 +198,18 @@ void getSettings()
         switch ( position )
         {
             case 1:  // target soil moisture
-                settings.threshold = cmdStr.toFloat();
+                settings.threshold = cmdStr.toFloat();  // Update threshold
                 break;
             case 2:  // watering duration
-                settings.duration = cmdStr.toInt();
+                settings.duration = cmdStr.toInt();  // Update duration
                 break;
             case 3:  // rain expected
-                rain_expected_TS = cmdStr.toInt() != 0; // Any non-zero value → true
+                settings.rain_min_Prob = cmdStr.toInt();  // Update rain minimum probability
                 break;
-            case 4:  // watering needed
-                watering_needed_TS = cmdStr.toInt() != 0;  // Any non-zero value → true
+             case 4:  // update schedule
+                update_Schedule ( cmdStr, position );  // Update schedule
                 break;
-             case 5:  // update schedule
+            case 5:  // update schedule
                 update_Schedule ( cmdStr, position );
                 break;
             case 6:  // update schedule
@@ -212,31 +218,25 @@ void getSettings()
             case 7:  // update schedule
                 update_Schedule ( cmdStr, position );
                 break;
-            case 8:  // update schedule
-                update_Schedule ( cmdStr, position );
-                break;
             default:
                 break;
         }
     }
 
     
-    doc.clear();  // Clear JSON document to free memory
-    
     /***************** Print TalkBack data ****************/
 #ifdef DEBUG_ENABLED    
 
     DBGf( "[THINGSPEAK] Moisture threshold: %.1f %%\r\n", settings.threshold );  // show threshold
     DBGf( "[THINGSPEAK] Water duration: %ld sec\r\n", settings.duration );  // show duration
-    DBGf( "[THINGSPEAK] Rain expected: %s\r\n", rain_expected_TS ? "true" : "false" );  // show rain_expected flag
-    DBGf( "[THINGSPEAK] Watering needed: %s\r\n", watering_needed_TS ? "true" : "false" );  // show watering_needed flag
+    DBGf( "[THINGSPEAK] Rain minimum probability: %ld %%\r\n", settings.rain_min_Prob );  // show rain minimum probability
 
 #endif
 
     /***************** Store user parameters if changed from previously store ones ****************/
     
-    if ( check_new_settings() == true )
-        saveSettings();   // write ONLY if something changed
+    if ( check_new_settings() == true )   // write ONLY if something changed
+        saveSettings();  // save settings to FS
 
 }
 
@@ -281,7 +281,7 @@ void get_new_readings()
        
 #else
 
-    uint16_t values[SOIL_REG_SIZE] = {227,203,100,70,50,40,30}; // Store 7 register values
+    const uint16_t values[SOIL_REG_SIZE] = {227,203,100,70,50,40,30}; // Store 7 register values
 
 #endif
 
@@ -313,7 +313,7 @@ void get_new_readings()
     {
         sendThingSpeak( temp, ec, ph, rawN, rawP, rawK );  // -------- ThingSpeak Upload --------
 
-        getSettings();  // -------- Read Control Settings --------
+        getSettings();  // -------- Read Control Settings --------, check TalkBack timestamp to ensure freshness of data before applying settings
 
     }
     
@@ -325,7 +325,7 @@ void ping_ThingSpeak()
 
   char url[256];  // Char array to hold URL
 
-  String status_str =  urlEncode( "First waking at " )  + urlEncode( Timestamp() );  // URL encode status string
+  String status_str =  urlEncode( "POWER_ON / RESET at " )  + urlEncode( Timestamp() );  // URL encode status string
 
   char status_c[128];  // Char array to hold URL encoded status string
 
@@ -335,7 +335,7 @@ void ping_ThingSpeak()
   status_str.toCharArray( status_c, sizeof(status_c) );  // Convert to C-string
 
   // Build URL for ThingSpeak update                                     
-  snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=VJQGRESCP5X57UVG&status=%s", status_c ); 
+  snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=%s&status=%s", TS_WRITE_KEY, status_c ); 
                               
 #ifdef DEBUG_ENABLED
  
@@ -366,6 +366,8 @@ void ping_ThingSpeak()
 
   }
 
+  delay( 1000 );  // Allow some time for ThingSpeak server to process data
+  
   send_RSSI();  // Send WiFi RSSI to ThingSpeak Channel
 
 }
@@ -375,11 +377,17 @@ void send_RSSI()
 {
 
     HTTPClient http;  // Create HTTP client object
+    
+    char url[256];  // Char array to hold URL
 
-    char rssi_url[128];  // URL for RSSI upload (connectivity monitoring)
-    snprintf( rssi_url, sizeof(rssi_url), "https://api.thingspeak.com/update?api_key=VJQGRESCP5X57UVG&field1=%d", WiFi.RSSI() );  // build RSSI upload URL
+    char rssi[8];  // Char array to hold URL encoded status string
 
-    http.begin( rssi_url );  // send RSSI
+    sprintf( rssi, "%d", WiFi.RSSI() );  // Convert RSSI to string
+
+    // Build URL for ThingSpeak update                                     
+    snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=%s&field1=%s", TS_WATERING_WRITE_KEY, rssi ); 
+
+    http.begin(url );  // send RSSI
         
     int update_code_RSSI = http.GET();  // get RSSI upload HTTP code
 

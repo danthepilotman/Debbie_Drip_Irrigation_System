@@ -1,8 +1,6 @@
 #include "setup.h"
 #include "thingspeak.h"
-#ifdef ESP32_WX
-    #include "weather.h"
-#endif
+#include "weather.h"
 #include "irrigation.h"
 #include "sleep_timer.h"
 
@@ -34,7 +32,10 @@ void setup()
     esp_reset_reason_t resetReason = esp_reset_reason();
     
     if ( resetReason  == ESP_RST_POWERON || resetReason == ESP_RST_EXT )  // Check for power applied (cold boot) or reset button press
+    {
         ping_ThingSpeak();  // Transmit status message to ThingSpeak Channel
+        getSettings();  // Fetch latest control settings from ThingSpeak TalkBack, don't check TalkBack timestamp since this is a manual reset or power-on event
+    }
         
 }
 
@@ -44,10 +45,6 @@ void setup()
     bool watering_needed_ESP32 = NO;  // Set in compute_watering_parameters() used in water_soil() and loop()
 
     bool solenoid_state = OFF;  // Set in water_soil() used in loop()
-
-    bool rain_expected_TS;  // Set in getSettings() used in compute_watering_parameters()
-
-    bool watering_needed_TS;  // Set in getSettings()  used in compute_watering_parameters()
 
     bool wifi_connectivity = false;  // WiFi connection status: true when connected
 

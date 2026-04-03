@@ -1,6 +1,7 @@
 {
-    "threshold": 32.1,
-    "duration": 1800,
+    "threshold": 27.5,
+    "duration": 1200,
+    "rain_min_Prob": 50,
     "times": [
         {"h":0,"m":0,"s":0},
         {"h":6,"m":0,"s":0},
