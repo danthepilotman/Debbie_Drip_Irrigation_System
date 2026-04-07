@@ -76,7 +76,7 @@ end
 
 %% --- 3. Parse forecast and compute rain_expected ---
 rain_expected = false;
-RAIN_PROB_MIN = 40;
+rain_prob_min = 50;
 
 try
       for i = 1:6  % next ~6 hours
@@ -90,7 +90,7 @@ try
 
         fprintf('Forecast POP = %.2f\n', precip_prob );
 
-        if (precip_prob >= RAIN_PROB_MIN )
+        if (precip_prob >= rain_prob_min )
             rain_expected = true;
             break;
         end

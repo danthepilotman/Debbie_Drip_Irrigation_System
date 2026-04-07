@@ -64,7 +64,7 @@ yticks([0 1]); yticklabels({'Off','On'}); ylim([-0.1 1.3]);
 xlabel('Time'); ylabel('Watering');
 xtickformat('MM-dd HH:mm');
 xtickangle(45);
-title('Watering Schedule');
+title('Watering Timeline');
 grid on;
 
 %% 8. Optional: add text labels near transition dots for timestamps
