@@ -149,6 +149,11 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
 #endif
 
+    display.clearDisplay();
+    display.setCursor(0,0);    
+    display.print(F("[STATUS]\r\nEntering Deep Sleep")); 
+    display.display();
+
     esp_deep_sleep_start();  // hand off to hardware deep sleep
 
 }

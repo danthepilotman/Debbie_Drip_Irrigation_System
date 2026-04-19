@@ -3,6 +3,7 @@
 #include "weather.h"
 #include "irrigation.h"
 #include "sleep_timer.h"
+#include "update_OLED.h"
 
 
 // ==================================================
@@ -21,6 +22,8 @@ void setup()
     
 #endif
 
+    setup_OLED();  // Setup OLED display    
+
     connect_WiFi();  // Connect to Wifi network
 
     setup_NTP();  // Connect to NTP and setup internal RTC
@@ -29,6 +32,7 @@ void setup()
 
     loadSettings();  // Load settings from non-volatile storage
 
+    
     esp_reset_reason_t resetReason = esp_reset_reason();
     
     if ( resetReason  == ESP_RST_POWERON || resetReason == ESP_RST_EXT )  // Check for power applied (cold boot) or reset button press
@@ -39,28 +43,28 @@ void setup()
         
 }
 
-
-    float moisture = 0.0;  // Set in get_new_readings(), used in sendThingSpeak() and compute_watering_parameters()
-
-    bool watering_needed_ESP32 = NO;  // Set in compute_watering_parameters() used in water_soil() and loop()
-
-    bool solenoid_state = OFF;  // Set in water_soil() used in loop()
-
-    bool wifi_connectivity = false;  // WiFi connection status: true when connected
-
+ 
 // ==================================================
 // ================= LOOP ===========================
 // ==================================================
 void loop()
 {
+    
+    check_button_press();  // Check for button press and update currentPage for OLED navigation if button pressed
 
+    update_Display();  // Update display continuously
 
-    if ( watering_needed_ESP32 == NO )  // Don't sleep if watering needed. Otherwise keep sleeping until next time target window.
+    if ( esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0 )  // If woke from button press, skip sleep logic for this cycle 
+        return;  // skip rest of loop to avoid sleeping immediately after waking from button press
+    
+    if ( status.watering_needed == NO )  // Don't sleep if watering needed. Otherwise keep sleeping until next time target window.
         deep_sleep_function();  // Go to sleep until next update cycle
 
-
-    if ( solenoid_state == OFF )  // Only get new soil readings if not currently watering. This avoids constant updates while watering
+    if ( status.solenoid_state == OFF )  // Only get new soil readings if not currently watering. This avoids constant updates while watering
+    {
        get_new_readings();  // Get readings for soil sensor and send to ThingSpeak. Also get weather forecast
+       thingSpeak_Update();  // Upload readings to ThingSpeak and fetch TalkBack settings, but only if woke up from timer and have WiFi. This ensures we get fresh data after sleep but don't waste power uploading if we're just waking up to update the OLED after a button press.
+    }
 
     water_soil();  // Water soil if needed for the proper duration.
                    // Sets watering_needed to NO if watering not needed.

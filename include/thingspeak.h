@@ -5,10 +5,11 @@
 #include "setup.h"  // project configuration
 #include "RS485.h"  // RS485 interface
 #include "helper.h"  // helper utilities
+#include "update_OLED.h"  // OLED update functions
 
 
 constexpr uint8_t MAX_TRIES = 5;  // retry attempts
-constexpr uint32_t TS_PROCESS_DELAY = 20000UL;  // ThingSpeak update delay [ms]
+constexpr uint32_t TS_PROCESS_DELAY = 16000UL;  // ThingSpeak update delay [ms]
 
 
 // ==================================================
@@ -24,9 +25,9 @@ extern const char* TS_WATERING_WRITE_KEY;  // Watering channel write key used fo
 // ==================================================
 // ========= Prototype Functions ===========
 // ==================================================
-void sendThingSpeak( float t, float ec, float ph, int n, int p, int k );  // upload readings
+void thingSpeak_Update();  // upload readings and fetch TalkBack settings
+void sendThingSpeak();  // upload readings
 void getSettings();  // fetch TalkBack settings
-void get_new_readings();  // read sensors and upload
 void ping_ThingSpeak();  // Transmit status message to ThingSpeak Channel
 void send_RSSI();  // Send Wifi RSSI to ThingSpeak channel
 

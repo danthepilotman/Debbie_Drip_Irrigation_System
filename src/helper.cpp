@@ -36,7 +36,7 @@ String Timestamp()  // Return formatted current time
 
     getLocalTime( &timeinfo );  // Get local time
 
-    strftime( buf, sizeof( buf ), "%a, %b %d, %Y %I:%M:%S %p", &timeinfo );  // Format time as "Day, Mon DD, YYYY HH:MM:SS AM/PM"
+    strftime( buf, sizeof( buf ), "%a %b %d, %Y %I:%M:%S %p", &timeinfo );  // Format time as "Dow Mon DD, YYYY HH:MM:SS AM/PM"
 
     return String( buf );  // Return formatted timestamp
 
@@ -48,43 +48,40 @@ void solenoid_state_Update()  // Report solenoid state to ThingSpeak
 
   char url[256];  // Char array to hold URL
 
-  String status_str = urlEncode( String("Watering ") + String(solenoid_state ? "started " : "stopped ") + Timestamp() );  // URL encode status string
+  status.status_str = String("Watering ") + String(status.solenoid_state ? "started " : "stopped ") + Timestamp();  // URL encode status string
 
   char status_c[128];  // Char array to hold URL encoded status string
 
   HTTPClient http;  // Create HTTP client object
 
 
-  status_str.toCharArray(status_c, sizeof(status_c));  // Convert to C-string
+  urlEncode(status.status_str).toCharArray(status_c, sizeof(status_c));  // Convert to C-string
 
   // Build URL for ThingSpeak update
-  snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=%s&field8=%d&status=%s", TS_WRITE_KEY, solenoid_state ? 1 : 0, status_c ); 
+  snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=%s&field8=%d&status=%s", TS_WRITE_KEY, status.solenoid_state ? 1 : 0, status_c ); 
 
 #ifdef DEBUG_ENABLED
 
-  DBGf( "[IRRIGATION] Solenoid is now %s", solenoid_state ? "ON\r\n" : "OFF\r\n" );  // Print solenoid state
+  DBGf( "[IRRIGATION] Solenoid is now %s", status.solenoid_state ? "ON\r\n" : "OFF\r\n" );  // Print solenoid state
   Serial.printf( "[THINGSPEAK] URL: %s\r\n", url );  // Print URL being used
 
 #endif
    
-  for( uint8_t tries = 1; tries <= MAX_TRIES; tries++ )  // Try updating up to MAX_TRIES times
+  for( uint8_t tries = 1; tries <= MAX_TRIES; ++tries )  // Try updating up to MAX_TRIES times
   {
 
-    int code = HTTP_CODE_BAD_REQUEST;  // Store HTTP response codes. Initialized to bad code to force retry if needed
-
-    if( code !=  HTTP_CODE_OK )  // Try if not getting a good HTTP response code
-    {
-      http.begin( url );  // Start HTTP session
+    http.begin( url );  // Start HTTP session
         
-      code = http.GET();  // Use GET to send HTTP update to TS and retrieve response code
+    int response_code = http.GET();  // Use GET to send HTTP update to TS and retrieve response code
 
-      http.end(); // End HTTP session
-    }
+    http.end(); // End HTTP session
 
-    Serial.printf("[THINGSPEAK] HTTP code: %d\r\n", code );  // Print HTTP response code
+    Serial.printf("[THINGSPEAK] HTTP code: %d\r\n", response_code );  // Print HTTP response code
 
-    if( code == HTTP_CODE_OK )  // Successful update
+    if( response_code == HTTP_CODE_OK )  // Successful update
       break;  // Exit retry loop if successful
+
+    delay( TS_PROCESS_DELAY );
 
   }
 
@@ -407,4 +404,105 @@ void printSettings()  // Print current settings to serial
     }
 
     Serial.println(F("------------------"));  // footer
+}
+
+
+/******************************* Get SOIL sensor readings and update ThingSpeak *********************/
+void get_new_readings()
+{
+    
+#ifdef DEBUG_ENABLED
+
+    DBG( F( "[STATUS] ===== SYSTEM CYCLE START =====" ) );  // mark cycle start
+
+#endif
+
+    RS485_STATUS rs485_status;  // RS485 operation status
+
+    // -------- Read Soil Sensor --------
+#ifdef SOIL_SENSOR
+
+    uint16_t values[SOIL_REG_SIZE]; // Store 7 register values
+
+#ifdef DEBUG_ENABLED
+
+    DBG( F( "[RS485] Reading soil sensor" ) );
+
+#endif
+
+    for( uint8_t num_of_attempts = 0; num_of_attempts < MAX_TRIES; ++num_of_attempts )  // try up to 5 times
+    {
+        status = read_Registers( RS485Serial, 0x01, 0x0000, 5, values );  // read registers via Modbus
+
+        if ( status == RS485_GOOD )
+            break;
+        
+#ifdef DEBUG_ENABLED
+
+        else
+            DBG( F( "[RS485][ERROR] Modbus error" ) );
+#endif
+        
+    }
+       
+#else
+
+    const uint16_t values[SOIL_REG_SIZE] = {227,203,100,70,50,40,30}; // Store 7 register values
+
+#endif
+
+    uint16_t rawMoisture = values[ SOIL_MOISTURE ];  // raw moisture register
+    uint16_t rawTemp     = values[ SOIL_TEMPERATURE ];  // raw temperature register
+    uint16_t rawEC       = values[ SOIL_EC];  // raw EC register
+    uint16_t rawPH       = values[ SOIL_PH ];  // raw pH register
+    uint16_t rawN        = values[ SOIL_N ];  // raw N register
+    uint16_t rawP        = values[ SOIL_P ];  // raw P register
+    uint16_t rawK        = values[ SOIL_K ];  // raw K register
+
+    soil.moisture = float(rawMoisture) / 10.0;  // convert to percent
+    soil.temp     = float( int16_t( rawTemp ) ) / 10.0;  // convert to °C (signed)
+    soil.ec       = float(rawEC);  // conductivity µS/cm
+    soil.pH       = float(rawPH) / 10.0;  // pH scaled by 10
+    soil.N        = rawN;  // N in mg/kg
+    soil.P        = rawP;  // P in mg/kg    
+    soil.K        = rawK;  // K in mg/kg
+
+#ifdef DEBUG_ENABLED
+
+    DBGf( "[DATA] Moisture: %.1f %%\r\n", soil.moisture );  // log moisture
+    DBGf( "[DATA] Temp: %.1f °C\r\n", soil.temp );  // log temperature
+    DBGf( "[DATA] EC: %.0f µS/cm\r\n", soil.ec );  // log EC
+    DBGf( "[DATA] pH: %.1f\r\n", soil.pH );  // log pH
+    DBGf( "[DATA] NPK: %u / %u / %u mg/kg\r\n", rawN, rawP, rawK );  // log NPK registers
+
+#endif
+  
+}
+
+
+void check_button_press()
+{
+
+  static unsigned long lastButtonTime = 0;
+    
+  const unsigned long debounceDelay = 700;
+
+  if ( buttonPressed )
+  {
+    buttonPressed = false;
+
+    unsigned long now = millis();
+
+    if (now - lastButtonTime > debounceDelay)
+    {
+      lastButtonTime = now;
+
+      currentPage = (Page)((currentPage + 1));  // Cycle pages
+
+      if (currentPage >= NUM_OF_PAGES)
+        currentPage = PAGE_STATUS ; // Wrap around to first page if we go past the last one
+    }
+
+  }
+
 }

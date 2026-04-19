@@ -6,13 +6,13 @@ void compute_watering_parameters()  // evaluate if watering is needed
 
     bool rain_expected_ESP32 = rainExpectedSoon();  // Get NWS weather forecast
 
-    if ( moisture < settings.threshold && rain_expected_ESP32 == false )  // Determine if watering is needed
-        watering_needed_ESP32 = YES;
+    if ( soil.moisture < settings.threshold && rain_expected_ESP32 == false )  // Determine if watering is needed
+        status.watering_needed = YES;
 
 #ifdef DEBUG_ENABLED
 
-    DBGf( "[LOGIC] Rain expected soon: %s", rain_expected_ESP32 ? "YES\r\n" : "NO\r\n" );  // Report rain expectation
-    DBGf( "[LOGIC] Watering needed: %s", watering_needed_ESP32 ? "YES\r\n" : "NO\r\n" );  // Report watering need
+    DBGf( "[LOGIC] Rain expected soon: %s", status.rain_expected ? "YES\r\n" : "NO\r\n" );  // Report rain expectation
+    DBGf( "[LOGIC] Watering needed: %s", status.watering_needed ? "YES\r\n" : "NO\r\n" );  // Report watering need
 
 #endif
 
@@ -23,10 +23,10 @@ void compute_watering_parameters()  // evaluate if watering is needed
 void solenoid_control()  // apply solenoid state and report
 {
 
-    digitalWrite( RELAY_PIN, solenoid_state );  // drive solenoid MOSFET
+    digitalWrite( RELAY_PIN, status.solenoid_state );  // drive solenoid MOSFET
 
     
-    if ( wifi_connectivity == true )
+    if ( status.wifi_connectivity == true )
         solenoid_state_Update();  // Update TS with watering start/stop events
 
 }
@@ -39,10 +39,10 @@ void  water_soil()  // perform watering flow control
 
     static time_t last_Print;  // last printed time timestamp
 
-    if( solenoid_state == OFF )  // Don't recheck watering parameters if we're still watering
+    if( status.solenoid_state == OFF )  // Don't recheck watering parameters if we're still watering
         compute_watering_parameters();  // Compute watering parameters
     
-    if ( watering_needed_ESP32 == YES )
+    if ( status.watering_needed == YES )
     {
         /*********************** Compute watering time remaining ****************************/
         
@@ -50,7 +50,7 @@ void  water_soil()  // perform watering flow control
 
         time_t elapsed_sec;  // elapsed watering seconds
         
-        if( solenoid_state == OFF)
+        if( status.solenoid_state == OFF)
             elapsed_sec = 0;  // not running
         else
             elapsed_sec = now - watering_start_time;  // compute elapsed time
@@ -70,12 +70,12 @@ void  water_soil()  // perform watering flow control
 
         /*********************** Duration exceeded ****************************/
         
-        if( watering_time_remaining == 0 )  // Check if watering cycle has completed
+        if( watering_time_remaining <= 0 )  // Check if watering cycle has completed
         {
                 
-            watering_needed_ESP32 = NO;  // Update watering needed 
+            status.watering_needed = NO;  // Update watering needed 
             
-            solenoid_state = OFF;  // Update solenoid valve state
+            status.solenoid_state = OFF;  // Update solenoid valve state
 
             solenoid_control();  // Control solenoid valve and report status to ThingSpeak
         
@@ -83,10 +83,10 @@ void  water_soil()  // perform watering flow control
         
         /*********************** Start watering cycle ****************************/
         
-        else if( solenoid_state == OFF )
+        else if( status.solenoid_state == OFF )
         {
             
-            solenoid_state = ON;  // Set variable value
+            status.solenoid_state = ON;  // Set variable value
 
             solenoid_control();  // Control solenoid valve and report status to ThingSpeak
 
@@ -98,10 +98,10 @@ void  water_soil()  // perform watering flow control
     
     /*********************** Stop watering cycle ****************************/
     
-    else if( solenoid_state == ON )
+    else if( status.solenoid_state == ON )
     {
         
-        solenoid_state = OFF;  // Set variable value
+        status.solenoid_state = OFF;  // Set variable value
         solenoid_control();  // Control solenoid valve and report status to ThingSpeak
 
     }

@@ -15,10 +15,10 @@
     for ( uint8_t s = 0; s < sampleCount; s++ )  // collect each sample
     {
 
-        RS485_STATUS status = read_Registers_raw( serial, deviceAddress, startAddress, NUM_REGISTERS, samples[s] );  // raw read into sample slot
+        RS485_STATUS rs485_status = read_Registers_raw( serial, deviceAddress, startAddress, NUM_REGISTERS, samples[s] );  // raw read into sample slot
 
-        if ( status != RS485_GOOD ) // check read status
-            return status; // propagate error
+        if ( rs485_status != RS485_GOOD ) // check read status
+            return rs485_status; // propagate error
 
         delay( 50 );   // settling time between reads
     } // end sample collection

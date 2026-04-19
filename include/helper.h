@@ -16,6 +16,8 @@ bool initFlashFS();  // initialize LittleFS
 bool loadSettings();  // load settings from FS
 bool saveSettings();  // save settings to FS
 void printSettings();  // print current settings
+void get_new_readings();  // read sensors and store values
+void check_button_press(); // check for button press and update currentPage for OLED navigation if button pressed
 
 
 #endif

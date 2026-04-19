@@ -52,13 +52,13 @@ try
         error('No valid soil moisture entries found in last %d points.', numPointsToRead);
     end
 
-    moisture = feeds(validIdx,1);
-    fprintf('[THINGSPEAK] Latest soil moisture: %.1f%% (matrix row=%d)\n', moisture, validIdx);
+    soil.moisture = feeds(validIdx,1);
+    fprintf('[THINGSPEAK] Latest soil moisture: %.1f%% (matrix row=%d)\n', soil.moisture, validIdx);
 
 catch ME
     warning('[ERROR] Soil moisture read failed');
     disp(ME.message);
-    moisture = NaN;
+    soil.moisture = NaN;
 end
 
 %% --- 2. Get weather forecast from OpenWeatherMap ---
@@ -75,7 +75,7 @@ catch ME
 end
 
 %% --- 3. Parse forecast and compute rain_expected ---
-rain_expected = false;
+status.rain_expected = false;
 rain_prob_min = 50;
 
 try
@@ -91,20 +91,20 @@ try
         fprintf('Forecast POP = %.2f\n', precip_prob );
 
         if (precip_prob >= rain_prob_min )
-            rain_expected = true;
+            status.rain_expected = true;
             break;
         end
     end
 catch ME
     disp('[ERROR] JSON parsing failed:');
     disp(ME.message);
-    rain_expected = false;
+    status.rain_expected = false;
 end
 
-disp(['rain_expected = ', num2str(rain_expected)]);
+disp(['rain_expected = ', num2str(status.rain_expected)]);
 
 %% --- 4. Compute watering_needed ---
-watering_needed = (moisture < moistureThreshold) && ~rain_expected;
+watering_needed = (moisture < moistureThreshold) && ~status.rain_expected;
 fprintf('[INFO] watering_needed = %d\n', watering_needed);
 
 %% --- B. Delete ALL existing TalkBack commands (immediately before update) ---
@@ -133,7 +133,7 @@ webwrite(createURL, struct( ...
 % 3) rain expected
 webwrite(createURL, struct( ...
     'api_key', writeKey, ...
-    'command_string', num2str(rain_expected)), optionsPUT);
+    'command_string', num2str(status.rain_expected)), optionsPUT);
 
 % 4) watering needed
 webwrite(createURL, struct( ...

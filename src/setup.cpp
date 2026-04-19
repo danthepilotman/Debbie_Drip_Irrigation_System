@@ -13,8 +13,12 @@ const unsigned long RS485_BAUD = 4800;  // RS485 bus baud rate (sensor)
 
 HardwareSerial RS485Serial(2); // Use UART2 instance for RS485 communication
 
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-// Wifi network parameters
+
+volatile bool buttonPressed = false;
+volatile Page currentPage = PAGE_STATUS;
+
 #ifdef DEBBIE_HOUSE
 
 const char* WIFI_SSID = "SpectrumSetup-5B"; // WiFi SSID for Debbie's house
@@ -45,7 +49,42 @@ Settings settings = {
     {16,0,0}}  // schedule slot 3
 };
 
+Soil soil;
+Status status;
 
+
+void IRAM_ATTR handleButtonInterrupt()
+{
+  buttonPressed = true;   // keep ISR SHORT
+}
+
+
+void setup_OLED()
+{
+
+  if( display.begin( SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS ) == false )
+  { 
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;); // Don't proceed, loop forever
+  }
+
+  // Clear the buffer
+  display.clearDisplay();
+
+  display.setTextSize(1);             // Draw 2X-scale text
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0,0);    
+  display.print(F("Soil Monitoring &\r\nIrrigation System\r\nV1.1")); 
+
+  display.display();
+  
+  delay(2000);
+
+  display.clearDisplay();
+
+  display.display();
+
+}
 
 
 void setup_Serial()
@@ -67,6 +106,12 @@ void setup_Serial()
 void setup_Discretes()
 {
 
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), handleButtonInterrupt, FALLING);
+
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 0); // button wake
+  
   pinMode( RELAY_PIN, OUTPUT ); // Configure relay pin as output
 
   digitalWrite( RELAY_PIN, LOW ); // Ensure relay is off by default
@@ -108,11 +153,14 @@ void connect_WiFi()
     }
 
     if ( WiFi.status() == WL_CONNECTED )
-      wifi_connectivity = true;  // set connectivity flag when connected
-    
-      else
     {
-      wifi_connectivity = false;  // clear connectivity flag on failure
+      status.wifi_connectivity = true;  // set connectivity flag when connected
+      status.wifi_rssi = WiFi.RSSI();  // store RSSI for status display and ThingSpeak upload
+    }
+    
+    else
+    {
+      status.wifi_connectivity = false;  // clear connectivity flag on failure
 
 #ifdef DEBUG_ENABLED
 
@@ -129,7 +177,7 @@ void connect_WiFi()
 
     DBG( F( "[WIFI] Connected" ) ); // log successful connection
     DBGf( "[WIFI] IP: %s\r\n", WiFi.localIP().toString().c_str() ) ; // print assigned IP
-    DBGf( "[WIFI] RSSI: %d dBm\r\n", WiFi.RSSI() ) ; // print signal strength
+    DBGf( "[WIFI] RSSI: %d dBm\r\n", status.wifi_rssi ) ; // print signal strength
 
 #endif
 

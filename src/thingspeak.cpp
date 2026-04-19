@@ -29,13 +29,13 @@ const char* TS_WATERING_READ_KEY = "6LSSZSC5PSPZ0AJQ";  // Watering channel writ
 // ==================================================
 // ================= THINGSPEAK =====================
 // ==================================================
-void sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
+void sendThingSpeak()
 {
 
     HTTPClient http;  // HTTP client used for uploads and checks
     
     // Guard against invalid sensor values
-    if ( isnan( t ) || isnan( ec )|| isnan( ph ) )
+    if ( isnan( soil.temp ) || isnan( soil.ec )|| isnan( soil.pH ) )
     {
         Serial.println( F( "[THINGSPEAK][ERROR] NaN value detected, aborting upload" ) );
         return;
@@ -43,15 +43,15 @@ void sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
 
     char url[256];  // buffer for update URL (snprintf protects from overflow)
     
-    String status_str = urlEncode( String( "Update sent " ) + Timestamp() );  // status message
+    status.status_str = String( "Update sent " ) + Timestamp();  // status message
     
     char status_c[128];  // C-string for status
     
-    status_str.toCharArray(status_c, sizeof(status_c));  // copy to C-string
+    urlEncode(status.status_str).toCharArray(status_c, sizeof(status_c));  // copy to C-string
 
     snprintf( url, sizeof(url),  // build ThingSpeak update URL
         "https://api.thingspeak.com/update?api_key=%s&field1=%.1f&field2=%.1f&field3=%d&field4=%.1f&field5=%d&field6=%d&field7=%d&status=%s",
-        TS_WRITE_KEY, moisture, ( 1.8 * t + 32.0 ), int(ec), ph, n, p, k, status_c );
+        TS_WRITE_KEY, soil.moisture, ( 1.8 * soil.temp + 32.0 ), int(soil.ec), soil.pH, soil.N, soil.P, soil.K, status_c );
 
     Serial.printf( "[THINGSPEAK] URL: %s\r\n", url );  // debug: print update URL
     
@@ -101,17 +101,19 @@ void sendThingSpeak( float t, float ec, float ph, int n, int p, int k )
         int age = payload.toInt();  // parse age in seconds
 
         Serial.printf( "[THINGSPEAK] Age: %d\r\n", age );  // log age
-    
 
+          
         if ( update_code == HTTP_CODE_OK && time_check_code == HTTP_CODE_OK && age <= ( 5*(tries + 1) ) )  // success: HTTP OK and age within threshold
         {
             Serial.println( "[THINGSPEAK] Upload successful" );  // confirm success
             break;
         }
 
+        delay( TS_PROCESS_DELAY );  // Allow some time for ThingSpeak server to process data before retrying
+
     }
 
-    send_RSSI();
+    send_RSSI();  // No need to wait since RSSI is on a different channel, so send immediately after main update attempts
 }
 
 
@@ -241,82 +243,17 @@ void getSettings()
 }
 
 
-/******************************* Get SOIL sensor readings and update ThingSpeak *********************/
-void get_new_readings()
+void thingSpeak_Update()
 {
-    
-#ifdef DEBUG_ENABLED
 
-    DBG( F( "[STATUS] ===== SYSTEM CYCLE START =====" ) );  // mark cycle start
-
-#endif
-
-    RS485_STATUS status;  // RS485 operation status
-
-    // -------- Read Soil Sensor --------
-#ifdef SOIL_SENSOR
-
-    uint16_t values[SOIL_REG_SIZE]; // Store 7 register values
-
-#ifdef DEBUG_ENABLED
-
-    DBG( F( "[RS485] Reading soil sensor" ) );
-
-#endif
-
-    for( uint8_t num_of_attempts = 0; num_of_attempts < MAX_TRIES; ++num_of_attempts )  // try up to 5 times
-    {
-        status = read_Registers( RS485Serial, 0x01, 0x0000, 5, values );  // read registers via Modbus
-
-        if ( status == RS485_GOOD )
-            break;
-        
-#ifdef DEBUG_ENABLED
-
-        else
-            DBG( F( "[RS485][ERROR] Modbus error" ) );
-#endif
-        
-    }
-       
-#else
-
-    const uint16_t values[SOIL_REG_SIZE] = {227,203,100,70,50,40,30}; // Store 7 register values
-
-#endif
-
-    uint16_t rawMoisture = values[ SOIL_MOISTURE ];  // raw moisture register
-    uint16_t rawTemp     = values[ SOIL_TEMPERATURE ];  // raw temperature register
-    uint16_t rawEC       = values[ SOIL_EC];  // raw EC register
-    uint16_t rawPH       = values[ SOIL_PH ];  // raw pH register
-    uint16_t rawN        = values[ SOIL_N ];  // raw N register
-    uint16_t rawP        = values[ SOIL_P ];  // raw P register
-    uint16_t rawK        = values[ SOIL_K ];  // raw K register
-
-    moisture = float(rawMoisture) / 10.0;  // convert to percent
-    float temp     = float( int16_t( rawTemp ) ) / 10.0;  // convert to °C (signed)
-    float ec       = float(rawEC);  // conductivity µS/cm
-    float ph       = float(rawPH) / 10.0;  // pH scaled by 10
-
-#ifdef DEBUG_ENABLED
-
-    DBGf( "[DATA] Moisture: %.1f %%\r\n", moisture );  // log moisture
-    DBGf( "[DATA] Temp: %.1f °C\r\n", temp );  // log temperature
-    DBGf( "[DATA] EC: %.0f µS/cm\r\n", ec );  // log EC
-    DBGf( "[DATA] pH: %.1f\r\n", ph );  // log pH
-    DBGf( "[DATA] NPK: %u / %u / %u mg/kg\r\n", rawN, rawP, rawK );  // log NPK registers
-
-#endif
-
-    
-    if( wifi_connectivity )  // upload and refresh settings when WiFi available
-    {
-        sendThingSpeak( temp, ec, ph, rawN, rawP, rawK );  // -------- ThingSpeak Upload --------
+ if( status.wifi_connectivity && esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0)  // upload and refresh settings only if woke up from timer and have WiFi                                                                                       
+    {                                                                                         
+        sendThingSpeak();  // -------- ThingSpeak Upload --------
 
         getSettings();  // -------- Read Control Settings --------, check TalkBack timestamp to ensure freshness of data before applying settings
 
     }
-    
+
 }
 
 
@@ -325,14 +262,13 @@ void ping_ThingSpeak()
 
   char url[256];  // Char array to hold URL
 
-  String status_str =  urlEncode( "POWER_ON / RESET at " )  + urlEncode( Timestamp() );  // URL encode status string
+  status.status_str =  String( "POWER_ON / RESET at " )  + Timestamp();  // URL encode status string
 
-  char status_c[128];  // Char array to hold URL encoded status string
+  char status_c[256];  // Char array to hold URL encoded status string
 
   HTTPClient http;  // Create HTTP client object
 
-
-  status_str.toCharArray( status_c, sizeof(status_c) );  // Convert to C-string
+  urlEncode(status.status_str).toCharArray( status_c, sizeof(status_c) );  // Convert to C-string
 
   // Build URL for ThingSpeak update                                     
   snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=%s&status=%s", TS_WRITE_KEY, status_c ); 
@@ -348,26 +284,21 @@ void ping_ThingSpeak()
   for( uint8_t tries = 1; tries <= MAX_TRIES; tries++ )  // Try updating up to MAX_TRIES times
   {
 
-    int code = HTTP_CODE_BAD_REQUEST;  // Store HTTP response codes. Initialized to bad code to force retry if needed
-
-    if( code !=  HTTP_CODE_OK )  // Try if not getting a good HTTP response code
-    {
-      http.begin( url );  // Start HTTP session
+    http.begin( url );  // Start HTTP session
         
-      code = http.GET();  // Use GET to send HTTP update to TS and retrieve response code
+    int response_code = http.GET();  // Use GET to send HTTP update to TS and retrieve response code
 
-      http.end(); // End HTTP session
-    }
+    http.end(); // End HTTP session
+    
+    Serial.printf("[THINGSPEAK] HTTP code: %d\r\n", response_code );  // Print HTTP response code
 
-    Serial.printf("[THINGSPEAK] HTTP code: %d\r\n", code );  // Print HTTP response code
-
-    if( code == HTTP_CODE_OK )  // Successful update
+    if( response_code == HTTP_CODE_OK )  // Successful update
       break;  // Exit retry loop if successful
+
+    delay( TS_PROCESS_DELAY );  // Allow some time for ThingSpeak server to process data before retrying
 
   }
 
-  delay( 1000 );  // Allow some time for ThingSpeak server to process data
-  
   send_RSSI();  // Send WiFi RSSI to ThingSpeak Channel
 
 }
@@ -380,19 +311,28 @@ void send_RSSI()
     
     char url[256];  // Char array to hold URL
 
-    char rssi[8];  // Char array to hold URL encoded status string
+    status.wifi_rssi = WiFi.RSSI();  // Get WiFi RSSI
 
-    sprintf( rssi, "%d", WiFi.RSSI() );  // Convert RSSI to string
 
     // Build URL for ThingSpeak update                                     
-    snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=%s&field1=%s", TS_WATERING_WRITE_KEY, rssi ); 
+    snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=%s&field1=%d", TS_WATERING_WRITE_KEY, status.wifi_rssi ); 
 
-    http.begin(url );  // send RSSI
+    for( uint8_t tries = 1; tries <= MAX_TRIES; tries++ )  // Try updating up to MAX_TRIES times
+    {
+    
+        http.begin(url );  // send RSSI
+            
+        int response_code = http.GET();  // get RSSI upload HTTP code
+
+        http.end();  // close connection
+
+        Serial.printf( "[THINGSPEAK] HTTP code(RSSI upload): %d\r\n", response_code );  // log RSSI upload status
+
+        if( response_code == HTTP_CODE_OK )  // Successful update
+            break;  // Exit retry loop if successful
         
-    int update_code_RSSI = http.GET();  // get RSSI upload HTTP code
+        delay( TS_PROCESS_DELAY );  // Allow some time for ThingSpeak server to process data before retrying
 
-    http.end();  // close connection
-
-    Serial.printf( "[THINGSPEAK] HTTP code(RSSI upload): %d\r\n", update_code_RSSI );  // log RSSI upload status
+    }
     
 }
