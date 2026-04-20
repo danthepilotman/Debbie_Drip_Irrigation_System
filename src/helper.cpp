@@ -45,47 +45,43 @@ String Timestamp()  // Return formatted current time
 
 void solenoid_state_Update()  // Report solenoid state to ThingSpeak
 {
+    const char* url = "https://api.thingspeak.com/update";
 
-  char url[256];  // Char array to hold URL
+    status.status_str = String("Watering ") +
+                        String(status.solenoid_state ? "started " : "stopped ") +
+                        Timestamp();
 
-  status.status_str = String("Watering ") + String(status.solenoid_state ? "started " : "stopped ") + Timestamp();  // URL encode status string
+    char status_c[128];
 
-  char status_c[128];  // Char array to hold URL encoded status string
-
-  HTTPClient http;  // Create HTTP client object
-
-
-  urlEncode(status.status_str).toCharArray(status_c, sizeof(status_c));  // Convert to C-string
-
-  // Build URL for ThingSpeak update
-  snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=%s&field8=%d&status=%s", TS_WRITE_KEY, status.solenoid_state ? 1 : 0, status_c ); 
+    urlEncode(status.status_str).toCharArray(status_c, sizeof(status_c));
 
 #ifdef DEBUG_ENABLED
-
-  DBGf( "[IRRIGATION] Solenoid is now %s", status.solenoid_state ? "ON\r\n" : "OFF\r\n" );  // Print solenoid state
-  Serial.printf( "[THINGSPEAK] URL: %s\r\n", url );  // Print URL being used
-
+    DBGf("[IRRIGATION] Solenoid is now %s",
+         status.solenoid_state ? "ON\r\n" : "OFF\r\n");
 #endif
-   
-  for( uint8_t tries = 1; tries <= MAX_TRIES; ++tries )  // Try updating up to MAX_TRIES times
-  {
 
-    http.begin( url );  // Start HTTP session
-        
-    int response_code = http.GET();  // Use GET to send HTTP update to TS and retrieve response code
+    // Build POST body only
+    String postData = "api_key=" + String(TS_WRITE_KEY);
+    postData += "&field8=" + String(status.solenoid_state ? 1 : 0);
+    postData += "&status=" + String(status_c);
 
-    http.end(); // End HTTP session
+#ifdef DEBUG_ENABLED
+    Serial.printf("[THINGSPEAK] POST body: %s\r\n", postData.c_str());
+#endif
 
-    Serial.printf("[THINGSPEAK] HTTP code: %d\r\n", response_code );  // Print HTTP response code
+    // Single call replaces entire retry + HTTP logic
+    ThingSpeakResponse resp = tsClient.postWithRetry(
+            url,
+            postData,
+            MAX_TRIES,
+            TS_PROCESS_DELAY
+        );
 
-    if( response_code == HTTP_CODE_OK )  // Successful update
-      break;  // Exit retry loop if successful
-
-    delay( TS_PROCESS_DELAY );
-
-  }
-
+    Serial.printf("[THINGSPEAK] HTTP code: %d, payload: %s\r\n",
+                  resp.httpCode,
+                  resp.body.c_str());
 }
+
 
 
 time_t iso8601ToEpochUsingGmtime( const char* ts )  // Parse ISO8601 to epoch
@@ -324,8 +320,19 @@ bool loadSettings()  // Load settings from LittleFS
 
   doc.clear();  // clear JSON doc
   
-  Serial.println("[IRRIGATION] Settings loaded");  // log loaded
+  Serial.println(F("[IRRIGATION] Settings loaded"));  // log loaded
   printSettings();  // output settings
+
+  display.clearDisplay();
+  display.setCursor(0,0);
+
+  display.print(F("[IRRIGATION]\r\nSettings loaded")); 
+  display.display();
+    
+  delay(2000);
+
+  display.clearDisplay();
+  display.display();
 
   return true;
 

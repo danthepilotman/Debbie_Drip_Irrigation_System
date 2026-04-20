@@ -7,53 +7,49 @@ void update_Display()
     switch (currentPage)
     {
         case PAGE_STATUS:
-            status_OLED();
+            status_Page();
             break;
 
         case PAGE_SOIL:
-            soil_OLED();
+            soil_Page();
             break;
 
         case PAGE_SETTINGS:
-            settings_OLED();
+            settings_Page();
             break;
 
         case PAGE_WIFI:
-            wifi_OLED();
+            wifi_Page();
             break;
 
         default:
-            status_OLED();  // default to status page if somehow in an invalid state
+            status_Page();  // default to status page if somehow in an invalid state
             break;
     }
 }
 
 
-
-void status_OLED()
+void status_Page()
 {
 
-  if ( check_for_changes() == true || esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0 )  // Only update OLED if something has changed since last update to save power
-  {
     display.clearDisplay(); // Clear the display buffer
 
-    display.setCursor(0,0); // Start at top-left corner
+    display.setCursor( 0, 0 ); // Start at top-left corner
 
     
-    display.printf("Rain expected: %s \r\n", status.rain_expected ? F("YES") : F("NO") );
-    display.printf("Watering needed: %s \r\n", status.watering_needed ? F("YES") : F("NO") );
-    display.printf("Solenoid: %s \r\n", status.solenoid_state ? F("OPENED") : F("CLOSED") );
+    display.printf( "Rain expected: %s \r\n", status.rain_expected ? F("YES") : F("NO") );
+    display.printf( "Watering needed: %s \r\n", status.watering_needed ? F("YES") : F("NO") );
+    display.printf( "Solenoid: %s \r\n", status.solenoid_state ? F("OPENED") : F("CLOSED") );
      
-    display.printf("Status: %s\r\n", status.status_str.c_str() );  // Display TS status
+    display.printf( "Status: %s\r\n", status.status_str.c_str() );  // Display TS status
  
 
     display.display(); // Update the OLED with new content
-  }
-
+  
 }
 
 
-void soil_OLED()
+void soil_Page()
 {
 
     get_new_readings();  // Get fresh reading from soil sensor
@@ -65,7 +61,6 @@ void soil_OLED()
     // Display watering status
     display.printf("WVC: %.1f\r\n", soil.moisture);
    
-
     // Display solenoid state
     display.printf("Temp: %.0f\r\n", 1.8 * soil.temp + 32.0);
 
@@ -89,7 +84,7 @@ void soil_OLED()
 }
 
 
-void settings_OLED()
+void settings_Page()
 {
 
     display.clearDisplay(); // Clear the display buffer
@@ -132,7 +127,7 @@ void settings_OLED()
 }
 
 
-void wifi_OLED()
+void wifi_Page()
 {
 
     display.clearDisplay(); // Clear the display buffer

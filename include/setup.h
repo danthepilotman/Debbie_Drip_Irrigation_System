@@ -88,8 +88,6 @@ extern const char* WIFI_SSID;  // WiFi SSID
 extern const char* WIFI_PASS;  // WiFi password
 
 
-
-
 // ==================================================
 // ================= NTP ===================
 // ==================================================
@@ -130,7 +128,6 @@ extern struct Status {
   int wifi_rssi;  // WiFi signal strength in dBm
   String status_str;  // Status string to display on OLED, updated with ThingSpeak upload status and timestamp
 } status; 
-
 
 
 // struct to hold soil sensor readings

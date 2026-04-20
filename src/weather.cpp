@@ -33,10 +33,12 @@ bool rainExpectedSoon()
 
 #endif
 
+    WiFiClientSecure client;
+    client.setInsecure();  // you’re already doing this elsewhere    
     HTTPClient http;  // HTTP client for OpenWeather requests
     http.setTimeout(10000);  // 10 seconds
     http.useHTTP10(true);
-    http.begin( url );  // start the HTTP session using URL
+    http.begin( client, url );  // start the HTTP session using URL
     http.addHeader("User-Agent", "ESP32_Irrigation_Controller");
     http.addHeader("Accept", "application/geo+json");
 

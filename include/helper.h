@@ -4,6 +4,8 @@
 
 #include "thingspeak.h"  // thingspeak interface
 #include "sleep_timer.h"  // sleep timer interface
+#include "ThingSpeakTypes.h"  // ThingSpeak response struct
+
 
 String urlEncode(const String &input);  // URL-encode helper
 String Timestamp();  // formatted timestamp
@@ -18,6 +20,5 @@ bool saveSettings();  // save settings to FS
 void printSettings();  // print current settings
 void get_new_readings();  // read sensors and store values
 void check_button_press(); // check for button press and update currentPage for OLED navigation if button pressed
-
 
 #endif

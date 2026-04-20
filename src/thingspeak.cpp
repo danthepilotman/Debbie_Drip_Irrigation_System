@@ -31,67 +31,71 @@ const char* TS_WATERING_READ_KEY = "6LSSZSC5PSPZ0AJQ";  // Watering channel writ
 // ==================================================
 void sendThingSpeak()
 {
-
-    HTTPClient http;  // HTTP client used for uploads and checks
-    
     // Guard against invalid sensor values
-    if ( isnan( soil.temp ) || isnan( soil.ec )|| isnan( soil.pH ) )
+    if (isnan(soil.temp) || isnan(soil.ec) || isnan(soil.pH))
     {
-        Serial.println( F( "[THINGSPEAK][ERROR] NaN value detected, aborting upload" ) );
+        Serial.println(F("[THINGSPEAK][ERROR] NaN value detected, aborting upload"));
         return;
     }
 
-    char url[256];  // buffer for update URL (snprintf protects from overflow)
-    
-    status.status_str = String( "Update sent " ) + Timestamp();  // status message
-    
-    char status_c[128];  // C-string for status
-    
-    urlEncode(status.status_str).toCharArray(status_c, sizeof(status_c));  // copy to C-string
+    const char* url = "https://api.thingspeak.com/update";
 
-    snprintf( url, sizeof(url),  // build ThingSpeak update URL
-        "https://api.thingspeak.com/update?api_key=%s&field1=%.1f&field2=%.1f&field3=%d&field4=%.1f&field5=%d&field6=%d&field7=%d&status=%s",
-        TS_WRITE_KEY, soil.moisture, ( 1.8 * soil.temp + 32.0 ), int(soil.ec), soil.pH, soil.N, soil.P, soil.K, status_c );
+    status.status_str = String("Update sent ") + Timestamp();
 
-    Serial.printf( "[THINGSPEAK] URL: %s\r\n", url );  // debug: print update URL
+    char status_c[128];
     
+    urlEncode(status.status_str).toCharArray(status_c, sizeof(status_c));
 
-    // Try several times: upload then confirm server saw it by checking last_data_age
-    for( uint8_t tries = 1; tries <= MAX_TRIES; tries++ )  // retry loop
+    Serial.println("[THINGSPEAK] Preparing POST upload");
+
+    for (uint8_t tries = 1; tries <= MAX_TRIES; tries++)
     {
+        // Build POST body only (no HTTP code here anymore)
+        String postData = "api_key=" + String(TS_WRITE_KEY);
 
-        int update_code = 0, time_check_code = 0;  // Store HTTP response codes, init to avoid stale reads
+        postData += "&field1=" + String(soil.moisture, 1);
+        postData += "&field2=" + String((1.8 * soil.temp + 32.0), 1);
+        postData += "&field3=" + String((int)soil.ec);
+        postData += "&field4=" + String(soil.pH, 1);
+        postData += "&field5=" + String(soil.N);
+        postData += "&field6=" + String(soil.P);
+        postData += "&field7=" + String(soil.K);
+        postData += "&field8=" + String(status.solenoid_state ? 1 : 0);
+        postData += "&status=" + String(status_c);
 
-        String payload;  // HTTP response payload buffer
-        
-        if( tries == 1 || update_code !=  HTTP_CODE_OK )  // attempt update if first try or previous update failed
-        {
-            http.begin( url );   // NOTE: http, not https
-            
-            update_code = http.GET();  // Use GET to send HTTP update to TS and retrieve response code
+#ifdef DEBUG_ENABLED
+        Serial.printf("[THINGSPEAK] POST body: %s\r\n", postData.c_str());
+#endif
 
-            http.end();  // close connection
+        // SINGLE abstraction call replaces all HTTP logic
+        ThingSpeakResponse resp = tsClient.postWithRetry(url, postData, MAX_TRIES, TS_PROCESS_DELAY);
 
-            Serial.printf( "[THINGSPEAK] HTTP code(update): %d\r\n", update_code );  // log update HTTP status
+        Serial.printf("[THINGSPEAK] HTTP code(update): %d payload: %s\r\n",
+                      resp.httpCode,
+                      resp.body.c_str());
 
-            delay( 5000 );  // Allow some time for ThingSpeak server to process data
+        if (resp.httpCode == HTTP_CODE_OK && resp.body != "0")
+            break;
 
-        }
+        delay(5000);  // keep your pacing
     
-    // -------- Check latest ThingSpeak Upload Time --------
 
-       
+    // -------- Check latest ThingSpeak Upload Time --------
+        
+        int time_check_code = -1;  // initialize time check code
+        
+        String payload;  // buffer for time check response
+
+        char url[256];  // buffer for time check URL
+      
         snprintf( url, sizeof(url), "https://api.thingspeak.com/channels/%s/fields/1/last_data_age.txt?api_key=%s", TS_CHANNEL, TS_READ_KEY );  // build URL to check last upload age
     
         if( tries == 1 || time_check_code !=  HTTP_CODE_OK )  // try time check if first try or previous check failed
         {
-            http.begin(url );  // request last_data_age
-                
-            time_check_code = http.GET();  // GET last_data_age
+            ThingSpeakResponse resp = tsClient.getWithRetry(url, MAX_TRIES, TS_PROCESS_DELAY);
 
-            payload = http.getString();  // read response body
-
-            http.end();
+            time_check_code = resp.httpCode;
+            payload = resp.body;
         }
 
         Serial.printf( "[THINGSPEAK] HTTP code(timecheck): %d\r\n", time_check_code );  // log timecheck status
@@ -102,8 +106,8 @@ void sendThingSpeak()
 
         Serial.printf( "[THINGSPEAK] Age: %d\r\n", age );  // log age
 
-          
-        if ( update_code == HTTP_CODE_OK && time_check_code == HTTP_CODE_OK && age <= ( 5*(tries + 1) ) )  // success: HTTP OK and age within threshold
+      
+        if ( resp.httpCode == HTTP_CODE_OK && resp.body != "0" && time_check_code == HTTP_CODE_OK  && age <= ( 5*(tries + 1) ) )  // success: HTTP OK and age within threshold
         {
             Serial.println( "[THINGSPEAK] Upload successful" );  // confirm success
             break;
@@ -121,15 +125,10 @@ void getSettings()
 {
     
     JsonDocument doc;  // Create JSON document for parsing TalkBack response
-
-    uint8_t tries;
-    
-    HTTPClient http;
+    JsonArray arr;  // parsed TalkBack commands array
 
     char url[256];  // buffer for TalkBack URL
 
-    JsonArray arr;  // parsed TalkBack commands array
-    
     snprintf( url, sizeof(url), "https://api.thingspeak.com/talkbacks/%s/commands.json?api_key=%s", TS_TALKBACK_ID, TS_TALKBACK_KEY );  // build TalkBack commands URL
 
 #ifdef DEBUG_ENABLED
@@ -138,34 +137,39 @@ void getSettings()
 
 #endif
 
+    display.clearDisplay();
+    display.setCursor(0,0);
+
+    display.print(F("[THINGSPEAK] Reading control settings...")); 
+    display.display();
+        
+   
+     bool success = false;
     
-    for( tries = 1; tries <= MAX_TRIES; ++tries )  // retry loop for TalkBack fetch
+    for( uint8_t tries = 1; tries <= MAX_TRIES; ++tries )  // retry loop for TalkBack fetch
     {
            
         /************************ Get watering settings *************************/
 
-        http.begin( url );  // request TalkBack commands
-
-        int code = http.GET();  // HTTP response code
+        ThingSpeakResponse resp = tsClient.getWithRetry(url, MAX_TRIES, TS_PROCESS_DELAY);
 
 #ifdef DEBUG_ENABLED
 
-        DBGf( "[THINGSPEAK] HTTP TB code: %d\r\n", code );  // log TB HTTP status
+        DBGf( "[THINGSPEAK] HTTP TB code: %d\r\nbody: %s", resp.httpCode, resp.body.c_str() );  // log TB HTTP status
 
 #endif
 
-        if( code != HTTP_CODE_OK )  // skip if not OK
+        if( resp.httpCode != HTTP_CODE_OK )  // skip if not OK
         {
-            http.end();
+            delay(1000);
             continue;
         }
 
         doc.clear(); // Clear previous JSON document
         
-        DeserializationError error = deserializeJson( doc, http.getString() );  // parse JSON payload
+        DeserializationError error = deserializeJson( doc, resp.body );  // parse JSON payload
 
-        http.end();
-        
+       
         if (error)  // abort on parse error
         {
 
@@ -177,15 +181,15 @@ void getSettings()
             return;
         }
 
-        else
-            break;  // success, exit retry loop
+        success = true;
+        break;
         
     }
 
-    if ( tries > MAX_TRIES )  // give up after max tries
+    if ( success == false )  // give up after max tries
             return;  // Exit function if no valid TalkBack data
 
-
+ 
     arr = doc.as<JsonArray>();  // root is array
 
         
@@ -239,6 +243,12 @@ void getSettings()
     
     if ( check_new_settings() == true )   // write ONLY if something changed
         saveSettings();  // save settings to FS
+    
+    display.clearDisplay();
+    display.display();
+
+    display.print(F("[THINGSPEAK] Successfully read control settings.")); 
+    display.display();
 
 }
 
@@ -246,7 +256,7 @@ void getSettings()
 void thingSpeak_Update()
 {
 
- if( status.wifi_connectivity && esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0)  // upload and refresh settings only if woke up from timer and have WiFi                                                                                       
+ if( status.wifi_connectivity )  // upload and refresh settings only if woke up from timer and have WiFi                                                                                       
     {                                                                                         
         sendThingSpeak();  // -------- ThingSpeak Upload --------
 
@@ -259,80 +269,62 @@ void thingSpeak_Update()
 
 void ping_ThingSpeak()
 {
+    status.status_str = String("POWER_ON / RESET on ") + Timestamp();
 
-  char url[256];  // Char array to hold URL
+    char status_c[256];
 
-  status.status_str =  String( "POWER_ON / RESET at " )  + Timestamp();  // URL encode status string
+    urlEncode(status.status_str).toCharArray(status_c, sizeof(status_c));
 
-  char status_c[256];  // Char array to hold URL encoded status string
-
-  HTTPClient http;  // Create HTTP client object
-
-  urlEncode(status.status_str).toCharArray( status_c, sizeof(status_c) );  // Convert to C-string
-
-  // Build URL for ThingSpeak update                                     
-  snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=%s&status=%s", TS_WRITE_KEY, status_c ); 
-                              
 #ifdef DEBUG_ENABLED
- 
-  DBGf( "[STATUS] Sending first wake status message to ThingSpeak\r\n" );  // Print solenoid state
-  Serial.printf( "[THINGSPEAK] URL: %s\r\n", url );  // Print URL being used
-
+    DBGf("[STATUS] Sending first wake status message to ThingSpeak\r\n");
+    Serial.println("[THINGSPEAK] POST ping request");
 #endif
 
-   
-  for( uint8_t tries = 1; tries <= MAX_TRIES; tries++ )  // Try updating up to MAX_TRIES times
-  {
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.print(F("[STATUS] Sending first wake status message to ThingSpeak"));
+    display.display();
 
-    http.begin( url );  // Start HTTP session
-        
-    int response_code = http.GET();  // Use GET to send HTTP update to TS and retrieve response code
+    String body = "api_key=" + String(TS_WRITE_KEY);
+    body += "&status=" + String(status_c);
 
-    http.end(); // End HTTP session
-    
-    Serial.printf("[THINGSPEAK] HTTP code: %d\r\n", response_code );  // Print HTTP response code
+#ifdef DEBUG_ENABLED
+    Serial.printf("[THINGSPEAK] POST body: %s\r\n", body.c_str());
+#endif
 
-    if( response_code == HTTP_CODE_OK )  // Successful update
-      break;  // Exit retry loop if successful
+    ThingSpeakResponse resp =
+        tsClient.postWithRetry(
+            "https://api.thingspeak.com/update",
+            body,
+            MAX_TRIES,
+            TS_PROCESS_DELAY
+        );
 
-    delay( TS_PROCESS_DELAY );  // Allow some time for ThingSpeak server to process data before retrying
+    Serial.printf("[THINGSPEAK] HTTP code: %d, payload: %s\r\n",
+                  resp.httpCode,
+                  resp.body.c_str());
 
-  }
-
-  send_RSSI();  // Send WiFi RSSI to ThingSpeak Channel
-
+    // keep original behavior
+    send_RSSI();
 }
 
 
 void send_RSSI()
 {
+    status.wifi_rssi = WiFi.RSSI();
 
-    HTTPClient http;  // Create HTTP client object
-    
-    char url[256];  // Char array to hold URL
+    String body = "api_key=" + String(TS_WATERING_WRITE_KEY);
 
-    status.wifi_rssi = WiFi.RSSI();  // Get WiFi RSSI
+    body += "&field1=" + String(status.wifi_rssi);
 
+    ThingSpeakResponse resp = tsClient.postWithRetry(
+            "https://api.thingspeak.com/update",
+            body,
+            MAX_TRIES,
+            TS_PROCESS_DELAY
+        );
 
-    // Build URL for ThingSpeak update                                     
-    snprintf( url, sizeof(url), "https://api.thingspeak.com/update?api_key=%s&field1=%d", TS_WATERING_WRITE_KEY, status.wifi_rssi ); 
-
-    for( uint8_t tries = 1; tries <= MAX_TRIES; tries++ )  // Try updating up to MAX_TRIES times
-    {
-    
-        http.begin(url );  // send RSSI
-            
-        int response_code = http.GET();  // get RSSI upload HTTP code
-
-        http.end();  // close connection
-
-        Serial.printf( "[THINGSPEAK] HTTP code(RSSI upload): %d\r\n", response_code );  // log RSSI upload status
-
-        if( response_code == HTTP_CODE_OK )  // Successful update
-            break;  // Exit retry loop if successful
-        
-        delay( TS_PROCESS_DELAY );  // Allow some time for ThingSpeak server to process data before retrying
-
-    }
-    
+    Serial.printf("RSSI upload: %d %s\n",
+                  resp.httpCode,
+                  resp.body.c_str());
 }

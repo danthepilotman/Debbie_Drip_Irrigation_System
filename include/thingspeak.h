@@ -6,10 +6,11 @@
 #include "RS485.h"  // RS485 interface
 #include "helper.h"  // helper utilities
 #include "update_OLED.h"  // OLED update functions
+#include "ThingSpeakClient.h"
 
 
 constexpr uint8_t MAX_TRIES = 5;  // retry attempts
-constexpr uint32_t TS_PROCESS_DELAY = 16000UL;  // ThingSpeak update delay [ms]
+constexpr uint32_t TS_PROCESS_DELAY = 20000UL;  // ThingSpeak update delay [ms]
 
 
 // ==================================================

@@ -1,5 +1,5 @@
 #include "setup.h"  // project-wide definitions and prototypes
-
+#include "update_OLED.h"  // prototypes for OLED update functions
 
 // User interface serial port setup parameters
 const unsigned long SERIAL_BAUD_RATE = 115200;  // Serial baud rate for debug output
@@ -106,11 +106,11 @@ void setup_Serial()
 void setup_Discretes()
 {
 
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode( BUTTON_PIN, INPUT_PULLUP );  // Setup button pin with pull-up resistor
 
-  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), handleButtonInterrupt, FALLING);
+  attachInterrupt( digitalPinToInterrupt( BUTTON_PIN ), handleButtonInterrupt, FALLING );  // Se=tup interrupt on button pin for falling edge (button press)
 
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 0); // button wake
+  esp_sleep_enable_ext0_wakeup( GPIO_NUM_33, 0 ); // Set GPIO33 (button pin) as wakeup source with LOW level trigger
   
   pinMode( RELAY_PIN, OUTPUT ); // Configure relay pin as output
 
@@ -181,6 +181,8 @@ void connect_WiFi()
 
 #endif
 
+    wifi_Page(); // Update OLED with WiFi status
+
 }
 
 
@@ -209,7 +211,7 @@ void setup_NTP()
   }
 
   
-  if (getLocalTime( &timeinfo ) == false ) // final check after retries
+  if ( getLocalTime( &timeinfo ) == false ) // final check after retries
     return; // give up if still no time
     
   else
@@ -220,6 +222,13 @@ void setup_NTP()
     DBG( F ( "[NTP] Got good time update from NTP server" ) ); // log success
 
 #endif
+
+    display.clearDisplay();
+    display.setCursor(0,0);
+   
+    display.print(F("[NTP] Got good time update from NTP server")); 
+    display.display();   
+
   }
 
 }

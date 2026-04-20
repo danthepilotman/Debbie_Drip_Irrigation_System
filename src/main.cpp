@@ -28,6 +28,8 @@ void setup()
 
     setup_NTP();  // Connect to NTP and setup internal RTC
 
+    tsClient.begin(true);  // Initialize ThingSpeak client with insecure SSL (since we're using setInsecure on the client)
+
     initFlashFS();  // Setup non-volatile storage
 
     loadSettings();  // Load settings from non-volatile storage
