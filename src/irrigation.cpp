@@ -22,8 +22,13 @@ void compute_watering_parameters()  // evaluate if watering is needed
 
 void solenoid_control()  // apply solenoid state and report
 {
+    if ( status.solenoid_state == ON) 
+        rgb.setPixelColor(0, rgb.Color(0, 255, 255)); // Set LED to green (indicating system is watering)
 
-    digitalWrite( RELAY_PIN, status.solenoid_state );  // drive solenoid MOSFET
+    else
+        rgb.setPixelColor(0, rgb.Color(0, 0, 0)); // Set LED to off (indicating system is not watering)
+    
+    rgb.show(); // Update the LED strip to show the new color
 
     
     if ( status.wifi_connectivity == true )

@@ -1,5 +1,10 @@
 #include "setup.h"  // project-wide definitions and prototypes
 #include "update_OLED.h"  // prototypes for OLED update functions
+#include "helper.h"  // helper functions
+
+
+bool firmware_pending_verify = true;
+
 
 // User interface serial port setup parameters
 const unsigned long SERIAL_BAUD_RATE = 115200;  // Serial baud rate for debug output
@@ -15,6 +20,8 @@ HardwareSerial RS485Serial(2); // Use UART2 instance for RS485 communication
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
+Adafruit_NeoPixel rgb(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
+
 
 volatile bool buttonPressed = false;
 volatile Page currentPage = PAGE_STATUS;
@@ -27,6 +34,9 @@ const char* WIFI_PASS = "cosmicmajor724"; // WiFi password for Debbie's house
 #else
 const char* WIFI_SSID = "Bobo"; // default WiFi SSID
 const char* WIFI_PASS = "ryrie9219"; // default WiFi password
+
+// const char* WIFI_SSID = "Linksys00164-guest"; // default WiFi SSID
+// const char* WIFI_PASS = "nitsuJ12"; // default WiFi password
 
 #endif
 
@@ -59,9 +69,18 @@ void IRAM_ATTR handleButtonInterrupt()
 }
 
 
+void setup_RGB()
+{
+  rgb.begin(); // Initialize NeoPixel library
+  rgb.setPixelColor(0, rgb.Color(255, 0, 0)); // Set LED to RED (indicating system is starting up)
+  rgb.show(); // Update the LED strip to show the new color
+}
+
 void setup_OLED()
 {
 
+  Wire.begin( 5, 6 );  // SDA, SCL
+  
   if( display.begin( SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS ) == false )
   { 
     Serial.println(F("SSD1306 allocation failed"));
@@ -69,20 +88,22 @@ void setup_OLED()
   }
 
   // Clear the buffer
-  display.clearDisplay();
-
-  display.setTextSize(1);             // Draw 2X-scale text
-  display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0,0);    
-  display.print(F("Soil Monitoring &\r\nIrrigation System\r\nV1.1")); 
-
-  display.display();
+  display.clearDisplay();  // Clear display buffer
   
-  delay(2000);
+  display.setRotation(2); // Rotate display if needed (adjust as per your mounting)
+  display.setTextSize(1);   // Draw 1X-scale text
+  display.setTextColor(SSD1306_WHITE);  // Draw white text
+  display.setTextWrap(true); // Enable text wrapping
+  display.setCursor(0,0);    // Start at top-left corner
+  display.print(F("Soil Monitoring &\r\nIrrigation System\r\nV1.1"));  // Initial splash screen
 
-  display.clearDisplay();
+  display.display();  // Show initial message
+  
+  delay(2000);  // Display splash screen for 2 seconds
 
-  display.display();
+  display.clearDisplay();  // Clear display for next updates
+
+  display.display();  // Update display to show cleared screen
 
 }
 
@@ -106,11 +127,14 @@ void setup_Serial()
 void setup_Discretes()
 {
 
-  pinMode( BUTTON_PIN, INPUT_PULLUP );  // Setup button pin with pull-up resistor
+  pinMode( 15, INPUT_PULLUP );  // Setup button pin with pull-up resistor
 
-  attachInterrupt( digitalPinToInterrupt( BUTTON_PIN ), handleButtonInterrupt, FALLING );  // Se=tup interrupt on button pin for falling edge (button press)
+  attachInterrupt( digitalPinToInterrupt(15 ), handleButtonInterrupt, FALLING );  // Se=tup interrupt on button pin for falling edge (button press)
 
-  esp_sleep_enable_ext0_wakeup( GPIO_NUM_33, 0 ); // Set GPIO33 (button pin) as wakeup source with LOW level trigger
+  esp_sleep_enable_ext1_wakeup(
+    1ULL << GPIO_NUM_15,
+    ESP_EXT1_WAKEUP_ANY_LOW
+); // Set GPIO17 (button pin) as wakeup source with LOW level trigger
   
   pinMode( RELAY_PIN, OUTPUT ); // Configure relay pin as output
 
@@ -143,13 +167,28 @@ void connect_WiFi()
 
     Serial.print( F( "[WIFI] Connecting" ) ); // indicate start of connection
 
-    WiFi.begin( WIFI_SSID, WIFI_PASS ); // attempt to connect to WiFi
+    display.clearDisplay();
+    display.setCursor(0,0);
+    display.print(F("[WIFI] Connecting to WiFi...\r\n")); 
+    display.display();
 
-    while ( WiFi.status() != WL_CONNECTED && timeout < 120 ) // wait up to ~60 seconds
+ 
+    WiFi.begin( WIFI_SSID, WIFI_PASS, 6 ); // attempt to connect to WiFi
+
+    while ( WiFi.status() != WL_CONNECTED && timeout < 60 ) // wait up to ~60 seconds
     {
-        delay( 500 ); // wait half a second between dots
-        Serial.print( "." ); // progress indicator
-        timeout++; // increment timeout
+      rgb.setPixelColor(0, rgb.Color(0, 255, 0)); // Set LED to off
+      rgb.show(); // Update the LED strip to show the new color
+
+      delay( 500 ); // wait half a second between dots
+
+      rgb.setPixelColor(0, rgb.Color(255, 0, 0)); // Set LED to green
+      rgb.show(); // Update the LED strip to show the new color
+
+      delay( 500 ); // wait half a second between dots
+
+      Serial.print( "." ); // progress indicator
+      timeout++; // increment timeout
     }
 
     if ( WiFi.status() == WL_CONNECTED )
@@ -168,7 +207,10 @@ void connect_WiFi()
 
 #endif    
 
-      return; // bail out if not connected
+    display.print(F( "[WIFI] Unable to connect to WiFi" )); 
+    display.display();
+
+       // bail out if not connected
     }
 
     Serial.println(); // finish progress line
@@ -207,6 +249,12 @@ void setup_NTP()
 
 #endif
 
+    display.clearDisplay();
+    display.setCursor(0,0);
+
+    display.print(F ( "[NTP] Failed to obtain time from NTP server" )); 
+    display.display();   
+
     tries++;  // retry a few times
   }
 
@@ -227,8 +275,32 @@ void setup_NTP()
     display.setCursor(0,0);
    
     display.print(F("[NTP] Got good time update from NTP server")); 
-    display.display();   
+    display.display();
+    delay(1000); // allow user to read message on OLED before updating with status info   
 
   }
 
+}
+
+
+void checkForOTAUpdate()
+{
+    String latestVersion;
+    String firmwareUrl;
+
+    if (!getFirmwareInfo(latestVersion, firmwareUrl))
+        return;
+
+    Serial.println("Current: " + String(FIRMWARE_VERSION));
+    Serial.println("Latest: " + latestVersion);
+
+    if (isNewer(latestVersion))
+    {
+        Serial.println("Update available!");
+        performOTA(firmwareUrl);
+    }
+    else
+    {
+        Serial.println("Firmware up to date.");
+    }
 }

@@ -153,9 +153,13 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
     display.setCursor( 0, 0 );
 
     display.printf("[POWER]\r\nSleeping for %.0fs\r\n(early buffer = %ds)\r\n", sleep_seconds, WAKE_EARLY_BUFFER_SEC );   
-    display.print(F("[STATUS]\r\nEntering Deep Sleep")); 
+    display.print(F("[STATUS]\r\nEntering Deep Sleep"));
+    display.printf("\r\nNext target:\r\n%s", ctime( &target ) );  // show next target time in human-readable form
 
     display.display();
+
+    rgb.setPixelColor(0, rgb.Color(0, 0, 255)); // Set LED to BLUE (indicating system is sleeping)
+    rgb.show(); // Update the LED strip to show the new color
 
     esp_deep_sleep_start();  // hand off to hardware deep sleep
 

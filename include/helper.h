@@ -2,9 +2,12 @@
 #define HELPEER_FUNCTIONS_H
 
 
+#include <HTTPUpdate.h>
+#include <ArduinoJson.h>
 #include "thingspeak.h"  // thingspeak interface
 #include "sleep_timer.h"  // sleep timer interface
 #include "ThingSpeakTypes.h"  // ThingSpeak response struct
+#include "esp_ota_ops.h"
 
 
 String urlEncode(const String &input);  // URL-encode helper
@@ -20,5 +23,10 @@ bool saveSettings();  // save settings to FS
 void printSettings();  // print current settings
 void get_new_readings();  // read sensors and store values
 void check_button_press(); // check for button press and update currentPage for OLED navigation if button pressed
+bool getFirmwareInfo(String &latestVersion, String &firmwareUrl);  // get latest firmware info from ThingSpeak
+bool isNewer(String latest);  // compare firmware versions
+void performOTA(String url);  // perform OTA update from URL
+void check_ota_state();  // check OTA state and update flags accordingly
+
 
 #endif

@@ -10,6 +10,19 @@
 #include <LittleFS.h>  // LittleFS filesystem
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <Adafruit_NeoPixel.h>
+#include <ArduinoOTA.h>
+
+
+// ==================================================
+// ================= OTA DEFINITION ================
+// ==================================================
+
+#define FIRMWARE_VERSION "1.0.0"
+
+#define MANIFEST_URL "https://raw.githubusercontent.com/danthepilotman/Debbie_Drip_Irrigation_System/main/firmware/latest/manifest.json"
+
+extern bool firmware_pending_verify;
 
 // ==================================================
 // ================= LOGIC DEFINITION ================
@@ -42,11 +55,16 @@
 // ================= HARDWARE =======================
 // ==================================================
 
-const int RELAY_PIN = LED_BUILTIN;  // Pin used to drive solenoid valve via MOSFET driver circuit
-
 extern HardwareSerial RS485Serial;  // Declare RS485Serial as external so other .cpp files can see it
 
 extern const unsigned long SERIAL_BAUD_RATE;  // Set UI serial baud rate
+
+const uint8_t RELAY_PIN = GPIO_NUM_8;  // GPIO pin to control solenoid relay (must be a pin that supports interrupts)
+
+#define LED_PIN 48
+#define LED_COUNT 1
+
+extern Adafruit_NeoPixel rgb;
 
 // ==================================================
 // ================= OLED =======================
@@ -79,7 +97,7 @@ extern volatile Page currentPage;  // Track current OLED page for button navigat
 
 extern volatile bool buttonPressed;  // Flag to indicate button press for page navigation
 
-const int BUTTON_PIN = GPIO_NUM_33;  // GPIO pin for page navigation button (must be a pin that supports interrupts)
+#define BUTTON_PIN GPIO_NUM_17  // GPIO pin for page navigation button (must be a pin that supports interrupts)
 
 // ==================================================
 // ================= WIFI SETTINGS ==================
@@ -151,5 +169,7 @@ void setup_RS485(); // Initialize RS485 hardware and serial settings
 void connect_WiFi(); // Connect to WiFi network (blocking until success)
 void setup_NTP(); // Configure NTP and synchronize system time
 void setup_OLED(); // Initialize OLED display
+void setup_RGB(); // Initialize RGB LED strip
+void checkForOTAUpdate(); // Check for OTA updates and perform update if available
 
 #endif

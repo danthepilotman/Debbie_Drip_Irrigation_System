@@ -329,10 +329,11 @@ bool loadSettings()  // Load settings from LittleFS
   display.print(F("[IRRIGATION]\r\nSettings loaded")); 
   display.display();
     
-  delay(2000);
+  delay(1000);  // Leave time for user to read message on OLED before updating with settings details
 
-  display.clearDisplay();
-  display.display();
+  settings_Page(); // Update OLED with settings info
+
+  delay(2000);  // Leave time for user to read settings on OLED before proceeding
 
   return true;
 
@@ -512,4 +513,106 @@ void check_button_press()
 
   }
 
+}
+
+
+bool getFirmwareInfo(String &latestVersion, String &firmwareUrl)
+{
+    HTTPClient http;
+
+    http.begin( MANIFEST_URL);
+    int code = http.GET();
+
+    if (code != 200)
+    {
+        Serial.println("Failed to fetch manifest");
+        return false;
+    }
+
+    String payload = http.getString();
+    http.end();
+
+    JsonDocument doc;  // Create JSON document for parsing TalkBack response
+    
+    DeserializationError err = deserializeJson(doc, payload);
+
+    if (err)
+    {
+        Serial.println("JSON parse failed");
+        return false;
+    }
+
+    latestVersion = doc["version"].as<String>();
+    firmwareUrl   = doc["url"].as<String>();
+
+    return true;
+}
+
+
+bool isNewer(String latest)
+{
+    return latest != FIRMWARE_VERSION;
+}
+
+
+void performOTA(String url)
+{
+    
+  
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println("Starting OTA from:");
+  display.println(url);
+  display.display();
+
+    WiFiClient client;
+
+    t_httpUpdate_return ret = httpUpdate.update(client, url);
+
+    switch (ret)
+    {
+        case HTTP_UPDATE_FAILED:
+            display.clearDisplay();
+            display.setCursor(0,0);
+            display.printf("OTA Failed: %s\n", httpUpdate.getLastErrorString().c_str());
+            display.display();
+            break;
+
+        case HTTP_UPDATE_NO_UPDATES:
+            display.println("No update available");
+            display.display();
+            break;
+
+        case HTTP_UPDATE_OK:
+            display.println("OTA Success");
+            display.display();
+            break;
+    }
+}
+
+
+void check_ota_state()
+{
+    const esp_partition_t* running = esp_ota_get_running_partition();
+
+    esp_ota_img_states_t ota_state;
+
+    esp_err_t err = esp_ota_get_state_partition(running, &ota_state);
+
+    if (err == ESP_OK)
+    {
+        if (ota_state == ESP_OTA_IMG_PENDING_VERIFY)
+        {
+            Serial.println("Pending OTA firmware detected → confirming");
+
+            display.clearDisplay();
+            display.setCursor(0,0);
+            display.print(F("[OTA] Pending firmware detected\r\nConfirming..."));
+            display.display();
+
+            esp_ota_mark_app_valid_cancel_rollback();
+
+            delay(2000);  // Allow time for user to read message on OLED before proceeding
+        }
+    }
 }

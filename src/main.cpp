@@ -12,19 +12,23 @@
 void setup()
 {
     
-    setup_Serial();  // Setup serial port for debug statements
+     setup_Serial();  // Setup serial port for debug statements
 
-    setup_Discretes();  // Setup GPIO to drive solenoid valve
+     setup_Discretes();  // Setup GPIO to drive solenoid valve
 
-#ifdef SOIL_SENSOR
+ #ifdef SOIL_SENSOR
 
     setup_RS485();  // Setup RS-485 communication bus for soil sensor
     
-#endif
+ #endif
 
-    setup_OLED();  // Setup OLED display    
+     setup_RGB();  // Setup RGB LED strip for status indication
+
+     setup_OLED();  // Setup OLED display    
 
     connect_WiFi();  // Connect to Wifi network
+
+    checkForOTAUpdate();  // Check for OTA updates and perform update if available
 
     setup_NTP();  // Connect to NTP and setup internal RTC
 
@@ -34,42 +38,64 @@ void setup()
 
     loadSettings();  // Load settings from non-volatile storage
 
-    
-    esp_reset_reason_t resetReason = esp_reset_reason();
-    
-    if ( resetReason  == ESP_RST_POWERON || resetReason == ESP_RST_EXT )  // Check for power applied (cold boot) or reset button press
+    // Check for power applied (cold boot) AND not waking from button press (i.e. woke from power-on event, not just reset or waking up to update OLED after button press)
+    if ( esp_reset_reason()  == ESP_RST_POWERON && status.wifi_connectivity == true )  
     {
         ping_ThingSpeak();  // Transmit status message to ThingSpeak Channel
         getSettings();  // Fetch latest control settings from ThingSpeak TalkBack, don't check TalkBack timestamp since this is a manual reset or power-on event
     }
+
+    rgb.setPixelColor(0, rgb.Color(0, 255, 0)); // Set LED to green (indicating system is on)
+    rgb.show(); // Update the LED strip to show the new color
         
 }
 
  
+static uint8_t good_cycles = 0;
+
 // ==================================================
 // ================= LOOP ===========================
 // ==================================================
 void loop()
 {
-    
-    check_button_press();  // Check for button press and update currentPage for OLED navigation if button pressed
+    bool is_button_wake =
+        (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT1);
 
-    update_Display();  // Update display continuously
-
-    if ( esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0 )  // If woke from button press, skip sleep logic for this cycle 
-        return;  // skip rest of loop to avoid sleeping immediately after waking from button press
-    
-    if ( status.watering_needed == NO )  // Don't sleep if watering needed. Otherwise keep sleeping until next time target window.
-        deep_sleep_function();  // Go to sleep until next update cycle
-
-    if ( status.solenoid_state == OFF )  // Only get new soil readings if not currently watering. This avoids constant updates while watering
+    if (is_button_wake)
     {
-       get_new_readings();  // Get readings for soil sensor and send to ThingSpeak. Also get weather forecast
-       thingSpeak_Update();  // Upload readings to ThingSpeak and fetch TalkBack settings, but only if woke up from timer and have WiFi. This ensures we get fresh data after sleep but don't waste power uploading if we're just waking up to update the OLED after a button press.
+        check_button_press();
+        update_Display();
+        return;
     }
 
-    water_soil();  // Water soil if needed for the proper duration.
-                   // Sets watering_needed to NO if watering not needed.
-                   // This then causes deep sleep during the next loop() cycle
+    bool cycle_success = false;
 
+    if (status.solenoid_state == OFF)
+    {
+        get_new_readings();
+        thingSpeak_Update();
+        cycle_success = true;
+    }
+
+    water_soil();
+
+    if (status.watering_needed == NO)
+    {
+        cycle_success = true;
+        deep_sleep_function();
+    }
+
+    // -------------------------------
+    // OTA rollback validation gate
+    // -------------------------------
+
+    if (cycle_success)
+{
+    good_cycles++;
+
+    if (good_cycles >= 2)
+    {
+        check_ota_state();
+    }
+}
 }

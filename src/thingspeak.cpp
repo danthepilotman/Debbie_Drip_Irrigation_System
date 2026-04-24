@@ -38,7 +38,7 @@ void sendThingSpeak()
         return;
     }
 
-    const char* url = "https://api.thingspeak.com/update";
+    const char* url_post = "https://api.thingspeak.com/update";
 
     status.status_str = String("Update sent ") + Timestamp();
 
@@ -48,74 +48,26 @@ void sendThingSpeak()
 
     Serial.println("[THINGSPEAK] Preparing POST upload");
 
-    for (uint8_t tries = 1; tries <= MAX_TRIES; tries++)
-    {
-        // Build POST body only (no HTTP code here anymore)
-        String postData = "api_key=" + String(TS_WRITE_KEY);
+    // Build POST body only (no HTTP code here anymore)
+    String postData = "api_key=" + String(TS_WRITE_KEY);
 
-        postData += "&field1=" + String(soil.moisture, 1);
-        postData += "&field2=" + String((1.8 * soil.temp + 32.0), 1);
-        postData += "&field3=" + String((int)soil.ec);
-        postData += "&field4=" + String(soil.pH, 1);
-        postData += "&field5=" + String(soil.N);
-        postData += "&field6=" + String(soil.P);
-        postData += "&field7=" + String(soil.K);
-        postData += "&field8=" + String(status.solenoid_state ? 1 : 0);
-        postData += "&status=" + String(status_c);
+    postData += "&field1=" + String( soil.moisture, 1 );
+    postData += "&field2=" + String( ( 1.8 * soil.temp + 32.0 ), 1) ;
+    postData += "&field3=" + String( int( soil.ec ) );
+    postData += "&field4=" + String( soil.pH, 1 );
+    postData += "&field5=" + String( soil.N );
+    postData += "&field6=" + String( soil.P );
+    postData += "&field7=" + String( soil.K );
+    postData += "&field8=" + String( status.solenoid_state ? 1 : 0 );
+    postData += "&status=" + String(status_c);
 
 #ifdef DEBUG_ENABLED
         Serial.printf("[THINGSPEAK] POST body: %s\r\n", postData.c_str());
 #endif
 
-        // SINGLE abstraction call replaces all HTTP logic
-        ThingSpeakResponse resp = tsClient.postWithRetry(url, postData, MAX_TRIES, TS_PROCESS_DELAY);
+    ThingSpeakResponse resp = tsClient.postWithRetry( url_post, postData, MAX_TRIES, TS_PROCESS_DELAY );  // SINGLE abstraction call replaces all HTTP logic
 
-        Serial.printf("[THINGSPEAK] HTTP code(update): %d payload: %s\r\n",
-                      resp.httpCode,
-                      resp.body.c_str());
-
-        if (resp.httpCode == HTTP_CODE_OK && resp.body != "0")
-            break;
-
-        delay(5000);  // keep your pacing
-    
-
-    // -------- Check latest ThingSpeak Upload Time --------
-        
-        int time_check_code = -1;  // initialize time check code
-        
-        String payload;  // buffer for time check response
-
-        char url[256];  // buffer for time check URL
-      
-        snprintf( url, sizeof(url), "https://api.thingspeak.com/channels/%s/fields/1/last_data_age.txt?api_key=%s", TS_CHANNEL, TS_READ_KEY );  // build URL to check last upload age
-    
-        if( tries == 1 || time_check_code !=  HTTP_CODE_OK )  // try time check if first try or previous check failed
-        {
-            ThingSpeakResponse resp = tsClient.getWithRetry(url, MAX_TRIES, TS_PROCESS_DELAY);
-
-            time_check_code = resp.httpCode;
-            payload = resp.body;
-        }
-
-        Serial.printf( "[THINGSPEAK] HTTP code(timecheck): %d\r\n", time_check_code );  // log timecheck status
-
-        payload.trim();  // remove whitespace/newlines
-
-        int age = payload.toInt();  // parse age in seconds
-
-        Serial.printf( "[THINGSPEAK] Age: %d\r\n", age );  // log age
-
-      
-        if ( resp.httpCode == HTTP_CODE_OK && resp.body != "0" && time_check_code == HTTP_CODE_OK  && age <= ( 5*(tries + 1) ) )  // success: HTTP OK and age within threshold
-        {
-            Serial.println( "[THINGSPEAK] Upload successful" );  // confirm success
-            break;
-        }
-
-        delay( TS_PROCESS_DELAY );  // Allow some time for ThingSpeak server to process data before retrying
-
-    }
+    Serial.printf( "[THINGSPEAK] HTTP code(update): %d payload: %s\r\n", resp.httpCode, resp.body.c_str() );  // log HTTP status and payload for debugging
 
     send_RSSI();  // No need to wait since RSSI is on a different channel, so send immediately after main update attempts
 }
@@ -269,27 +221,22 @@ void thingSpeak_Update()
 
 void ping_ThingSpeak()
 {
-    status.status_str = String("POWER_ON / RESET on ") + Timestamp();
-
-    char status_c[256];
-
-    urlEncode(status.status_str).toCharArray(status_c, sizeof(status_c));
-
+    
 #ifdef DEBUG_ENABLED
-    DBGf("[STATUS] Sending first wake status message to ThingSpeak\r\n");
-    Serial.println("[THINGSPEAK] POST ping request");
+    DBGf( "[STATUS] Sending first wake status message to ThingSpeak\r\n" );
 #endif
 
     display.clearDisplay();
-    display.setCursor(0, 0);
-    display.print(F("[STATUS] Sending first wake status message to ThingSpeak"));
+    display.setCursor( 0, 0 );
+    display.print( F( "[STATUS]\r\nSending first wake status message to ThingSpeak" ) );
     display.display();
 
-    String body = "api_key=" + String(TS_WRITE_KEY);
-    body += "&status=" + String(status_c);
+    status.status_str = String( "POWER_ON / RESET on " ) + Timestamp();
+    String body = "api_key=" + String( TS_WRITE_KEY );
+    body += "&status=" + urlEncode( status.status_str );
 
 #ifdef DEBUG_ENABLED
-    Serial.printf("[THINGSPEAK] POST body: %s\r\n", body.c_str());
+    Serial.printf( "[THINGSPEAK] POST body: %s\r\n", body.c_str() );
 #endif
 
     ThingSpeakResponse resp =
@@ -300,9 +247,7 @@ void ping_ThingSpeak()
             TS_PROCESS_DELAY
         );
 
-    Serial.printf("[THINGSPEAK] HTTP code: %d, payload: %s\r\n",
-                  resp.httpCode,
-                  resp.body.c_str());
+    Serial.printf( "[THINGSPEAK] HTTP code: %d, payload: %s\r\n", resp.httpCode, resp.body.c_str() );
 
     // keep original behavior
     send_RSSI();
@@ -313,9 +258,9 @@ void send_RSSI()
 {
     status.wifi_rssi = WiFi.RSSI();
 
-    String body = "api_key=" + String(TS_WATERING_WRITE_KEY);
+    String body = "api_key=" + String( TS_WATERING_WRITE_KEY );
 
-    body += "&field1=" + String(status.wifi_rssi);
+    body += "&field1=" + String( status.wifi_rssi );
 
     ThingSpeakResponse resp = tsClient.postWithRetry(
             "https://api.thingspeak.com/update",
@@ -324,7 +269,5 @@ void send_RSSI()
             TS_PROCESS_DELAY
         );
 
-    Serial.printf("RSSI upload: %d %s\n",
-                  resp.httpCode,
-                  resp.body.c_str());
+    Serial.printf( "RSSI upload code: %d body: %s\n", resp.httpCode, resp.body.c_str() );
 }
