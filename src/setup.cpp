@@ -1,26 +1,12 @@
 #include "setup.h"  // project-wide definitions and prototypes
+#include "RS485.h"
 #include "update_OLED.h"  // prototypes for OLED update functions
 #include "helper.h"  // helper functions
-
-
-bool firmware_pending_verify = true;
+#include "rgb_led.h"  // prototypes for RGB LED functions
 
 
 // User interface serial port setup parameters
 const unsigned long SERIAL_BAUD_RATE = 115200;  // Serial baud rate for debug output
-
-
-// Create a hardware serial instance for RS485 communication
-const int8_t RS485_TX_PIN = 17;  // RS485 TX pin (GPIO)
-const int8_t RS485_RX_PIN = 16;  // RS485 RX pin (GPIO)
-
-const unsigned long RS485_BAUD = 4800;  // RS485 bus baud rate (sensor)
-
-HardwareSerial RS485Serial(2); // Use UART2 instance for RS485 communication
-
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
-Adafruit_NeoPixel rgb(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 
 volatile bool buttonPressed = false;
@@ -34,9 +20,6 @@ const char* WIFI_PASS = "cosmicmajor724"; // WiFi password for Debbie's house
 #else
 const char* WIFI_SSID = "Bobo"; // default WiFi SSID
 const char* WIFI_PASS = "ryrie9219"; // default WiFi password
-
-// const char* WIFI_SSID = "Linksys00164-guest"; // default WiFi SSID
-// const char* WIFI_PASS = "nitsuJ12"; // default WiFi password
 
 #endif
 
@@ -77,45 +60,6 @@ void IRAM_ATTR handleButtonInterrupt()
 }
 
 
-void setup_RGB()
-{
-  rgb.begin(); // Initialize NeoPixel library
-  rgb.setPixelColor(0, rgb.Color(255, 0, 0)); // Set LED to RED (indicating system is starting up)
-  rgb.show(); // Update the LED strip to show the new color
-}
-
-void setup_OLED()
-{
-
-  Wire.begin( 5, 6 );  // SDA, SCL
-  
-  if( display.begin( SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS ) == false )
-  { 
-    Serial.println(F("SSD1306 allocation failed"));
-    for(;;); // Don't proceed, loop forever
-  }
-
-  // Clear the buffer
-  display.clearDisplay();  // Clear display buffer
-  
-  display.setRotation(2); // Rotate display if needed (adjust as per your mounting)
-  display.setTextSize(1);   // Draw 1X-scale text
-  display.setTextColor(SSD1306_WHITE);  // Draw white text
-  display.setTextWrap(true); // Enable text wrapping
-  display.setCursor(0,0);    // Start at top-left corner
-  display.print(F("Soil Monitoring &\r\nIrrigation System\r\nV1.0.1"));  // Initial splash screen
-
-  display.display();  // Show initial message
-  
-  delay(2000);  // Display splash screen for 2 seconds
-
-  display.clearDisplay();  // Clear display for next updates
-
-  display.display();  // Update display to show cleared screen
-
-}
-
-
 void setup_Serial()
 {
 
@@ -151,20 +95,6 @@ void setup_Discretes()
 }
 
 
-void setup_RS485()
-{
-
-    RS485Serial.begin( RS485_BAUD, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN ); // Initialize RS485 UART
-
-#ifdef DEBUG_ENABLED
-
-    DBG( F( "[RS485] Modbus initialized" ) ); // Log RS485 initialization
-
-#endif    
-
-}
-
-
 // ==================================================
 // ================= WIFI ===========================
 // ==================================================
@@ -180,18 +110,16 @@ void connect_WiFi()
     display.print(F("[WIFI] Connecting to WiFi...\r\n")); 
     display.display();
 
- 
-    WiFi.begin( WIFI_SSID, WIFI_PASS, 6 ); // attempt to connect to WiFi
+                                           // NOTE
+    WiFi.begin( WIFI_SSID, WIFI_PASS, 6 ); // *** This seemed to have issues unless I forced the WiFi channel to a fix value (i.e. 6) ***
 
     while ( WiFi.status() != WL_CONNECTED && timeout < 60 ) // wait up to ~60 seconds
     {
-      rgb.setPixelColor(0, rgb.Color(0, 255, 0)); // Set LED to off
-      rgb.show(); // Update the LED strip to show the new color
+      rgb_show_color( GREEN ); // Set LED to GREEN (indicating system is online)
 
       delay( 500 ); // wait half a second between dots
 
-      rgb.setPixelColor(0, rgb.Color(255, 0, 0)); // Set LED to green
-      rgb.show(); // Update the LED strip to show the new color
+      rgb_show_color( RED ); // Set LED to GREEN (indicating system is online)
 
       delay( 500 ); // wait half a second between dots
 

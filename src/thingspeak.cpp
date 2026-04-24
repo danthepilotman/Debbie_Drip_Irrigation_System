@@ -191,17 +191,18 @@ void getSettings()
 
 #endif
 
+    display.clearDisplay();
+    display.setCursor(0,0);
+    
+    display.print(F("[THINGSPEAK]\r\nSuccessfully read control settings.")); 
+    display.display();
+    delay(2000);  // Leave time for user to read message on OLED before updating with settings details
+
     /***************** Store user parameters if changed from previously store ones ****************/
     
     if ( check_new_settings() == true )   // write ONLY if something changed
         saveSettings();  // save settings to FS
     
-    display.clearDisplay();
-    display.display();
-
-    display.print(F("[THINGSPEAK] Successfully read control settings.")); 
-    display.display();
-
 }
 
 

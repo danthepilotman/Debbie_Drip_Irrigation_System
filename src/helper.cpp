@@ -1,5 +1,7 @@
 #include "helper.h"  // helper functions and globals
 
+const char *MANIFEST_URL = "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json";
+const char *FIRMWARE_VERSION = "1.0.1";
 
 String urlEncode( const String &input )  // URL-encode input
 {
@@ -377,6 +379,13 @@ bool saveSettings()
   Serial.println();  // newline for clarity
 
   doc.clear();  // clear JSON doc
+
+  display.clearDisplay();
+  display.setCursor(0,0);
+    
+  display.print(F( "[FILESYSTEM] Settings saved" )); 
+  display.display();
+  delay(2000);  // Leave time for user to read message on OLED before updating with settings details
   
   return true;  // saved OK
 

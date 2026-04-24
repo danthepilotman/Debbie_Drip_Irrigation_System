@@ -4,6 +4,7 @@
 #include "irrigation.h"
 #include "sleep_timer.h"
 #include "update_OLED.h"
+#include "rgb_led.h"
 
 
 // ==================================================
@@ -22,11 +23,13 @@ void setup()
     
  #endif
 
-     setup_RGB();  // Setup RGB LED strip for status indication
+    setup_RGB();  // Setup RGB LED strip for status indication. Initial color is RED (indicating system is booting up)
 
-     setup_OLED();  // Setup OLED display    
+    setup_OLED();  // Setup OLED display    
 
     connect_WiFi();  // Connect to Wifi network
+
+    rgb_show_color( GREEN ); // Set LED to GREEN (indicating system is online)
 
     checkForOTAUpdate();  // Check for OTA updates and perform update if available
 
@@ -44,10 +47,7 @@ void setup()
         ping_ThingSpeak();  // Transmit status message to ThingSpeak Channel
         getSettings();  // Fetch latest control settings from ThingSpeak TalkBack, don't check TalkBack timestamp since this is a manual reset or power-on event
     }
-
-    rgb.setPixelColor(0, rgb.Color(0, 255, 0)); // Set LED to green (indicating system is on)
-    rgb.show(); // Update the LED strip to show the new color
-        
+   
 }
 
  

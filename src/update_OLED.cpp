@@ -1,6 +1,40 @@
 #include "update_OLED.h"  // project-wide definitions and prototypes
 
 
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+
+void setup_OLED()
+{
+
+  Wire.begin( 5, 6 );  // SDA, SCL
+  
+  if( display.begin( SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS ) == false )
+  { 
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;); // Don't proceed, loop forever
+  }
+
+  // Clear the buffer
+  display.clearDisplay();  // Clear display buffer
+  
+  display.setRotation(2); // Rotate display if needed (adjust as per your mounting)
+  display.setTextSize(1);   // Draw 1X-scale text
+  display.setTextColor(SSD1306_WHITE);  // Draw white text
+  display.setTextWrap(true); // Enable text wrapping
+  display.setCursor(0,0);    // Start at top-left corner
+  display.print(F("Soil Monitoring &\r\nIrrigation System\r\nV1.0.1"));  // Initial splash screen
+
+  display.display();  // Show initial message
+  
+  delay(2000);  // Display splash screen for 2 seconds
+
+  display.clearDisplay();  // Clear display for next updates
+
+  display.display();  // Update display to show cleared screen
+
+}
+
 
 void update_Display()
 {
@@ -140,34 +174,5 @@ void wifi_Page()
     display.printf("IP: %s\r\n", WiFi.localIP().toString().c_str() );
 
     display.display(); // Update the OLED with new content
-
-}
-
-
-bool check_for_changes()
-{
-
-  static bool last_rain_expected = false; // Initialize to an impossible value to ensure first update
-  static bool last_watering_needed = !status.watering_needed; // Force update on first run
-  static bool last_solenoid_state = !status.rain_expected; // Force update on first run
-  static bool last_wifi_connectivity = !status.wifi_connectivity; // Force update on first run
-  static int last_wifi_rssi = status.wifi_rssi; // Initialize to current RSSI to avoid false change on first run
-  static String last_status_str = ""; // Store last status string to check for changes
-
-  // Update the OLED display if any of the values have changed
-  if (status.rain_expected != last_rain_expected || status.watering_needed != last_watering_needed || status.solenoid_state != last_solenoid_state
-     || status.wifi_connectivity != last_wifi_connectivity || status.status_str != last_status_str || status.wifi_rssi != last_wifi_rssi )
-  {
-    
-    last_rain_expected = status.rain_expected; // Update last values to current values for next change detection
-    last_watering_needed = status.watering_needed;
-    last_solenoid_state = status.solenoid_state;
-    last_wifi_connectivity = status.wifi_connectivity;
-    last_status_str = status.status_str;
-    return true;
-
-  }
-  else
-    return false;
 
 }

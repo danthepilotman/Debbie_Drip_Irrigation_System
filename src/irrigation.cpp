@@ -1,4 +1,5 @@
 #include "irrigation.h"
+#include "rgb_led.h"
 
 
 void compute_watering_parameters()  // evaluate if watering is needed
@@ -8,6 +9,8 @@ void compute_watering_parameters()  // evaluate if watering is needed
 
     if ( soil.moisture < settings.threshold && rain_expected_ESP32 == false )  // Determine if watering is needed
         status.watering_needed = YES;
+    else
+        status.watering_needed = NO;
 
 #ifdef DEBUG_ENABLED
 
@@ -16,21 +19,22 @@ void compute_watering_parameters()  // evaluate if watering is needed
 
 #endif
 
-
 }
 
 
 void solenoid_control()  // apply solenoid state and report
 {
+    
+    digitalWrite( RELAY_PIN, status.solenoid_state ? HIGH : LOW );  // Apply solenoid state to relay
+    
     if ( status.solenoid_state == ON) 
-        rgb.setPixelColor(0, rgb.Color(0, 255, 255)); // Set LED to green (indicating system is watering)
+        rgb_show_color( BLUE ); // Set LED to BLUE (indicating system is watering)
 
     else
-        rgb.setPixelColor(0, rgb.Color(0, 0, 0)); // Set LED to off (indicating system is not watering)
+        rgb_show_color( BLACK ); // Set LED to off (indicating system is not watering)
     
-    rgb.show(); // Update the LED strip to show the new color
+    
 
-    
     if ( status.wifi_connectivity == true )
         solenoid_state_Update();  // Update TS with watering start/stop events
 

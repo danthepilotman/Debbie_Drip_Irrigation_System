@@ -1,4 +1,6 @@
 #include "sleep_timer.h"  // sleep timer helpers, schedule constants, and settings
+#include "update_OLED.h"
+#include "rgb_led.h"  // prototypes for RGB LED functions
 
 
 void printLocalTime( const char *tag )  // Print current local time with tag
@@ -158,8 +160,7 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
     display.display();
 
-    rgb.setPixelColor(0, rgb.Color(0, 0, 255)); // Set LED to BLUE (indicating system is sleeping)
-    rgb.show(); // Update the LED strip to show the new color
+   rgb_show_color( YELLOW ); // Set LED to YELLOW (indicating system is sleeping)
 
     esp_deep_sleep_start();  // hand off to hardware deep sleep
 

@@ -10,6 +10,9 @@
 #include "esp_ota_ops.h"
 
 
+extern const char *MANIFEST_URL;
+extern const char *FIRMWARE_VERSION;
+
 String urlEncode(const String &input);  // URL-encode helper
 String Timestamp();  // formatted timestamp
 void solenoid_state_Update();  // report solenoid state

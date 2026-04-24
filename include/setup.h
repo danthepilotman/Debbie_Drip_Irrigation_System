@@ -5,24 +5,10 @@
 #include <WiFi.h>  // WiFi library
 #include <HTTPClient.h>  // HTTP client helper
 #include <time.h>  // time functions
-#include <HardwareSerial.h>  // hardware serial support
 #include <ArduinoJson.h>  // ArduinoJson library
 #include <LittleFS.h>  // LittleFS filesystem
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-#include <Adafruit_NeoPixel.h>
 #include <ArduinoOTA.h>
 
-
-// ==================================================
-// ================= OTA DEFINITION ================
-// ==================================================
-
-#define FIRMWARE_VERSION "1.0.1"
-
-#define MANIFEST_URL "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json"
-
-extern bool firmware_pending_verify;
 
 // ==================================================
 // ================= LOGIC DEFINITION ================
@@ -55,35 +41,12 @@ extern bool firmware_pending_verify;
 // ================= HARDWARE =======================
 // ==================================================
 
-extern HardwareSerial RS485Serial;  // Declare RS485Serial as external so other .cpp files can see it
-
-extern const unsigned long SERIAL_BAUD_RATE;  // Set UI serial baud rate
-
 const uint8_t RELAY_PIN = GPIO_NUM_8;  // GPIO pin to control solenoid relay (must be a pin that supports interrupts)
 
-#define LED_PIN 48
-#define LED_COUNT 1
-
-extern Adafruit_NeoPixel rgb;
 
 // ==================================================
-// ================= OLED =======================
+// ================= OLED PAGES =======================
 // ==================================================
-
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
-
-// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-// The pins for I2C are defined by the Wire-library. 
-// On an arduino UNO:       A4(SDA), A5(SCL)
-// On an arduino MEGA 2560: 20(SDA), 21(SCL)
-// On an arduino LEONARDO:   2(SDA),  3(SCL), ...
-#define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
-#define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
-
-
-extern Adafruit_SSD1306 display;  // Declare display as external so other .cpp files can see it
-
 
 enum Page {
     PAGE_STATUS,
@@ -165,11 +128,8 @@ extern struct Soil {
 // ==================================================
 void setup_Serial(); // Initialize Serial and debug output
 void setup_Discretes(); // Configure GPIOs, relays, and discrete I/O
-void setup_RS485(); // Initialize RS485 hardware and serial settings
 void connect_WiFi(); // Connect to WiFi network (blocking until success)
 void setup_NTP(); // Configure NTP and synchronize system time
-void setup_OLED(); // Initialize OLED display
-void setup_RGB(); // Initialize RGB LED strip
 void checkForOTAUpdate(); // Check for OTA updates and perform update if available
 
 #endif

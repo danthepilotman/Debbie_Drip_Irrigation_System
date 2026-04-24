@@ -1,6 +1,30 @@
 #include <RS485.h>  // RS485 definitions and types
 
 
+// Create a hardware serial instance for RS485 communication
+const int8_t RS485_TX_PIN = 17;  // RS485 TX pin (GPIO)
+const int8_t RS485_RX_PIN = 16;  // RS485 RX pin (GPIO)
+
+const unsigned long RS485_BAUD = 4800;  // RS485 bus baud rate (sensor)
+
+HardwareSerial RS485Serial(2); // Use UART2 instance for RS485 communication
+
+
+
+void setup_RS485()
+{
+
+    RS485Serial.begin( RS485_BAUD, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN ); // Initialize RS485 UART
+
+#ifdef DEBUG_ENABLED
+
+    DBG( F( "[RS485] Modbus initialized" ) ); // Log RS485 initialization
+
+#endif    
+
+}
+
+
 // Read multiple registers with sampling, filtering and averaging
  RS485_STATUS read_Registers( HardwareSerial &serial, uint8_t deviceAddress, uint16_t startAddress, uint8_t sampleCount, uint16_t *results ) // read registers; sample count controls repeated reads
 {
