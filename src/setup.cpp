@@ -60,7 +60,15 @@ Settings settings = {
 };
 
 Soil soil;
-Status status;
+
+Status status = {
+  NO,  // rain_expected
+  NO,  // watering_needed
+  OFF,  // solenoid_state
+  NO,  // wifi_connectivity
+  0,       // wifi_rssi
+  ""  // Status string to display on OLED, updated with ThingSpeak upload status and timestamp
+};
 
 
 void IRAM_ATTR handleButtonInterrupt()
@@ -95,7 +103,7 @@ void setup_OLED()
   display.setTextColor(SSD1306_WHITE);  // Draw white text
   display.setTextWrap(true); // Enable text wrapping
   display.setCursor(0,0);    // Start at top-left corner
-  display.print(F("Soil Monitoring &\r\nIrrigation System\r\nV1.1"));  // Initial splash screen
+  display.print(F("Soil Monitoring &\r\nIrrigation System\r\nV1.0.1"));  // Initial splash screen
 
   display.display();  // Show initial message
   

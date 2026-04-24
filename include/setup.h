@@ -18,9 +18,9 @@
 // ================= OTA DEFINITION ================
 // ==================================================
 
-#define FIRMWARE_VERSION "1.0.0"
+#define FIRMWARE_VERSION "1.0.1"
 
-#define MANIFEST_URL "https://raw.githubusercontent.com/danthepilotman/Debbie_Drip_Irrigation_System/main/firmware/latest/manifest.json"
+#define MANIFEST_URL "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json"
 
 extern bool firmware_pending_verify;
 

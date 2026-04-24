@@ -58,44 +58,42 @@ static uint8_t good_cycles = 0;
 // ==================================================
 void loop()
 {
-    bool is_button_wake =
-        (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT1);
-
-    if (is_button_wake)
-    {
-        check_button_press();
-        update_Display();
-        return;
-    }
-
-    bool cycle_success = false;
-
-    if (status.solenoid_state == OFF)
-    {
-        get_new_readings();
-        thingSpeak_Update();
-        cycle_success = true;
-    }
-
-    water_soil();
-
-    if (status.watering_needed == NO)
-    {
-        cycle_success = true;
-        deep_sleep_function();
-    }
-
-    // -------------------------------
-    // OTA rollback validation gate
-    // -------------------------------
-
-    if (cycle_success)
-{
-    good_cycles++;
-
-    if (good_cycles >= 2)
-    {
+    // Check if firmware should be validated
+    if ( good_cycles >= 2 )
         check_ota_state();
+    
+
+    check_button_press();  // Check for button press and update OLED if needed
+
+    update_Display();  // Update OLED display with current status
+    
+
+    esp_sleep_wakeup_cause_t wakeup_cause = esp_sleep_get_wakeup_cause();
+
+    if ( wakeup_cause == ESP_SLEEP_WAKEUP_EXT1 )
+        return;
+    
+
+    else if ( wakeup_cause == ESP_SLEEP_WAKEUP_TIMER )
+    {
+
+        if (status.solenoid_state == OFF)
+        {
+            get_new_readings();
+            thingSpeak_Update();
+        }
+
+        water_soil();
+
+        if ( status.watering_needed == NO )
+        {
+            good_cycles++;
+            deep_sleep_function();
+        }
+
     }
-}
+
+    else
+        deep_sleep_function();  // Go to sleep 
+ 
 }

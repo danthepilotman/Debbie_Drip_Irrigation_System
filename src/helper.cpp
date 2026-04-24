@@ -576,16 +576,21 @@ void performOTA(String url)
             display.setCursor(0,0);
             display.printf("OTA Failed: %s\n", httpUpdate.getLastErrorString().c_str());
             display.display();
+            delay(2000); // Allow time for user to read message on OLED before proceeding
             break;
 
         case HTTP_UPDATE_NO_UPDATES:
+            display.clearDisplay();
+            display.setCursor(0,0);
             display.println("No update available");
             display.display();
+            delay(2000);  // Allow time for user to read message on OLED before proceeding
             break;
 
         case HTTP_UPDATE_OK:
             display.println("OTA Success");
             display.display();
+            delay(2000);  // Allow time for user to read message on OLED before rebooting
             break;
     }
 }
