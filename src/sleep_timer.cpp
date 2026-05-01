@@ -48,24 +48,28 @@ time_t nextTargetTime()  // Compute next scheduled target time
     time( &now );  // get epoch
     localtime_r( &now, &tm_now );  // convert to local struct
 
+    struct tm tm_target;  // target time struct for calculations
+
+    
     for ( size_t i = 0; i < SCHEDULE_COUNT; i++ )  // iterate through today's schedule slots
     {
-        struct tm tm_target = tm_now;  // start from now's date
-
+        tm_target = tm_now;  // Need to initialize with a good baseline for year, month, day, etc. to ensure mktime produces correct epoch for each candidate time slot. 
+       
         tm_target.tm_hour = settings.times[i].hour;  // apply scheduled hour
         tm_target.tm_min  = settings.times[i].min;  // apply scheduled minute
         tm_target.tm_sec  = settings.times[i].sec;  // apply scheduled second
+        tm_target.tm_isdst = -1;  // optional but recommended
 
         time_t candidate = mktime(&tm_target);  // convert broken-out time to epoch candidate
 
         // If this candidate is still in the future, it's our next target
-        if ( difftime(candidate, now) > 0 )
+        if ( difftime(candidate, now) >= 0 )
             return candidate;  // return first future schedule this day
         
     }
 
     // If all of today's schedule slots passed, schedule the first slot for tomorrow
-    struct tm tm_target = tm_now;  // base on now's date
+    tm_target = tm_now;  // Need to initialize with a good baseline for year, month, day, etc. to ensure mktime produces correct epoch for each candidate time slot. 
     tm_target.tm_mday += 1;  // move to next day
     tm_target.tm_hour = settings.times[0].hour;  // set to first slot hour
     tm_target.tm_min  = settings.times[0].min;  // set minute
@@ -86,6 +90,13 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
     double seconds_to_target = difftime( target, now );  // seconds until the target
 
+    if (seconds_to_target < 0)
+    {
+        target = nextTargetTime();
+        now = time(nullptr);
+        seconds_to_target = difftime(target, now);
+    }
+
 #ifdef DEBUG_ENABLED
 
     DBGf( "[TIME] Seconds to target: %.0f\r\n", seconds_to_target );  // log remaining seconds
@@ -93,7 +104,7 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 #endif
 
     // Case 1: Inside active window → stay awake and loop until target
-    if ( seconds_to_target <= ACTIVE_WINDOW_SEC )
+    if ( seconds_to_target > 0 && seconds_to_target <= ACTIVE_WINDOW_SEC )
     {
 
 #ifdef DEBUG_ENABLED
@@ -102,21 +113,36 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
 #endif
 
-        while ( true )
-        {
-            now = time( nullptr );  // refresh current time
-            
-            double remaining = difftime( target, now ); // compute remaining seconds
+        unsigned long startMillis = millis();
 
-            if ( remaining <= 0 )  // target reached?
-                break;  // exit loop when time arrives
+        const unsigned long timeoutMs = ACTIVE_WINDOW_SEC * 1000UL;  // 61 seconds
+
+        while (true)
+        {
+            now = time(nullptr);  // refresh current time
+
+            double remaining = difftime(target, now);
+
+            if (remaining <= 0)
+                break;  // target reached
+
+            // Timeout condition
+            if (millis() - startMillis >= timeoutMs)
+            {
 
 #ifdef DEBUG_ENABLED
 
-            DBGf( "[WAIT] %.0f seconds remaining\r\n", remaining );  // log remaining time periodically
-
+                DBGf("[WAIT] Timeout reached (61 seconds), breaking loop\r\n");
 #endif
-            delay( 950 );  // small delay to avoid tight-looping and allow background tasks
+                break;
+            }
+
+#ifdef DEBUG_ENABLED
+
+            DBGf("[WAIT] %.0f seconds remaining\r\n", remaining);
+#endif
+
+            delay(950);
         }
 
         printLocalTime( "TARGET" );  // log the moment target is reached
@@ -129,7 +155,9 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
         return;  // return to normal operation
     }
 
-    // Case 2: Too early → compute sleep duration and enter deep sleep
+
+    /*********************************** Compute Deep Sleep Time *****************************************/
+
     double sleep_seconds = seconds_to_target - WAKE_EARLY_BUFFER_SEC;  // subtract early wake buffer
 
     if ( sleep_seconds < 1 )  // ensure we sleep at least 1 second
@@ -145,6 +173,8 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
     esp_sleep_enable_timer_wakeup( sleep_us );  // program the wakeup timer
 
+
+/*********************************** Enter Deep Sleep *****************************************/
 #ifdef DEBUG_ENABLED
 
     DBG( "[STATUS] ===== Entering Deep Sleep =====" );  // final status log
@@ -160,8 +190,16 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
     display.display();
 
-   rgb_show_color( YELLOW ); // Set LED to YELLOW (indicating system is sleeping)
+    rgb_show_color( YELLOW ); // Set LED to YELLOW (indicating system is sleeping)
 
     esp_deep_sleep_start();  // hand off to hardware deep sleep
 
+}
+
+
+void handle_sleep_state()
+{
+    deep_sleep_function();  // decides whether to sleep or stay awake
+
+    system_state = STATE_SAMPLE;  // If we got here, we are awake and ready to proceed
 }

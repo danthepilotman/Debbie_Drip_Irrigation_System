@@ -80,6 +80,15 @@ extern const char *ntpServer_3;  // tertiary NTP server
 // ==================================================
 // =============== GLOBAL VARIABLES =================
 // ==================================================
+enum SystemState
+{
+    STATE_SLEEP,
+    STATE_SAMPLE,
+    STATE_WATER
+};
+
+extern SystemState system_state;
+
 
 typedef struct TimeSet
 {

@@ -2,6 +2,7 @@
 #include "rgb_led.h"
 
 
+
 void compute_watering_parameters()  // evaluate if watering is needed
 {
 
@@ -44,29 +45,26 @@ void solenoid_control()  // apply solenoid state and report
 void  water_soil()  // perform watering flow control
 {
 
-    static time_t watering_start_time;  // timestamp when watering started
+    static time_t watering_start_time = 0;  // timestamp when watering started
 
-    static time_t last_Print;  // last printed time timestamp
-
-    if( status.solenoid_state == OFF )  // Don't recheck watering parameters if we're still watering
-        compute_watering_parameters();  // Compute watering parameters
+    static time_t last_Print = 0;  // last printed time timestamp
     
+
     if ( status.watering_needed == YES )
     {
         /*********************** Compute watering time remaining ****************************/
         
         time_t now = time(nullptr);  // Get the time right now
 
-        time_t elapsed_sec;  // elapsed watering seconds
-        
-        if( status.solenoid_state == OFF)
-            elapsed_sec = 0;  // not running
-        else
-            elapsed_sec = now - watering_start_time;  // compute elapsed time
+        if( now == 0 )
+            return;  // If we couldn't get the time, skip the rest of the function to avoid issues with time calculations
 
-        time_t watering_time_remaining = settings.duration - elapsed_sec;
+       
+        time_t elapsed_sec = (status.solenoid_state == OFF || watering_start_time == 0) ? 0 : now - watering_start_time;
 
-        if(  now - last_Print  >= 1)
+        time_t watering_time_remaining = (settings.duration > elapsed_sec) ? (settings.duration - elapsed_sec) : 0;
+
+        if(  now > 0 && now - last_Print  >= 1)
         {
 
 #ifdef DEBUG_ENABLED
@@ -82,11 +80,16 @@ void  water_soil()  // perform watering flow control
         if( watering_time_remaining <= 0 )  // Check if watering cycle has completed
         {
                 
-            status.watering_needed = NO;  // Update watering needed 
+            status.watering_needed = NO;  // Update watering needed
             
-            status.solenoid_state = OFF;  // Update solenoid valve state
+            if ( status.solenoid_state == ON )
+            {
+            
+                status.solenoid_state = OFF;  // Update solenoid valve state
 
-            solenoid_control();  // Control solenoid valve and report status to ThingSpeak
+                solenoid_control();  // Control solenoid valve and report status to ThingSpeak
+
+            }
         
         }
         
@@ -99,7 +102,7 @@ void  water_soil()  // perform watering flow control
 
             solenoid_control();  // Control solenoid valve and report status to ThingSpeak
 
-            watering_start_time = time(nullptr);  // Record watering start time
+            watering_start_time = now;  // Record watering start time
 
         }
     
@@ -116,3 +119,14 @@ void  water_soil()  // perform watering flow control
     }
 
 }  // END
+
+
+void handle_watering_state()
+{
+    water_soil();
+
+    if (status.watering_needed == NO && status.solenoid_state == OFF)
+    {
+        system_state = STATE_SLEEP;
+    }
+}

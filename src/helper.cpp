@@ -1,7 +1,13 @@
 #include "helper.h"  // helper functions and globals
+#include "thingspeak.h"
+#include "irrigation.h"
+
 
 const char *MANIFEST_URL = "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json";
-const char *FIRMWARE_VERSION = "1.0.1";
+const char *FIRMWARE_VERSION = "1.0.2";  // current firmware version
+
+uint8_t good_cycles = 0;
+
 
 String urlEncode( const String &input )  // URL-encode input
 {
@@ -514,10 +520,8 @@ void check_button_press()
     {
       lastButtonTime = now;
 
-      currentPage = (Page)((currentPage + 1));  // Cycle pages
+      currentPage = (Page)((currentPage + 1) % NUM_OF_PAGES);  // Cycle pages
 
-      if (currentPage >= NUM_OF_PAGES)
-        currentPage = PAGE_STATUS ; // Wrap around to first page if we go past the last one
     }
 
   }
@@ -629,4 +633,19 @@ void check_ota_state()
             delay(2000);  // Allow time for user to read message on OLED before proceeding
         }
     }
+}
+
+
+void handle_sample_state()
+{
+    get_new_readings();
+
+    thingSpeak_Update();
+
+    good_cycles++;
+
+    compute_watering_parameters();  // ONLY ONCE PER CYCLE
+
+    status.watering_needed ? system_state = STATE_WATER : system_state = STATE_SLEEP;
+    
 }

@@ -53,6 +53,8 @@ Status status = {
   ""  // Status string to display on OLED, updated with ThingSpeak upload status and timestamp
 };
 
+SystemState system_state = STATE_SLEEP;  // Default to sleep state on boot, will check if we need to stay awake or can sleep immediately in the first cycle
+
 
 void IRAM_ATTR handleButtonInterrupt()
 {

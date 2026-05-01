@@ -107,7 +107,7 @@ void getSettings()
 
 #ifdef DEBUG_ENABLED
 
-        DBGf( "[THINGSPEAK] HTTP TB code: %d\r\nbody: %s", resp.httpCode, resp.body.c_str() );  // log TB HTTP status
+        DBGf( "[THINGSPEAK] HTTP TB code: %d\r\nbody: %s\r\n", resp.httpCode, resp.body.c_str() );  // log TB HTTP status
 
 #endif
 

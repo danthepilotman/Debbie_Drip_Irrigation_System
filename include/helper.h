@@ -12,6 +12,7 @@
 
 extern const char *MANIFEST_URL;
 extern const char *FIRMWARE_VERSION;
+extern uint8_t good_cycles;  // count of successful cycles since boot
 
 String urlEncode(const String &input);  // URL-encode helper
 String Timestamp();  // formatted timestamp
@@ -30,6 +31,7 @@ bool getFirmwareInfo(String &latestVersion, String &firmwareUrl);  // get latest
 bool isNewer(String latest);  // compare firmware versions
 void performOTA(String url);  // perform OTA update from URL
 void check_ota_state();  // check OTA state and update flags accordingly
+void handle_sample_state();  // handle behavior in sample state (read sensors, update ThingSpeak, compute watering parameters)
 
 
 #endif

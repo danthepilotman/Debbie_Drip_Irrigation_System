@@ -5,6 +5,7 @@
 #include "sleep_timer.h"
 #include "update_OLED.h"
 #include "rgb_led.h"
+#include "helper.h"
 
 
 // ==================================================
@@ -51,49 +52,36 @@ void setup()
 }
 
  
-static uint8_t good_cycles = 0;
 
 // ==================================================
 // ================= LOOP ===========================
 // ==================================================
 void loop()
 {
-    // Check if firmware should be validated
     if ( good_cycles >= 2 )
         check_ota_state();
-    
 
-    check_button_press();  // Check for button press and update OLED if needed
+    check_button_press();  // Check if button was pressed to update OLED display
 
-    update_Display();  // Update OLED display with current status
-    
+    update_Display();  // Update OLED display based on current page and latest system status
 
-    esp_sleep_wakeup_cause_t wakeup_cause = esp_sleep_get_wakeup_cause();
+    esp_sleep_wakeup_cause_t wakeup_cause = esp_sleep_get_wakeup_cause();  // Determine wakeup cause
 
     if ( wakeup_cause == ESP_SLEEP_WAKEUP_EXT1 )
-        return;
-    
+        return;  // Don't do anything and just return to the top of the loop to update the OLED based on button press
 
-    else if ( wakeup_cause == ESP_SLEEP_WAKEUP_TIMER )
+    switch ( system_state )  // Main state machine switch to determine which behavior to execute in this cycle (sleep, sample, or water)
     {
+        case STATE_SLEEP:
+            handle_sleep_state();
+            break;
 
-        if (status.solenoid_state == OFF)
-        {
-            get_new_readings();
-            thingSpeak_Update();
-        }
+        case STATE_SAMPLE:
+            handle_sample_state();
+            break;
 
-        water_soil();
-
-        if ( status.watering_needed == NO )
-        {
-            good_cycles++;
-            deep_sleep_function();
-        }
-
+        case STATE_WATER:
+            handle_watering_state();
+            break;
     }
-
-    else
-        deep_sleep_function();  // Go to sleep 
- 
 }
