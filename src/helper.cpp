@@ -4,7 +4,7 @@
 
 
 const char *MANIFEST_URL = "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json";
-const char *FIRMWARE_VERSION = "1.0.2";  // current firmware version
+const char *FIRMWARE_VERSION = "1.0.7";  // current firmware version
 
 uint8_t good_cycles = 0;
 
@@ -558,6 +558,8 @@ bool getFirmwareInfo(String &latestVersion, String &firmwareUrl)
     latestVersion = doc["version"].as<String>();
     firmwareUrl   = doc["url"].as<String>();
 
+    // Serial.printf("Latest version: %s\r\nURL: %s\r\n", latestVersion.c_str(), firmwareUrl.c_str());
+
     return true;
 }
 
@@ -571,16 +573,20 @@ bool isNewer(String latest)
 void performOTA(String url)
 {
     
-  
-  display.clearDisplay();
-  display.setCursor(0,0);
-  display.println("Starting OTA from:");
-  display.println(url);
-  display.display();
+    display.clearDisplay();
+    display.setCursor(0,0);
+    display.println( "Starting OTA from:" );
+    display.println(url);
+    display.display();
 
-    WiFiClient client;
+    WiFiClientSecure client;
+    client.setInsecure();  // skip certificate validation (OK for your use case)
 
-    t_httpUpdate_return ret = httpUpdate.update(client, url);
+    t_httpUpdate_return ret = httpUpdate.update(client, url);  // No cert, no client key
+
+    httpUpdate.onEnd([]() {
+                Serial.println("OTA update successful, rebooting...");
+            });
 
     switch (ret)
     {
@@ -601,11 +607,55 @@ void performOTA(String url)
             break;
 
         case HTTP_UPDATE_OK:
-            display.println("OTA Success");
+            display.clearDisplay();
+            display.setCursor(0,0);
+            display.println("OTA Success !");
             display.display();
             delay(2000);  // Allow time for user to read message on OLED before rebooting
             break;
     }
+
+     httpUpdate.onEnd([]() {
+                Serial.println("OTA update successful, rebooting...");
+            });
+}
+
+
+void checkForOTAUpdate()
+{
+    String latestVersion;
+    String firmwareUrl;
+
+    if (!getFirmwareInfo(latestVersion, firmwareUrl))
+        return;
+
+    Serial.printf("Current: %s\r\nLatest: %s\r\n", FIRMWARE_VERSION, latestVersion.c_str());
+
+    display.clearDisplay();  // Clear OLED for update status
+    display.setCursor(0,0);  // Reset cursor to top-left
+
+    display.printf("Current: %s\r\nLatest: %s\r\n", FIRMWARE_VERSION, latestVersion.c_str());
+    
+
+    if (isNewer(latestVersion))
+    {
+        Serial.println("Update available!");
+
+        display.printf( "Update available!\r\n" );
+        display.display();
+        delay(2000);  // Allow time for user to read message on OLED before proceeding  
+    
+        performOTA(firmwareUrl);
+    }
+    else
+    {
+        Serial.println("Firmware up to date.");
+
+        display.printf( "Firmware up to date.\r\n" );
+        display.display();
+        delay(2000);  // Allow time for user to read message on OLED before proceeding
+    }
+
 }
 
 
@@ -628,7 +678,24 @@ void check_ota_state()
             display.print(F("[OTA] Pending firmware detected\r\nConfirming..."));
             display.display();
 
-            esp_ota_mark_app_valid_cancel_rollback();
+            esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
+
+            if(err == ESP_OK)
+            {
+                Serial.println("Firmware confirmed successfully");
+                display.clearDisplay();
+                display.setCursor(0,0);
+                display.print(F("[OTA] Firmware confirmed successfully"));
+                display.display();
+            }
+            else
+            {
+                Serial.printf("Failed to confirm firmware: %s\r\n", esp_err_to_name(err));
+                display.clearDisplay();
+                display.setCursor(0,0);
+                display.printf("Failed to confirm firmware:\r\n%s", esp_err_to_name(err));
+                display.display();
+            }
 
             delay(2000);  // Allow time for user to read message on OLED before proceeding
         }

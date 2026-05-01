@@ -219,26 +219,3 @@ void setup_NTP()
   }
 
 }
-
-
-void checkForOTAUpdate()
-{
-    String latestVersion;
-    String firmwareUrl;
-
-    if (!getFirmwareInfo(latestVersion, firmwareUrl))
-        return;
-
-    Serial.println("Current: " + String(FIRMWARE_VERSION));
-    Serial.println("Latest: " + latestVersion);
-
-    if (isNewer(latestVersion))
-    {
-        Serial.println("Update available!");
-        performOTA(firmwareUrl);
-    }
-    else
-    {
-        Serial.println("Firmware up to date.");
-    }
-}

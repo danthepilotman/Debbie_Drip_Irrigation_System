@@ -232,7 +232,7 @@ void ping_ThingSpeak()
     display.print( F( "[STATUS]\r\nSending first wake status message to ThingSpeak" ) );
     display.display();
 
-    status.status_str = String( "POWER_ON / RESET on " ) + Timestamp();
+    status.status_str = String( "POWER_ON / RESET on " ) + Timestamp() + String( " SW: v" ) + String( FIRMWARE_VERSION );
     String body = "api_key=" + String( TS_WRITE_KEY );
     body += "&status=" + urlEncode( status.status_str );
 

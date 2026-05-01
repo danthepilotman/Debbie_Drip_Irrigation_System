@@ -1,4 +1,5 @@
 #include "update_OLED.h"  // project-wide definitions and prototypes
+#include "helper.h"
 
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -23,7 +24,7 @@ void setup_OLED()
   display.setTextColor(SSD1306_WHITE);  // Draw white text
   display.setTextWrap(true); // Enable text wrapping
   display.setCursor(0,0);    // Start at top-left corner
-  display.print(F("Soil Monitoring &\r\nIrrigation System\r\nV1.0.1"));  // Initial splash screen
+  display.printf( "Soil Monitoring &\r\nIrrigation System\r\nv%s", FIRMWARE_VERSION );  // Initial splash screen
 
   display.display();  // Show initial message
   

@@ -8,15 +8,16 @@
 #include "helper.h"
 
 
+
 // ==================================================
 // ================= SETUP ==========================
 // ==================================================
 void setup()
 {
-    
-     setup_Serial();  // Setup serial port for debug statements
 
-     setup_Discretes();  // Setup GPIO to drive solenoid valve
+    setup_Serial();  // Setup serial port for debug statements
+
+    setup_Discretes();  // Setup GPIO to drive solenoid valve
 
  #ifdef SOIL_SENSOR
 
@@ -58,8 +59,6 @@ void setup()
 // ==================================================
 void loop()
 {
-    if ( good_cycles >= 2 )
-        check_ota_state();
 
     check_button_press();  // Check if button was pressed to update OLED display
 
@@ -82,6 +81,7 @@ void loop()
 
         case STATE_WATER:
             handle_watering_state();
+            check_ota_state();
             break;
     }
 }
