@@ -1,16 +1,16 @@
 #include "thingspeak.h"  // ThingSpeak helpers: upload, TalkBack parsing, and settings
 
 
-#ifdef DEBBIE_HOUSE
+// #ifdef DEBBIE_HOUSE
 
-const char* TS_CHANNEL   = "3211645";  // ThingSpeak channel id
-const char* TS_WRITE_KEY = "60SYG2RIJ0TW4D32";  // ThingSpeak write key
-const char* TS_READ_KEY  = "IN57T91RJ0C8NPFK";  // ThingSpeak read key
-const char* TS_TALKBACK_ID = "56070";  // TalkBack id
-const char* TS_TALKBACK_KEY = "EJ3TTWSNK2Q6PXSO";  // TalkBack key
-const char* TS_WRITE_KEY_2 = "VJQGRESCP5X57UVG";  // ThingSpeak write key for RSSI updates
+// const char* TS_CHANNEL   = "3211645";  // ThingSpeak channel id
+// const char* TS_WRITE_KEY = "60SYG2RIJ0TW4D32";  // ThingSpeak write key
+// const char* TS_READ_KEY  = "IN57T91RJ0C8NPFK";  // ThingSpeak read key
+// const char* TS_TALKBACK_ID = "56070";  // TalkBack id
+// const char* TS_TALKBACK_KEY = "EJ3TTWSNK2Q6PXSO";  // TalkBack key
+// const char* TS_WRITE_KEY_2 = "VJQGRESCP5X57UVG";  // ThingSpeak write key for RSSI updates
 
-#else
+// #else
 
 const char* TS_CHANNEL   = "3325050";  // ThingSpeak channel id
 const char* TS_WRITE_KEY = "WZ6S3B4NWT6PKXD2";  // ThingSpeak write key
@@ -24,7 +24,7 @@ const char* TS_WATERING_WRITE_KEY = "YLGO60STV9UCS8HL";  // Watering channel wri
 const char* TS_WATERING_READ_KEY = "6LSSZSC5PSPZ0AJQ";  // Watering channel write key used for watering parameters status updates
 
 
-#endif
+// #endif
 
 // ==================================================
 // ================= THINGSPEAK =====================
@@ -34,7 +34,10 @@ void sendThingSpeak()
     // Guard against invalid sensor values
     if (isnan(soil.temp) || isnan(soil.ec) || isnan(soil.pH))
     {
-        Serial.println(F("[THINGSPEAK][ERROR] NaN value detected, aborting upload"));
+#ifdef DEBUG_ENABLED
+
+        DBG(F("[THINGSPEAK][ERROR] NaN value detected, aborting upload"));
+#endif
         return;
     }
 
@@ -46,7 +49,11 @@ void sendThingSpeak()
     
     urlEncode(status.status_str).toCharArray(status_c, sizeof(status_c));
 
-    Serial.println("[THINGSPEAK] Preparing POST upload");
+#ifdef DEBUG_ENABLED
+
+    DBG("[THINGSPEAK] Preparing POST upload");
+
+#endif
 
     // Build POST body only (no HTTP code here anymore)
     String postData = "api_key=" + String(TS_WRITE_KEY);
@@ -62,12 +69,18 @@ void sendThingSpeak()
     postData += "&status=" + String(status_c);
 
 #ifdef DEBUG_ENABLED
-        Serial.printf("[THINGSPEAK] POST body: %s\r\n", postData.c_str());
+
+        DBGf("[THINGSPEAK] POST body: %s\r\n", postData.c_str());
+
 #endif
 
     ThingSpeakResponse resp = tsClient.postWithRetry( url_post, postData, MAX_TRIES, TS_PROCESS_DELAY );  // SINGLE abstraction call replaces all HTTP logic
 
-    Serial.printf( "[THINGSPEAK] HTTP code(update): %d payload: %s\r\n", resp.httpCode, resp.body.c_str() );  // log HTTP status and payload for debugging
+#ifdef DEBUG_ENABLED
+
+    DBGf( "[THINGSPEAK] HTTP code(update): %d payload: %s\r\n", resp.httpCode, resp.body.c_str() );  // log HTTP status and payload for debugging
+
+#endif
 
     send_RSSI();  // No need to wait since RSSI is on a different channel, so send immediately after main update attempts
 }
@@ -237,7 +250,9 @@ void ping_ThingSpeak()
     body += "&status=" + urlEncode( status.status_str );
 
 #ifdef DEBUG_ENABLED
-    Serial.printf( "[THINGSPEAK] POST body: %s\r\n", body.c_str() );
+
+    DBGf( "[THINGSPEAK] POST body: %s\r\n", body.c_str() );
+
 #endif
 
     ThingSpeakResponse resp =
@@ -248,7 +263,11 @@ void ping_ThingSpeak()
             TS_PROCESS_DELAY
         );
 
-    Serial.printf( "[THINGSPEAK] HTTP code: %d, payload: %s\r\n", resp.httpCode, resp.body.c_str() );
+#ifdef DEBUG_ENABLED
+
+    DBGf( "[THINGSPEAK] HTTP code: %d, payload: %s\r\n", resp.httpCode, resp.body.c_str() );
+
+#endif
 
     // keep original behavior
     send_RSSI();
@@ -270,5 +289,9 @@ void send_RSSI()
             TS_PROCESS_DELAY
         );
 
-    Serial.printf( "RSSI upload code: %d body: %s\n", resp.httpCode, resp.body.c_str() );
+#ifdef DEBUG_ENABLED
+
+    DBGf( "RSSI upload code: %d body: %s\n", resp.httpCode, resp.body.c_str() );
+
+#endif
 }

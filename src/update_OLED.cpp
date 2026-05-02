@@ -12,7 +12,9 @@ void setup_OLED()
   
   if( display.begin( SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS ) == false )
   { 
-    Serial.println(F("SSD1306 allocation failed"));
+#ifdef DEBUG
+    DBG(F("SSD1306 allocation failed\r\n"));
+#endif
     for(;;); // Don't proceed, loop forever
   }
 

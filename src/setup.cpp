@@ -105,7 +105,11 @@ void connect_WiFi()
     
     uint8_t timeout = 0; // timeout counter for connection attempts
 
-    Serial.print( F( "[WIFI] Connecting" ) ); // indicate start of connection
+#ifdef DEBUG_ENABLED
+
+    DBG( F( "[WIFI] Connecting" ) ); // indicate start of connection
+
+#endif
 
     display.clearDisplay();
     display.setCursor(0,0);
@@ -125,7 +129,13 @@ void connect_WiFi()
 
       delay( 500 ); // wait half a second between dots
 
-      Serial.print( "." ); // progress indicator
+#ifdef DEBUG_ENABLED
+
+      DBG( "." ); // progress indicator
+
+#endif
+
+
       timeout++; // increment timeout
     }
 
@@ -151,7 +161,11 @@ void connect_WiFi()
        // bail out if not connected
     }
 
-    Serial.println(); // finish progress line
+#ifdef DEBUG_ENABLED
+
+    DBG(); // finish progress line
+
+#endif
 
 #ifdef DEBUG_ENABLED
 

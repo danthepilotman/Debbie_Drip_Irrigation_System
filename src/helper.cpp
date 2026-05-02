@@ -4,7 +4,7 @@
 
 
 const char *MANIFEST_URL = "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json";
-const char *FIRMWARE_VERSION = "1.0.7";  // current firmware version
+const char *FIRMWARE_VERSION = "1.0.8";  // current firmware version
 
 uint8_t good_cycles = 0;
 
@@ -64,8 +64,9 @@ void solenoid_state_Update()  // Report solenoid state to ThingSpeak
     urlEncode(status.status_str).toCharArray(status_c, sizeof(status_c));
 
 #ifdef DEBUG_ENABLED
-    DBGf("[IRRIGATION] Solenoid is now %s",
-         status.solenoid_state ? "ON\r\n" : "OFF\r\n");
+
+    DBGf("[IRRIGATION] Solenoid is now %s", status.solenoid_state ? "ON\r\n" : "OFF\r\n");
+    
 #endif
 
     // Build POST body only
@@ -74,7 +75,9 @@ void solenoid_state_Update()  // Report solenoid state to ThingSpeak
     postData += "&status=" + String(status_c);
 
 #ifdef DEBUG_ENABLED
-    Serial.printf("[THINGSPEAK] POST body: %s\r\n", postData.c_str());
+
+    DBGf("[THINGSPEAK] POST body: %s\r\n", postData.c_str());
+
 #endif
 
     // Single call replaces entire retry + HTTP logic
@@ -85,9 +88,11 @@ void solenoid_state_Update()  // Report solenoid state to ThingSpeak
             TS_PROCESS_DELAY
         );
 
-    Serial.printf("[THINGSPEAK] HTTP code: %d, payload: %s\r\n",
-                  resp.httpCode,
-                  resp.body.c_str());
+#ifdef DEBUG_ENABLED
+
+    DBGf("[THINGSPEAK] HTTP code: %d, payload: %s\r\n", resp.httpCode, resp.body.c_str() );
+
+#endif
 }
 
 
@@ -266,11 +271,23 @@ bool initFlashFS()  // Initialize LittleFS
 
   if ( LittleFS.begin(true) == false )
   {   // true = format if failed
-    Serial.println( F( "[FILESYSTEM] LittleFS Mount Failed" ) );
+
+
+#ifdef DEBUG_ENABLED
+
+    DBG( F( "[FILESYSTEM] LittleFS Mount Failed" ) );
+
+#endif
+
     return false;
   }
   
-  Serial.println( F( "[FILESYSTEM] LittleFS Mounted" ) );  // mounted
+#ifdef DEBUG_ENABLED
+
+  DBG( F( "[FILESYSTEM] LittleFS Mounted" ) );  // mounted
+
+#endif
+
   return true;  // success
 
 }
@@ -283,7 +300,12 @@ bool loadSettings()  // Load settings from LittleFS
   
   if ( LittleFS.exists("/settings.json") == false )  // settings file missing
   {
-    Serial.println( F( "[FILESYSTEM] Settings file not found" ) );
+
+#ifdef DEBUG_ENABLED
+
+    DBG( F( "[FILESYSTEM] Settings file not found" ) );
+
+#endif
     return false;
   }
 
@@ -291,7 +313,13 @@ bool loadSettings()  // Load settings from LittleFS
   
   if ( file == false )  // open failed
   {
-    Serial.println( F( "[FILESYSTEM] Failed to open file for reading" ) );
+
+#ifdef DEBUG_ENABLED
+
+    DBG( F( "[FILESYSTEM] Failed to open file for reading" ) );
+
+#endif
+
     return false;
   }
 
@@ -301,7 +329,13 @@ bool loadSettings()  // Load settings from LittleFS
 
   if ( error )  // parse failed
   {
-    Serial.println( F( "[JSON] JSON parse failed" ) );
+
+#ifdef DEBUG_ENABLED
+
+    DBG( F( "[JSON] JSON parse failed" ) );
+
+#endif
+
     return false;
   }
 
@@ -314,7 +348,13 @@ bool loadSettings()  // Load settings from LittleFS
     
   if ( times.isNull() || times.size() != SCHEDULE_COUNT )  // invalid times
   {
-    Serial.println( F( "[JSON] Invalid times array" ) );
+
+#ifdef DEBUG_ENABLED
+
+    DBG( F( "[JSON] Invalid times array" ) );
+
+#endif
+
     return false;
   }
 
@@ -327,9 +367,12 @@ bool loadSettings()  // Load settings from LittleFS
   }
 
   doc.clear();  // clear JSON doc
-  
-  Serial.println(F("[IRRIGATION] Settings loaded"));  // log loaded
+#ifdef DEBUG_ENABLED
+
+  DBG(F("[IRRIGATION] Settings loaded"));  // log loaded
   printSettings();  // output settings
+
+#endif
 
   display.clearDisplay();
   display.setCursor(0,0);
@@ -357,7 +400,13 @@ bool saveSettings()
   
   if ( file == false )  // open failed
   {
-    Serial.println( F( "[FILESYSTEM] Failed to open file for writing" ) );
+
+#ifdef DEBUG_ENABLED
+
+    DBG( F( "[FILESYSTEM] Failed to open file for writing" ) );
+
+#endif
+
     return false;
   }
 
@@ -380,9 +429,13 @@ bool saveSettings()
  
   file.close();  // close file
 
-  Serial.println( F( "[FILESYSTEM] Settings saved" ) );  // log saved
+#ifdef DEBUG_ENABLED
+
+  DBG( F( "[FILESYSTEM] Settings saved" ) );  // log saved
   serializeJsonPretty( doc, Serial );  // echo JSON
-  Serial.println();  // newline for clarity
+  DBG();  // newline for clarity
+
+#endif
 
   doc.clear();  // clear JSON doc
 
@@ -397,17 +450,18 @@ bool saveSettings()
 
 }
 
+#ifdef DEBUG_ENABLED
 
 void printSettings()  // Print current settings to serial
 {
 
-    Serial.println(F("---- Settings ----"));  // header
+    DBG(F("---- Settings ----"));  // header
     Serial.print(F("Threshold: "));  // label
-    Serial.println(settings.threshold);  // threshold value
+    DBG(settings.threshold);  // threshold value
     Serial.print(F("Duration : "));  // label
-    Serial.println(settings.duration);  // duration value
+    DBG(settings.duration);  // duration value
     Serial.print(F("Rain minimum probability: "));  // label
-    Serial.println(settings.rain_min_Prob);  // rain minimum probability value
+    DBG(settings.rain_min_Prob);  // rain minimum probability value
 
 
     for  (uint8_t i = 0; i < 4; ++i )  // print each scheduled time
@@ -422,13 +476,14 @@ void printSettings()  // Print current settings to serial
         Serial.print(settings.times[i].min);  // minute
         Serial.print(F(":"));  // separator
         if (settings.times[i].sec < 10) Serial.print("0");  // leading zero for seconds
-        Serial.println(settings.times[i].sec);  // second
+        DBG(settings.times[i].sec);  // second
 
     }
 
-    Serial.println(F("------------------"));  // footer
+    DBG(F("------------------"));  // footer
 }
 
+#endif
 
 /******************************* Get SOIL sensor readings and update ThingSpeak *********************/
 void get_new_readings()
@@ -538,7 +593,13 @@ bool getFirmwareInfo(String &latestVersion, String &firmwareUrl)
 
     if (code != 200)
     {
-        Serial.println("Failed to fetch manifest");
+
+#ifdef DEBUG_ENABLED
+
+        DBG("Failed to fetch manifest");
+
+#endif
+
         return false;
     }
 
@@ -551,14 +612,12 @@ bool getFirmwareInfo(String &latestVersion, String &firmwareUrl)
 
     if (err)
     {
-        Serial.println("JSON parse failed");
+        DBG("JSON parse failed");
         return false;
     }
 
     latestVersion = doc["version"].as<String>();
     firmwareUrl   = doc["url"].as<String>();
-
-    // Serial.printf("Latest version: %s\r\nURL: %s\r\n", latestVersion.c_str(), firmwareUrl.c_str());
 
     return true;
 }
@@ -585,7 +644,12 @@ void performOTA(String url)
     t_httpUpdate_return ret = httpUpdate.update(client, url);  // No cert, no client key
 
     httpUpdate.onEnd([]() {
-                Serial.println("OTA update successful, rebooting...");
+
+#ifdef DEBUG_ENABLED
+
+                DBG("OTA update successful, rebooting...");
+
+#endif
             });
 
     switch (ret)
@@ -616,7 +680,12 @@ void performOTA(String url)
     }
 
      httpUpdate.onEnd([]() {
-                Serial.println("OTA update successful, rebooting...");
+
+#ifdef DEBUG_ENABLED
+
+                DBG("OTA update successful, rebooting...");
+
+#endif
             });
 }
 
@@ -629,7 +698,11 @@ void checkForOTAUpdate()
     if (!getFirmwareInfo(latestVersion, firmwareUrl))
         return;
 
-    Serial.printf("Current: %s\r\nLatest: %s\r\n", FIRMWARE_VERSION, latestVersion.c_str());
+#ifdef DEBUG_ENABLED
+
+    DBGf("Current: %s\r\nLatest: %s\r\n", FIRMWARE_VERSION, latestVersion.c_str());
+
+#endif
 
     display.clearDisplay();  // Clear OLED for update status
     display.setCursor(0,0);  // Reset cursor to top-left
@@ -639,7 +712,12 @@ void checkForOTAUpdate()
 
     if (isNewer(latestVersion))
     {
-        Serial.println("Update available!");
+
+#ifdef DEBUG_ENABLED
+
+        DBG("Update available!");
+
+#endif
 
         display.printf( "Update available!\r\n" );
         display.display();
@@ -649,7 +727,12 @@ void checkForOTAUpdate()
     }
     else
     {
-        Serial.println("Firmware up to date.");
+
+#ifdef DEBUG_ENABLED
+
+        DBG("Firmware up to date.");
+
+#endif
 
         display.printf( "Firmware up to date.\r\n" );
         display.display();
@@ -671,7 +754,12 @@ void check_ota_state()
     {
         if (ota_state == ESP_OTA_IMG_PENDING_VERIFY)
         {
-            Serial.println("Pending OTA firmware detected → confirming");
+
+#ifdef DEBUG_ENABLED
+
+            DBG("Pending OTA firmware detected → confirming");
+
+#endif
 
             display.clearDisplay();
             display.setCursor(0,0);
@@ -682,7 +770,12 @@ void check_ota_state()
 
             if(err == ESP_OK)
             {
-                Serial.println("Firmware confirmed successfully");
+
+#ifdef DEBUG_ENABLED
+
+                DBG("Firmware confirmed successfully");
+
+#endif
                 display.clearDisplay();
                 display.setCursor(0,0);
                 display.print(F("[OTA] Firmware confirmed successfully"));
@@ -690,7 +783,12 @@ void check_ota_state()
             }
             else
             {
-                Serial.printf("Failed to confirm firmware: %s\r\n", esp_err_to_name(err));
+
+#ifdef DEBUG_ENABLED
+
+                DBGf("Failed to confirm firmware: %s\r\n", esp_err_to_name(err));
+
+#endif
                 display.clearDisplay();
                 display.setCursor(0,0);
                 display.printf("Failed to confirm firmware:\r\n%s", esp_err_to_name(err));
