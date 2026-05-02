@@ -102,14 +102,10 @@ void getSettings()
 
 #endif
 
-    display.clearDisplay();
-    display.setCursor(0,0);
 
-    display.print(F("[THINGSPEAK] Reading control settings...")); 
-    display.display();
+    display_message("[THINGSPEAK] Reading control settings...");
         
-   
-     bool success = false;
+    bool success = false;
     
     for( uint8_t tries = 1; tries <= MAX_TRIES; ++tries )  // retry loop for TalkBack fetch
     {
@@ -204,12 +200,7 @@ void getSettings()
 
 #endif
 
-    display.clearDisplay();
-    display.setCursor(0,0);
-    
-    display.print(F("[THINGSPEAK]\r\nSuccessfully read control settings.")); 
-    display.display();
-    delay(2000);  // Leave time for user to read message on OLED before updating with settings details
+    display_message("[THINGSPEAK]\r\nSuccessfully read control settings.", 2000);
 
     /***************** Store user parameters if changed from previously store ones ****************/
     
@@ -240,10 +231,9 @@ void ping_ThingSpeak()
     DBGf( "[STATUS] Sending first wake status message to ThingSpeak\r\n" );
 #endif
 
-    display.clearDisplay();
-    display.setCursor( 0, 0 );
-    display.print( F( "[STATUS]\r\nSending first wake status message to ThingSpeak" ) );
-    display.display();
+
+    display_message( "[STATUS]\r\nSending first wake status message to ThingSpeak" );
+
 
     status.status_str = String( "POWER_ON / RESET on " ) + Timestamp() + String( " SW: v" ) + String( FIRMWARE_VERSION );
     String body = "api_key=" + String( TS_WRITE_KEY );

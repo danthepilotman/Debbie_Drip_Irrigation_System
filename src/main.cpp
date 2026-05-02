@@ -66,8 +66,18 @@ void loop()
 
     esp_sleep_wakeup_cause_t wakeup_cause = esp_sleep_get_wakeup_cause();  // Determine wakeup cause
 
+    static bool first_time = true;
+
     if ( wakeup_cause == ESP_SLEEP_WAKEUP_EXT1 )
+    {
+        if (first_time)
+        {
+            rainExpectedSoon();
+            first_time = false;
+        }
+
         return;  // Don't do anything and just return to the top of the loop to update the OLED based on button press
+    }
 
     switch ( system_state )  // Main state machine switch to determine which behavior to execute in this cycle (sleep, sample, or water)
     {

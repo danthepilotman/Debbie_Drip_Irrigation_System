@@ -48,16 +48,6 @@ const uint8_t RELAY_PIN = GPIO_NUM_8;  // GPIO pin to control solenoid relay (mu
 // ================= OLED PAGES =======================
 // ==================================================
 
-enum Page {
-    PAGE_STATUS,
-    PAGE_SOIL,
-    PAGE_SETTINGS,
-    PAGE_WIFI,
-    NUM_OF_PAGES
-};
-
-extern volatile Page currentPage;  // Track current OLED page for button navigation
-
 extern volatile bool buttonPressed;  // Flag to indicate button press for page navigation
 
 #define BUTTON_PIN GPIO_NUM_17  // GPIO pin for page navigation button (must be a pin that supports interrupts)

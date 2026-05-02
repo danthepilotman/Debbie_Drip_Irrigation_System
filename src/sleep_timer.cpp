@@ -2,6 +2,7 @@
 #include "update_OLED.h"
 #include "rgb_led.h"  // prototypes for RGB LED functions
 
+#ifdef DEBUG_ENABLED
 
 void printLocalTime( const char *tag )  // Print current local time with tag
 {
@@ -14,11 +15,11 @@ void printLocalTime( const char *tag )  // Print current local time with tag
     char buf[32];  // formatted timestamp buffer
     strftime( buf, sizeof( buf ), "%m-%d-%Y %H:%M:%S", &timeinfo );  // write human-readable time
 
-#ifdef DEBUG_ENABLED
+
 
     DBGf( "[%s] Local time: %s\r\n", tag, buf );  // log the timestamp with the provided tag
 
-#endif
+
 
 }
 
@@ -38,6 +39,8 @@ void printTargetTime( time_t target )  // Print next target time
 #endif
 
 }
+
+#endif
 
 
 time_t nextTargetTime()  // Compute next scheduled target time
@@ -81,12 +84,21 @@ time_t nextTargetTime()  // Compute next scheduled target time
 
 void deep_sleep_function()  // decide whether to sleep, wait, or continue running until target
 {
+
+#ifdef DEBUG_ENABLED
+    
     printLocalTime("WAKE");  // log wake time
+
+#endif
 
     time_t now = time(nullptr);  // current epoch
     time_t target = nextTargetTime();  // compute next schedule target
 
+#ifdef DEBUG_ENABLED
+
     printTargetTime( target );  // log target time
+
+#endif
 
     double seconds_to_target = difftime( target, now );  // seconds until the target
 
@@ -145,9 +157,9 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
             delay(950);
         }
 
-        printLocalTime( "TARGET" );  // log the moment target is reached
-
 #ifdef DEBUG_ENABLED
+
+        printLocalTime( "TARGET" );  // log the moment target is reached
 
         DBG( "[POWER] Target reached — continuing program" );  // note continuation
 
@@ -183,14 +195,14 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
     display.clearDisplay();
     display.setCursor( 0, 0 );
-
-    display.printf("[POWER]\r\nSleeping for %.0fs\r\n(early buffer = %ds)\r\n", sleep_seconds, WAKE_EARLY_BUFFER_SEC );   
+    
     display.print(F("[STATUS]\r\nEntering Deep Sleep"));
-    display.printf("\r\nNext target:\r\n%s", ctime( &target ) );  // show next target time in human-readable form
+    display.printf("[POWER]\r\nSleeping for %.0fs\r\n(early buffer = %ds)\r\n", sleep_seconds, WAKE_EARLY_BUFFER_SEC );   
+    display.printf("Next target:\r\n %s", ctime( &target ) );  // show next target time in human-readable form
 
     display.display();
 
-    rgb_show_color( YELLOW ); // Set LED to YELLOW (indicating system is sleeping)
+    rgb_show_color( PURPLE ); // Set LED to YELLOW (indicating system is sleeping)
 
     esp_deep_sleep_start();  // hand off to hardware deep sleep
 

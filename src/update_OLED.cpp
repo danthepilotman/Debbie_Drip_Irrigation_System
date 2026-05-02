@@ -1,6 +1,9 @@
 #include "update_OLED.h"  // project-wide definitions and prototypes
 #include "helper.h"
+#include "weather.h"
 
+
+volatile Page currentPage = PAGE_STATUS;
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
@@ -25,16 +28,11 @@ void setup_OLED()
   display.setTextSize(1);   // Draw 1X-scale text
   display.setTextColor(SSD1306_WHITE);  // Draw white text
   display.setTextWrap(true); // Enable text wrapping
-  display.setCursor(0,0);    // Start at top-left corner
-  display.printf( "Soil Monitoring &\r\nIrrigation System\r\nv%s", FIRMWARE_VERSION );  // Initial splash screen
-
-  display.display();  // Show initial message
   
-  delay(2000);  // Display splash screen for 2 seconds
 
-  display.clearDisplay();  // Clear display for next updates
-
-  display.display();  // Update display to show cleared screen
+  char buff[256];
+  sprintf(buff, "Soil Monitoring &\r\nIrrigation System\r\nv%s", FIRMWARE_VERSION );  // Initial splash screen
+  display_message( buff, 2000);
 
 }
 
@@ -57,6 +55,10 @@ void update_Display()
 
         case PAGE_WIFI:
             wifi_Page();
+            break;
+
+        case PAGE_WX:
+            weather_Page();
             break;
 
         default:
@@ -176,6 +178,58 @@ void wifi_Page()
     display.printf("RSSI: %d dBm\r\n", status.wifi_rssi);
     display.printf("IP: %s\r\n", WiFi.localIP().toString().c_str() );
 
+    display.display(); // Update the OLED with new content
+
+}
+
+
+void weather_Page()
+{
+
+    display.clearDisplay(); // Clear the display buffer
+
+    display.setCursor(0,0); // Start at top-left corner
+
+    for( uint8_t i = 0; i <= NUM_OF_PAGES; ++i )
+    {
+        display.printf( "POP[%d]: %d %%\r\n", i, precip_prob[i] );
+    }
+
+    display.display();
+
+}
+
+
+void display_message( const char *msg, uint32_t show_time )  // Display message on OLED
+{
+
+    display.clearDisplay(); // Clear the display buffer
+
+    display.setCursor( 0, 0 ); // Start at top-left corner
+
+    display.printf( msg );  // Display TS status
+ 
+    display.display(); // Update the OLED with new content
+
+    delay ( show_time );
+
+    display.clearDisplay(); // Clear the display buffer
+
+    display.display(); // Update the OLED with new content
+
+
+}
+
+
+void display_message( const char *msg )  // Display message on OLED
+{
+
+    display.clearDisplay(); // Clear the display buffer
+
+    display.setCursor( 0, 0 ); // Start at top-left corner
+
+    display.printf( msg );  // Display TS status
+ 
     display.display(); // Update the OLED with new content
 
 }

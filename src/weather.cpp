@@ -1,4 +1,5 @@
 #include "weather.h"  // weather helpers and forecast parsing
+#include "update_OLED.h"
 
 
 /* Leftover for Reference if needed later:
@@ -11,17 +12,24 @@ const char* LON = "-80.631";  // My house longitude
 */
 
 
+volatile int precip_prob[6] = {-1, -1, -1, -1, -1, -1};  // Store precit probability values
+
+
 // ==================================================
 // ============= WEATHER Forecast ===================
 // ==================================================
 bool rainExpectedSoon()
 {
     
-#ifdef DEBUG_ENABLED
+    bool rain_expected = false;
+
+    #ifdef DEBUG_ENABLED
 
     DBG( F( "[WEATHER] Checking forecast" ) );  // User debug message
 
 #endif
+
+    display_message( "[WEATHER] Checking forecast\r\n" );
 
 #ifdef DEBBIE_HOUSE
 
@@ -49,7 +57,10 @@ bool rainExpectedSoon()
     DBGf( "[WEATHER] HTTP code: %d\r\n", code );  // Print HTTP response code
 
 #endif
-    
+    char buff[256];
+    sprintf( buff, "[WEATHER] HTTP code: %d\r\n", code);
+    display_message(buff);
+
     if ( code != HTTP_CODE_OK )
     {
 
@@ -60,6 +71,8 @@ bool rainExpectedSoon()
         DBG( F( "[WEATHER] HTTP request failed" ) );  // User debug message
 
  #endif 
+        
+        display_message( "[WEATHER] HTTP request failed", 2000);
         
         return false; // If the HTTP request failed, assume no rain expected
 
@@ -90,42 +103,48 @@ bool rainExpectedSoon()
         DBGf( "JSON parse failed: %s\r\n", err.c_str()  );  // User debug message
 
 #endif        
+        
+        sprintf(buff, "JSON parse failed: %s\r\n", err.c_str() );
+        display_message(buff, 2000);
         return false; // If JSON parsing failed, assume no rain expected
 
     }
     
    
-     // -----------------------------
-
+    // -----------------------------
     // Extract PoP values
     // -----------------------------
     JsonArray filteredPeriods = doc["properties"]["periods"];
+
+    serializeJsonPretty(  filteredPeriods, Serial );
   
     int count = 0;
     
     for ( JsonObject period : filteredPeriods )
     {
         
-        if ( count++ >= 6 )
+        if ( count > 5 )
             break; // limit to first 6 periods
         
-        int precip_prob = period["probabilityOfPrecipitation"]["value"] | -1;
+        precip_prob[count] = period["probabilityOfPrecipitation"]["value"] | -1;
       
 #ifdef DEBUG_ENABLED
 
         DBGf("[WEATHER] Pop: %d\r\n", precip_prob);
 
 #endif
-        
-        if ( precip_prob > RAIN_PROB_MIN )
-            return true;
-        
+
+        if ( precip_prob[count] >= RAIN_PROB_MIN )
+            rain_expected = true;
+
+        ++count;
+           
     }
-    
-    
+
+  
     doc.clear();  // release parsed data
     filter.clear();  // clear temporary filter doc
     
-    return false;  // If you made it past the for loop without finding any precip then no rain is expected
+    return rain_expected;  // If you made it past the for loop without finding any precip then no rain is expected
 
 }

@@ -10,7 +10,7 @@ const unsigned long SERIAL_BAUD_RATE = 115200;  // Serial baud rate for debug ou
 
 
 volatile bool buttonPressed = false;
-volatile Page currentPage = PAGE_STATUS;
+
 
 #ifdef DEBBIE_HOUSE
 
@@ -192,6 +192,8 @@ void setup_NTP()
 
   configTzTime( timeZone, ntpServer_1, ntpServer_2, ntpServer_3 ); // configure timezone and NTP servers
 
+  display_message( "[NTP] Obtaining time from NTP server\r\n"  );
+
   while( getLocalTime( &timeinfo ) == false && tries < 5 ) // attempt to get time with retries
   {
 
@@ -201,11 +203,8 @@ void setup_NTP()
 
 #endif
 
-    display.clearDisplay();
-    display.setCursor(0,0);
-
-    display.print(F ( "[NTP] Failed to obtain time from NTP server" )); 
-    display.display();   
+ 
+    display_message( "[NTP] Failed to obtain time from NTP server\r\n"  );
 
     tries++;  // retry a few times
   }
@@ -223,12 +222,7 @@ void setup_NTP()
 
 #endif
 
-    display.clearDisplay();
-    display.setCursor(0,0);
-   
-    display.print(F("[NTP] Got good time update from NTP server")); 
-    display.display();
-    delay(1000); // allow user to read message on OLED before updating with status info   
+    display_message( "[NTP] Got good time update from NTP server", 1000 );
 
   }
 

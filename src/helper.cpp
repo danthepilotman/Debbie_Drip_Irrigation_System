@@ -374,13 +374,7 @@ bool loadSettings()  // Load settings from LittleFS
 
 #endif
 
-  display.clearDisplay();
-  display.setCursor(0,0);
-
-  display.print(F("[IRRIGATION]\r\nSettings loaded")); 
-  display.display();
-    
-  delay(1000);  // Leave time for user to read message on OLED before updating with settings details
+  display_message( "[IRRIGATION]\r\nSettings loaded", 1000 );
 
   settings_Page(); // Update OLED with settings info
 
@@ -439,12 +433,7 @@ bool saveSettings()
 
   doc.clear();  // clear JSON doc
 
-  display.clearDisplay();
-  display.setCursor(0,0);
-    
-  display.print(F( "[FILESYSTEM] Settings saved" )); 
-  display.display();
-  delay(2000);  // Leave time for user to read message on OLED before updating with settings details
+  display_message( "[FILESYSTEM] Settings saved", 2000);
   
   return true;  // saved OK
 
@@ -632,11 +621,11 @@ bool isNewer(String latest)
 void performOTA(String url)
 {
     
-    display.clearDisplay();
-    display.setCursor(0,0);
-    display.println( "Starting OTA from:" );
-    display.println(url);
-    display.display();
+    char buff[256];
+
+    sprintf(buff, "Starting OTA from:\r\n%s", url.c_str() );
+
+    display_message(buff);
 
     WiFiClientSecure client;
     client.setInsecure();  // skip certificate validation (OK for your use case)
@@ -655,27 +644,18 @@ void performOTA(String url)
     switch (ret)
     {
         case HTTP_UPDATE_FAILED:
-            display.clearDisplay();
-            display.setCursor(0,0);
-            display.printf("OTA Failed: %s\n", httpUpdate.getLastErrorString().c_str());
-            display.display();
-            delay(2000); // Allow time for user to read message on OLED before proceeding
+            sprintf(buff, "OTA Failed: %s\n", httpUpdate.getLastErrorString().c_str());
+            display_message(buff, 2000);
             break;
 
         case HTTP_UPDATE_NO_UPDATES:
-            display.clearDisplay();
-            display.setCursor(0,0);
-            display.println("No update available");
-            display.display();
-            delay(2000);  // Allow time for user to read message on OLED before proceeding
+            sprintf(buff, "No update available");
+            display_message(buff, 2000);
             break;
 
         case HTTP_UPDATE_OK:
-            display.clearDisplay();
-            display.setCursor(0,0);
-            display.println("OTA Success !");
-            display.display();
-            delay(2000);  // Allow time for user to read message on OLED before rebooting
+            sprintf(buff, "OTA Success !");
+            display_message(buff, 2000);
             break;
     }
 
@@ -704,13 +684,15 @@ void checkForOTAUpdate()
 
 #endif
 
-    display.clearDisplay();  // Clear OLED for update status
-    display.setCursor(0,0);  // Reset cursor to top-left
 
-    display.printf("Current: %s\r\nLatest: %s\r\n", FIRMWARE_VERSION, latestVersion.c_str());
+    char buff[256];
+
+    sprintf( buff, "Current: %s\r\nLatest: %s\r\n", FIRMWARE_VERSION, latestVersion.c_str() );
+
+    display_message( buff, 2000 );
     
 
-    if (isNewer(latestVersion))
+    if ( isNewer(latestVersion) )
     {
 
 #ifdef DEBUG_ENABLED
@@ -719,12 +701,11 @@ void checkForOTAUpdate()
 
 #endif
 
-        display.printf( "Update available!\r\n" );
-        display.display();
-        delay(2000);  // Allow time for user to read message on OLED before proceeding  
+        display_message(  "Update available!\r\n" );
     
-        performOTA(firmwareUrl);
+        performOTA( firmwareUrl );
     }
+    
     else
     {
 
@@ -734,9 +715,7 @@ void checkForOTAUpdate()
 
 #endif
 
-        display.printf( "Firmware up to date.\r\n" );
-        display.display();
-        delay(2000);  // Allow time for user to read message on OLED before proceeding
+        display_message( "Firmware up to date.\r\n", 1000 );
     }
 
 }
@@ -761,10 +740,7 @@ void check_ota_state()
 
 #endif
 
-            display.clearDisplay();
-            display.setCursor(0,0);
-            display.print(F("[OTA] Pending firmware detected\r\nConfirming..."));
-            display.display();
+            display_message( "[OTA] Pending firmware detected\r\nConfirming..." );
 
             esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
 
@@ -776,10 +752,8 @@ void check_ota_state()
                 DBG("Firmware confirmed successfully");
 
 #endif
-                display.clearDisplay();
-                display.setCursor(0,0);
-                display.print(F("[OTA] Firmware confirmed successfully"));
-                display.display();
+          
+                display_message("[OTA] Firmware confirmed successfully");
             }
             else
             {
@@ -789,13 +763,12 @@ void check_ota_state()
                 DBGf("Failed to confirm firmware: %s\r\n", esp_err_to_name(err));
 
 #endif
-                display.clearDisplay();
-                display.setCursor(0,0);
-                display.printf("Failed to confirm firmware:\r\n%s", esp_err_to_name(err));
-                display.display();
+               
+                char buff[256];
+                sprintf(buff, "Failed to confirm firmware:\r\n%s", esp_err_to_name(err));
+                display_message(buff);
             }
 
-            delay(2000);  // Allow time for user to read message on OLED before proceeding
         }
     }
 }
