@@ -4,7 +4,7 @@
 
 
 const char *MANIFEST_URL = "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json";
-const char *FIRMWARE_VERSION = "1.0.8";  // current firmware version
+const char *FIRMWARE_VERSION = "1.0.10";  // current firmware version
 
 uint8_t good_cycles = 0;
 
@@ -499,9 +499,9 @@ void get_new_readings()
 
     for( uint8_t num_of_attempts = 0; num_of_attempts < MAX_TRIES; ++num_of_attempts )  // try up to 5 times
     {
-        status = read_Registers( RS485Serial, 0x01, 0x0000, 5, values );  // read registers via Modbus
+        rs485_status = read_Registers( RS485Serial, 0x01, 0x0000, 5, values );  // read registers via Modbus
 
-        if ( status == RS485_GOOD )
+        if ( rs485_status == RS485_GOOD )
             break;
         
 #ifdef DEBUG_ENABLED

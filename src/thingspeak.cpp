@@ -1,16 +1,20 @@
 #include "thingspeak.h"  // ThingSpeak helpers: upload, TalkBack parsing, and settings
 
 
-// #ifdef DEBBIE_HOUSE
+#ifdef DEBBIE_HOUSE
 
-// const char* TS_CHANNEL   = "3211645";  // ThingSpeak channel id
-// const char* TS_WRITE_KEY = "60SYG2RIJ0TW4D32";  // ThingSpeak write key
-// const char* TS_READ_KEY  = "IN57T91RJ0C8NPFK";  // ThingSpeak read key
-// const char* TS_TALKBACK_ID = "56070";  // TalkBack id
-// const char* TS_TALKBACK_KEY = "EJ3TTWSNK2Q6PXSO";  // TalkBack key
-// const char* TS_WRITE_KEY_2 = "VJQGRESCP5X57UVG";  // ThingSpeak write key for RSSI updates
+const char* TS_CHANNEL   = "3211645";  // ThingSpeak channel id
+const char* TS_WRITE_KEY = "60SYG2RIJ0TW4D32";  // ThingSpeak write key
+const char* TS_READ_KEY  = "IN57T91RJ0C8NPFK";  // ThingSpeak read key
+const char* TS_TALKBACK_ID = "56070";  // TalkBack id
+const char* TS_TALKBACK_KEY = "EJ3TTWSNK2Q6PXSO";  // TalkBack key
 
-// #else
+
+const char* TS_WATERING_ID = "3231228";  // Second channel ID used for WiFi RSSI readings
+const char* TS_WATERING_WRITE_KEY = "VJQGRESCP5X57UVG";  // ThingSpeak write key for RSSI updates
+const char* TS_WATERING_READ_KEY = "7HBTLQE1WTKRQHY5";  // ThingSpeak read key for RSSI updates
+
+#else
 
 const char* TS_CHANNEL   = "3325050";  // ThingSpeak channel id
 const char* TS_WRITE_KEY = "WZ6S3B4NWT6PKXD2";  // ThingSpeak write key
@@ -19,12 +23,11 @@ const char* TS_TALKBACK_ID = "56669";  // TalkBack id
 const char* TS_TALKBACK_KEY = "993A55E3RP9ZI8H0";  // TalkBack key
 
 
-const char* TS_WATERING_ID = "3325052";  // Watering channel ID used for watering parameters
-const char* TS_WATERING_WRITE_KEY = "YLGO60STV9UCS8HL";  // Watering channel write key used for watering parameters status updates
-const char* TS_WATERING_READ_KEY = "6LSSZSC5PSPZ0AJQ";  // Watering channel write key used for watering parameters status updates
+const char* TS_WATERING_ID = "3325052";  // Second channel ID used for WiFi RSSI readings
+const char* TS_WATERING_WRITE_KEY = "YLGO60STV9UCS8HL";  // ThingSpeak write key for RSSI updates
+const char* TS_WATERING_READ_KEY = "6LSSZSC5PSPZ0AJQ";  // ThingSpeak read key for RSSI updates
 
-
-// #endif
+#endif
 
 // ==================================================
 // ================= THINGSPEAK =====================
@@ -43,7 +46,11 @@ void sendThingSpeak()
 
     const char* url_post = "https://api.thingspeak.com/update";
 
-    status.status_str = String("Update sent ") + Timestamp();
+    String watering_message;
+
+    status.watering_needed ? watering_message = "" : watering_message = " Watering Skipped";
+ 
+    status.status_str = String("Update sent ") + Timestamp() + watering_message;
 
     char status_c[128];
     

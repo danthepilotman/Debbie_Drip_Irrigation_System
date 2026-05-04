@@ -5,3 +5,4 @@ https://api.thingspeak.com/talkbacks/56070/commands.json?api_key=EJ3TTWSNK2Q6PXS
 https://api.thingspeak.com/channels/3211645/fields/1/last_data_age.text
 https://api.thingspeak.com/channels/3211645/feeds/last_data_age.text
 https://api.thingspeak.com/talkbacks/56070/commands/execute.json?api_key=EJ3TTWSNK2Q6PXSO
+https://api.thingspeak.com/update?api_key=WZ6S3B4NWT6PKXD2&status=test1%20first%20line%0D%0Antest%20second%20line
