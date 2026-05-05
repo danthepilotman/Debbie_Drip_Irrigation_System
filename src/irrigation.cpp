@@ -6,9 +6,7 @@
 void compute_watering_parameters()  // evaluate if watering is needed
 {
 
-    bool rain_expected_ESP32 = rainExpectedSoon();  // Get NWS weather forecast
-
-    if ( soil.moisture < settings.threshold && rain_expected_ESP32 == false )  // Determine if watering is needed
+    if ( soil.moisture < settings.threshold && rainExpectedSoon() == false )  // Determine if watering is needed
         status.watering_needed = YES;
     else
         status.watering_needed = NO;

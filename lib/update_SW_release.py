@@ -129,7 +129,7 @@ def git_release(version):
         return
 
     subprocess.run(
-        ["git", "commit", "-m", f"Release {version}"],
+        ["git", "commit", "-m", f"v {version}"],
         cwd=RELEASE_REPO,
         check=True
     )

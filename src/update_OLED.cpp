@@ -24,7 +24,7 @@ void setup_OLED()
   // Clear the buffer
   display.clearDisplay();  // Clear display buffer
   
-  display.setRotation(2); // Rotate display if needed (adjust as per your mounting)
+  //display.setRotation(2); // Rotate display if needed (adjust as per your mounting)
   display.setTextSize(1);   // Draw 1X-scale text
   display.setTextColor(SSD1306_WHITE);  // Draw white text
   display.setTextWrap(true); // Enable text wrapping

@@ -4,9 +4,8 @@
 
 
 const char *MANIFEST_URL = "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json";
-const char *FIRMWARE_VERSION = "1.0.10";  // current firmware version
+const char *FIRMWARE_VERSION = "1.0.11";  // current firmware version
 
-uint8_t good_cycles = 0;
 
 
 String urlEncode( const String &input )  // URL-encode input
@@ -778,11 +777,9 @@ void handle_sample_state()
 {
     get_new_readings();
 
+    compute_watering_parameters();
+
     thingSpeak_Update();
-
-    good_cycles++;
-
-    compute_watering_parameters();  // ONLY ONCE PER CYCLE
 
     status.watering_needed ? system_state = STATE_WATER : system_state = STATE_SLEEP;
     

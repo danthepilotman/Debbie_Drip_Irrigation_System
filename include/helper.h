@@ -12,7 +12,7 @@
 
 extern const char *MANIFEST_URL;
 extern const char *FIRMWARE_VERSION;
-extern uint8_t good_cycles;  // count of successful cycles since boot
+
 
 String urlEncode(const String &input);  // URL-encode helper
 String Timestamp();  // formatted timestamp
