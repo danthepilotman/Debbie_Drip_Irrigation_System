@@ -48,11 +48,11 @@ void sendThingSpeak()
 
     String watering_message;
 
-    status.watering_needed ? watering_message = "" : watering_message = " Watering Skipped";
+    status.watering_needed ? watering_message = " " : watering_message = " - Watering Skipped - ";
  
-    status.status_str = String("Update sent ") + Timestamp() + watering_message;
+    status.status_str = String("Update sent ") + Timestamp() + watering_message + String ("SW: v") + String(FIRMWARE_VERSION);
 
-    char status_c[128];
+    char status_c[256];
     
     urlEncode(status.status_str).toCharArray(status_c, sizeof(status_c));
 
