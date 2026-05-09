@@ -65,6 +65,7 @@ void sendThingSpeak()
     // Build POST body only (no HTTP code here anymore)
     String postData = "api_key=" + String(TS_WRITE_KEY);
 
+    postData += "&created_at=" + Timestamp( "%Y-%m-%dT%H:%M:%S%z" );  // URL-encoded timestamp for consistency with status message
     postData += "&field1=" + String( soil.moisture, 1 );
     postData += "&field2=" + String( ( 1.8 * soil.temp + 32.0 ), 1) ;
     postData += "&field3=" + String( int( soil.ec ) );
@@ -74,8 +75,7 @@ void sendThingSpeak()
     postData += "&field7=" + String( soil.K );
     postData += "&field8=" + String( status.solenoid_state ? 1 : 0 );
     postData += "&status=" + String(status_c);
-    postData += "&created_at=" + Timestamp( "%Y-%m-%dT%H:%M:%S%z" );  // URL-encoded timestamp for consistency with status message
-
+    
 #ifdef DEBUG_ENABLED
 
         DBGf("[THINGSPEAK] POST body: %s\r\n", postData.c_str());
@@ -243,9 +243,11 @@ void ping_ThingSpeak()
     display_message( "[STATUS]\r\nSending first wake status message to ThingSpeak" );
 
 
-    status.status_str = String( "POWER_ON / RESET on " ) + Timestamp() + String( " SW: v" ) + String( FIRMWARE_VERSION );
+    status.status_str = String( "POWER_ON / RESET on " ) + Timestamp() + " SW: v" + String( FIRMWARE_VERSION );
+
     String body = "api_key=" + String( TS_WRITE_KEY );
-    body += "&field8=0&status=" + urlEncode( status.status_str );  // Reset watering state and add status message with timestamp and firmware version
+    body += "&field8=0";
+    body += "&status=" + urlEncode( status.status_str );  // Reset watering state and add status message with timestamp and firmware version
 
 #ifdef DEBUG_ENABLED
 

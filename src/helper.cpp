@@ -4,7 +4,7 @@
 
 
 const char *MANIFEST_URL = "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json";
-const char *FIRMWARE_VERSION = "1.0.12";  // current firmware version
+const char *FIRMWARE_VERSION = "1.0.13";  // current firmware version
 
 
 
