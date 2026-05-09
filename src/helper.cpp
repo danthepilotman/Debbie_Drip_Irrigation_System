@@ -33,20 +33,19 @@ String urlEncode( const String &input )  // URL-encode input
 
     return encoded;  // Return URL-encoded string
 }
+    
 
-
-String Timestamp()  // Return formatted current time
+String Timestamp( const char* format )  // Get formatted timestamp string)
 {
     struct tm timeinfo;  // Time structure
-
-    char buf[32];  // Buffer to hold formatted timestamp
+    
+    char buf[64];  // Buffer to hold formatted time
 
     getLocalTime( &timeinfo );  // Get local time
 
-    strftime( buf, sizeof( buf ), "%a %b %d, %Y %I:%M:%S %p", &timeinfo );  // Format time as "Dow Mon DD, YYYY HH:MM:SS AM/PM"
+    strftime( buf, sizeof(buf), format, &timeinfo );  // Format time according to provided format string
 
-    return String( buf );  // Return formatted timestamp
-
+    return String( buf );  // Return formatted time as String
 }
 
 
@@ -56,7 +55,7 @@ void solenoid_state_Update()  // Report solenoid state to ThingSpeak
 
     status.status_str = String("Watering ") +
                         String(status.solenoid_state ? "started " : "stopped ") +
-                        Timestamp();
+                        Timestamp();  // Consistent timestamp format for status message
 
     char status_c[128];
 

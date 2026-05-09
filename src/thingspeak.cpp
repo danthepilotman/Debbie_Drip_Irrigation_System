@@ -74,6 +74,7 @@ void sendThingSpeak()
     postData += "&field7=" + String( soil.K );
     postData += "&field8=" + String( status.solenoid_state ? 1 : 0 );
     postData += "&status=" + String(status_c);
+    postData += "&created_at=" + Timestamp( "%Y-%m-%dT%H:%M:%S%z" );  // URL-encoded timestamp for consistency with status message
 
 #ifdef DEBUG_ENABLED
 
@@ -244,7 +245,7 @@ void ping_ThingSpeak()
 
     status.status_str = String( "POWER_ON / RESET on " ) + Timestamp() + String( " SW: v" ) + String( FIRMWARE_VERSION );
     String body = "api_key=" + String( TS_WRITE_KEY );
-    body += "&status=" + urlEncode( status.status_str );
+    body += "&field8=0&status=" + urlEncode( status.status_str );  // Reset watering state and add status message with timestamp and firmware version
 
 #ifdef DEBUG_ENABLED
 
@@ -278,6 +279,7 @@ void send_RSSI()
     String body = "api_key=" + String( TS_WATERING_WRITE_KEY );
 
     body += "&field1=" + String( status.wifi_rssi );
+    body += "&created_at=" + Timestamp( "%Y-%m-%dT%H:%M:%S%z" );  // URL-encoded timestamp for consistency with status message
 
     ThingSpeakResponse resp = tsClient.postWithRetry(
             "https://api.thingspeak.com/update",

@@ -47,7 +47,7 @@ void setup()
     if ( esp_reset_reason()  == ESP_RST_POWERON && status.wifi_connectivity == true )  
     {
         ping_ThingSpeak();  // Transmit status message to ThingSpeak Channel
-        getSettings();  // Fetch latest control settings from ThingSpeak TalkBack, don't check TalkBack timestamp since this is a manual reset or power-on event
+        getSettings();  // Fetch latest control settings from ThingSpeak TalkBack
     }
    
 }

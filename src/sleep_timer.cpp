@@ -92,6 +92,7 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 #endif
 
     time_t now = time(nullptr);  // current epoch
+    
     time_t target = nextTargetTime();  // compute next schedule target
 
 #ifdef DEBUG_ENABLED

@@ -1,6 +1,16 @@
 https://api.openweathermap.org/data/2.5/forecast?lat=28.027&lon=-80.631&appid=1f237060a56d83d3827815039317d2a9
 https://api.openweathermap.org/data/3.0/onecall?lat=28.03&lon=-80.63&exclude=current,daily,minutely,alerts&appid=1f237060a56d83d3827815039317d2a9
 https://api.openweathermap.org/data/3.0/onecall?lat=29.52&lon=-81.21&exclude=current,daily,minutely,alerts&appid=1f237060a56d83d3827815039317d2a9
+
+
+
+https://api.weather.gov/gridpoints/JAX/86,33/forecast/hourly 
+https://api.weather.gov/gridpoints/MLB/25,69/forecast/hourly
+
+
+https://api.thingspeak.com/update?api_key=60SYG2RIJ0TW4D32&field1=51.2&field2=81.9&field3=213&field4=6.4&field5=212&field6=314&field7=198&field8=0&status=Update%20sent%20Fri%20May%2008%2C%202026%2006%3A00%3A13%20PM%20SW%3A%20v1%2E0%2E12
+
+
 https://api.thingspeak.com/talkbacks/56070/commands.json?api_key=EJ3TTWSNK2Q6PXSO
 https://api.thingspeak.com/channels/3211645/fields/1/last_data_age.text
 https://api.thingspeak.com/channels/3211645/feeds/last_data_age.text

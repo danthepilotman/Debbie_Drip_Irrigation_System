@@ -1,5 +1,5 @@
 #ifndef HELPER_FUNCTIONS_H
-#define HELPEER_FUNCTIONS_H
+#define HELPER_FUNCTIONS_H
 
 
 #include <HTTPUpdate.h>
@@ -15,7 +15,7 @@ extern const char *FIRMWARE_VERSION;
 
 
 String urlEncode(const String &input);  // URL-encode helper
-String Timestamp();  // formatted timestamp
+String Timestamp(const char* format = "%a %b %d, %Y %I:%M:%S %p");  // formatted timestamp
 void solenoid_state_Update();  // report solenoid state
 long secondsSincePosition1(JsonArray arr);  // compute seconds since position 1
 time_t iso8601ToEpochUsingGmtime(const char* ts);  // parse ISO8601 timestamp
