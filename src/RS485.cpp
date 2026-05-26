@@ -2,8 +2,8 @@
 
 
 // Create a hardware serial instance for RS485 communication
-const int8_t RS485_TX_PIN = 18;  // RS485 TX pin (GPIO) connects to RS485 module's TX pin
-const int8_t RS485_RX_PIN = 17;  // RS485 RX pin (GPIO) connects tp RS486 module's RX pin
+const int8_t RS485_TX_PIN = 17;  // RS485 TX pin (GPIO) connects to RS485 module's TX pin
+const int8_t RS485_RX_PIN = 18;  // RS485 RX pin (GPIO) connects tp RS486 module's RX pin
 
 const unsigned long RS485_BAUD = 4800;  // RS485 bus baud rate (sensor)
 

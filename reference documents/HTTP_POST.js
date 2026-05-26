@@ -40,9 +40,7 @@ function getOffset() {
   return `${sign}${pad2(o / 60)}${pad2(o % 60)}`;
 }
 
-// Generate both timestamps once per request
-const createdAt = getCreatedAt();
-const statusTime = getStatusTime();
+
 
 fetch("https://api.thingspeak.com/update", {
   method: "POST",
@@ -51,16 +49,16 @@ fetch("https://api.thingspeak.com/update", {
   },
   body: new URLSearchParams({
     api_key: "WZ6S3B4NWT6PKXD2",
-    created_at: createdAt,
-    field1: 32.7,
-    field2: 78.2,
-    field3: 250,
-    field4: 6.5,
-    field5: 312,
-    field6: 224,
-    field7: 129,
+    created_at: getCreatedAt(),
+    field1: 26.7,
+    field2: 68.2,
+    field3: 290,
+    field4: 6.1,
+    field5: 332,
+    field6: 264,
+    field7: 159,
     field8: 0,
-    status: `Update sent ${statusTime} SW: v1.0.13`
+    status: `Update sent ${getStatusTime()} SW: v1.0.13`
   })
 })
 .then(r => r.text())

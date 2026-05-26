@@ -39,7 +39,7 @@ Settings settings = {
     {{0,0,0},  // times - schedule slot 0
     {6,0,0},   // schedule slot 1
     {12,0,0},  // schedule slot 2
-    {16,0,0}}  // schedule slot 3
+    {18,0,0}}  // schedule slot 3
 };
 
 Soil soil;
@@ -49,7 +49,7 @@ Status status = {
   NO,  // watering_needed
   OFF,  // solenoid_state
   NO,  // wifi_connectivity
-  0,       // wifi_rssi
+  0,   // wifi_rssi
   ""  // Status string to display on OLED, updated with ThingSpeak upload status and timestamp
 };
 
@@ -81,14 +81,11 @@ void setup_Serial()
 void setup_Discretes()
 {
 
-  pinMode( 15, INPUT_PULLUP );  // Setup button pin with pull-up resistor
+  pinMode( BUTTON_PIN, INPUT );  // Setup button pin
 
-  attachInterrupt( digitalPinToInterrupt(15 ), handleButtonInterrupt, FALLING );  // Se=tup interrupt on button pin for falling edge (button press)
+  attachInterrupt( digitalPinToInterrupt(BUTTON_PIN ), handleButtonInterrupt, FALLING );  // Se=tup interrupt on button pin for falling edge (button press)
 
-  esp_sleep_enable_ext1_wakeup(
-    1ULL << GPIO_NUM_15,
-    ESP_EXT1_WAKEUP_ANY_LOW
-); // Set GPIO17 (button pin) as wakeup source with LOW level trigger
+  esp_sleep_enable_ext1_wakeup( 1ULL << BUTTON_PIN, ESP_EXT1_WAKEUP_ANY_LOW ); // Set GPIO4 (button pin) as wakeup source with LOW level trigger
   
   pinMode( RELAY_PIN, OUTPUT ); // Configure relay pin as output
 

@@ -7,11 +7,14 @@ volatile Page currentPage = PAGE_STATUS;
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
+const int SDA_PIN = 47;  // GPIO pin for I2C SDA
+const int SCL_PIN = 21;  // GPIO pin for I2C
+
 
 void setup_OLED()
 {
 
-  Wire.begin( 5, 6 );  // SDA, SCL
+  Wire.begin( SDA_PIN, SCL_PIN );  // SDA, SCL
   
   if( display.begin( SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS ) == false )
   { 
@@ -25,21 +28,21 @@ void setup_OLED()
   display.clearDisplay();  // Clear display buffer
   
   //display.setRotation(2); // Rotate display if needed (adjust as per your mounting)
-  display.setTextSize(1);   // Draw 1X-scale text
-  display.setTextColor(SSD1306_WHITE);  // Draw white text
-  display.setTextWrap(true); // Enable text wrapping
+  display.setTextSize( 1 );   // Draw 1X-scale text
+  display.setTextColor( SSD1306_WHITE );  // Draw white text
+  display.setTextWrap( true ); // Enable text wrapping
   
 
   char buff[256];
-  sprintf(buff, "Soil Monitoring &\r\nIrrigation System\r\nv%s", FIRMWARE_VERSION );  // Initial splash screen
-  display_message( buff, 2000);
+  sprintf( buff, "Soil Monitoring &\r\nIrrigation System\r\nv%s", FIRMWARE_VERSION );  // Initial splash screen
+  display_message( buff, 2000 );
 
 }
 
 
 void update_Display()
 {
-    switch (currentPage)
+    switch ( currentPage )
     {
         case PAGE_STATUS:
             status_Page();

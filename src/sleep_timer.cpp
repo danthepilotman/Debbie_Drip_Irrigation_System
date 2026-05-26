@@ -54,7 +54,7 @@ time_t nextTargetTime()  // Compute next scheduled target time
     struct tm tm_target;  // target time struct for calculations
 
     
-    for ( size_t i = 0; i < SCHEDULE_COUNT; i++ )  // iterate through today's schedule slots
+    for ( size_t i = 0; i < SCHEDULE_COUNT; ++i )  // iterate through today's schedule slots
     {
         tm_target = tm_now;  // Need to initialize with a good baseline for year, month, day, etc. to ensure mktime produces correct epoch for each candidate time slot. 
        
@@ -66,7 +66,7 @@ time_t nextTargetTime()  // Compute next scheduled target time
         time_t candidate = mktime(&tm_target);  // convert broken-out time to epoch candidate
 
         // If this candidate is still in the future, it's our next target
-        if ( difftime(candidate, now) >= 0 )
+        if ( candidate > now )
             return candidate;  // return first future schedule this day
         
     }

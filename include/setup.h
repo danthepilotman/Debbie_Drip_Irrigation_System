@@ -41,7 +41,7 @@
 // ================= HARDWARE =======================
 // ==================================================
 
-const uint8_t RELAY_PIN = GPIO_NUM_8;  // GPIO pin to control solenoid relay (must be a pin that supports interrupts)
+const uint8_t RELAY_PIN = GPIO_NUM_40;  // GPIO pin to control solenoid relay (must be a pin that supports interrupts)
 
 
 // ==================================================
@@ -50,7 +50,7 @@ const uint8_t RELAY_PIN = GPIO_NUM_8;  // GPIO pin to control solenoid relay (mu
 
 extern volatile bool buttonPressed;  // Flag to indicate button press for page navigation
 
-#define BUTTON_PIN GPIO_NUM_17  // GPIO pin for page navigation button (must be a pin that supports interrupts)
+const uint8_t BUTTON_PIN = GPIO_NUM_4;  // GPIO pin for page navigation button (must be a pin that supports interrupts)
 
 // ==================================================
 // ================= WIFI SETTINGS ==================
