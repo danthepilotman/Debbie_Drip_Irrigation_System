@@ -126,37 +126,13 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
 #endif
 
-        unsigned long startMillis = millis();
-
-        const unsigned long timeoutMs = ACTIVE_WINDOW_SEC * 1000UL;  // 61 seconds
-
-        while (true)
+     
+        while (difftime(target, time(nullptr)) > 0)
         {
-            now = time(nullptr);  // refresh current time
-
-            double remaining = difftime(target, now);
-
-            if (remaining <= 0)
-                break;  // target reached
-
-            // Timeout condition
-            if (millis() - startMillis >= timeoutMs)
-            {
-
-#ifdef DEBUG_ENABLED
-
-                DBGf("[WAIT] Timeout reached (61 seconds), breaking loop\r\n");
-#endif
-                break;
-            }
-
-#ifdef DEBUG_ENABLED
-
-            DBGf("[WAIT] %.0f seconds remaining\r\n", remaining);
-#endif
-
-            delay(950);
+            delay(200);
         }
+                
+
 
 #ifdef DEBUG_ENABLED
 

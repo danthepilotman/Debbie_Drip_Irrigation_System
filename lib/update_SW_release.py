@@ -8,8 +8,11 @@ import sys
 # ==============================
 # CONFIG
 # ==============================
-SOURCE_PROJECT = r"C:\Users\LEONDaniel\Documents\GitHub\Debbie_Drip_Irrigation_System"
-RELEASE_REPO = r"C:\Users\LEONDaniel\Documents\GitHub\Releases\Irrigation_System"
+#SOURCE_PROJECT = r"C:\Users\LEONDaniel\Documents\GitHub\Debbie_Drip_Irrigation_System"
+#RELEASE_REPO = r"C:\Users\LEONDaniel\Documents\GitHub\Releases\Irrigation_System"
+
+SOURCE_PROJECT = r"C:\Users\sapy4\Documents\PlatformIO\Projects\Debbie_Drip_Irrigation_System"
+RELEASE_REPO = r"C:\Users\sapy4\Documents\PlatformIO\Projects\Releases\Irrigation_System"
 
 ENV_NAME = "esp32s3"
 
