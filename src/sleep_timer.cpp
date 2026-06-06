@@ -9,7 +9,7 @@ void printLocalTime( const char *tag )  // Print current local time with tag
     time_t now;  // current epoch time (seconds since 1970)
     struct tm timeinfo;  // broken-out local time fields
 
-    time(&now);  // populate now
+    time( &now );  // populate now
     localtime_r( &now, &timeinfo );  // convert epoch to local time struct safely
 
     char buf[32];  // formatted timestamp buffer
@@ -87,11 +87,11 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
 #ifdef DEBUG_ENABLED
     
-    printLocalTime("WAKE");  // log wake time
+    printLocalTime( F( "WAKE" ) );  // log wake time
 
 #endif
 
-    time_t now = time(nullptr);  // current epoch
+    time_t now = time( nullptr );  // current epoch
     
     time_t target = nextTargetTime();  // compute next schedule target
 
@@ -106,8 +106,8 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
     if (seconds_to_target < 0)
     {
         target = nextTargetTime();
-        now = time(nullptr);
-        seconds_to_target = difftime(target, now);
+        now = time( nullptr );
+        seconds_to_target = difftime( target, now );
     }
 
 #ifdef DEBUG_ENABLED
@@ -127,9 +127,9 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 #endif
 
      
-        while (difftime(target, time(nullptr)) > 0)
+        while ( difftime( target, time( nullptr ) ) > 0)
         {
-            delay(200);
+            delay( 200 );
         }
                 
 
@@ -173,9 +173,9 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
     display.clearDisplay();
     display.setCursor( 0, 0 );
     
-    display.print(F("[STATUS]\r\nEntering Deep Sleep"));
-    display.printf("[POWER]\r\nSleeping for %.0fs\r\n(early buffer = %ds)\r\n", sleep_seconds, WAKE_EARLY_BUFFER_SEC );   
-    display.printf("Next target:\r\n %s", ctime( &target ) );  // show next target time in human-readable form
+    display.print( F( "[STATUS]\r\nEntering Deep Sleep\r\n" ) );
+    display.printf( "[POWER]\r\nSleeping for %.0fs\r\n(early buffer = %ds)\r\n", sleep_seconds, WAKE_EARLY_BUFFER_SEC );   
+    display.printf( "Next target:\r\n %s", ctime( &target ) );  // show next target time in human-readable form
 
     display.display();
 

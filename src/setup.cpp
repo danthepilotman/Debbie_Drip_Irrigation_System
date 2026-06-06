@@ -18,8 +18,16 @@ const char* WIFI_SSID = "SpectrumSetup-5B"; // WiFi SSID for Debbie's house
 const char* WIFI_PASS = "cosmicmajor724"; // WiFi password for Debbie's house
 
 #else
+
 const char* WIFI_SSID = "Bobo"; // default WiFi SSID
 const char* WIFI_PASS = "ryrie9219"; // default WiFi password
+
+// Static IP configuration
+IPAddress local_IP( 192, 168, 3, 132 );
+IPAddress gateway( 192, 168, 3, 1 );
+IPAddress subnet( 255, 255, 255, 0 );
+IPAddress primaryDNS( 8, 8, 8, 8 );
+IPAddress secondaryDNS( 8, 8, 4, 4 );
 
 #endif
 
@@ -100,31 +108,45 @@ void setup_Discretes()
 void connect_WiFi()
 {
     
-    uint8_t timeout = 0; // timeout counter for connection attempts
+  uint8_t timeout = 0; // timeout counter for connection attempts
 
 #ifdef DEBUG_ENABLED
 
-    DBG( F( "[WIFI] Connecting" ) ); // indicate start of connection
+  DBG( F( "[WIFI] Connecting" ) ); // indicate start of connection
 
 #endif
 
-    display.clearDisplay();
-    display.setCursor(0,0);
-    display.print(F("[WIFI] Connecting to WiFi...\r\n")); 
+  display.clearDisplay();
+  display.setCursor( 0, 0 );
+  display.print ( F( "[WIFI] Connecting to WiFi...\r\n" ) ); 
+  display.display();
+
+#ifndef DEBBIE_HOUSE
+
+  WiFi.mode( WIFI_STA );
+
+  if ( WiFi.config( local_IP, gateway, subnet, primaryDNS, secondaryDNS ) == false )
+  {
+    display.println( "Static IP configuration failed" );
     display.display();
+  }
 
-                                           // NOTE
-    WiFi.begin( WIFI_SSID, WIFI_PASS, 6 ); // *** This seemed to have issues unless I forced the WiFi channel to a fix value (i.e. 6) ***
+#endif
 
-    while ( WiFi.status() != WL_CONNECTED && timeout < 60 ) // wait up to ~60 seconds
-    {
-      rgb_show_color( GREEN ); // Set LED to GREEN (indicating system is online)
+  WiFi.begin( WIFI_SSID, WIFI_PASS ); // *** This seemed to have issues unless I forced the WiFi channel to a fix value (i.e. 6) ***   
+                                         // NOTE
 
-      delay( 500 ); // wait half a second between dots
+   
 
-      rgb_show_color( RED ); // Set LED to GREEN (indicating system is online)
+  while ( WiFi.status() != WL_CONNECTED && timeout < 60 ) // wait up to ~60 seconds
+  {
+    rgb_show_color( GREEN ); // Set LED to GREEN (indicating system is online)
 
-      delay( 500 ); // wait half a second between dots
+    delay( 500 ); // wait half a second between dots
+
+    rgb_show_color( RED ); // Set LED to GREEN (indicating system is online)
+
+    delay( 500 ); // wait half a second between dots
 
 #ifdef DEBUG_ENABLED
 
@@ -132,47 +154,47 @@ void connect_WiFi()
 
 #endif
 
+    timeout++; // increment timeout
+  }
 
-      timeout++; // increment timeout
-    }
-
-    if ( WiFi.status() == WL_CONNECTED )
-    {
-      status.wifi_connectivity = true;  // set connectivity flag when connected
-      status.wifi_rssi = WiFi.RSSI();  // store RSSI for status display and ThingSpeak upload
-    }
+  
+  if ( WiFi.status() == WL_CONNECTED )
+  {
+    status.wifi_connectivity = true;  // set connectivity flag when connected
+    status.wifi_rssi = WiFi.RSSI();  // store RSSI for status display and ThingSpeak upload
+  }
     
-    else
-    {
-      status.wifi_connectivity = false;  // clear connectivity flag on failure
+  else
+  {
+    status.wifi_connectivity = false;  // clear connectivity flag on failure
 
 #ifdef DEBUG_ENABLED
 
-      DBG( F( "[WIFI] Unable to connect to WiFi" ) ); // log failure
+    DBG( F( "[WIFI] Unable to connect to WiFi" ) ); // log failure
 
 #endif    
 
-    display.print(F( "[WIFI] Unable to connect to WiFi" )); 
-    display.display();
+  display.print(F( "[WIFI] Unable to connect to WiFi" )); 
+  display.display();
 
        // bail out if not connected
-    }
+  }
 
 #ifdef DEBUG_ENABLED
 
-    DBG(); // finish progress line
+  DBG(); // finish progress line
 
 #endif
 
 #ifdef DEBUG_ENABLED
 
-    DBG( F( "[WIFI] Connected" ) ); // log successful connection
-    DBGf( "[WIFI] IP: %s\r\n", WiFi.localIP().toString().c_str() ) ; // print assigned IP
-    DBGf( "[WIFI] RSSI: %d dBm\r\n", status.wifi_rssi ) ; // print signal strength
+  DBG( F( "[WIFI] Connected" ) ); // log successful connection
+  DBGf( "[WIFI] IP: %s\r\n", WiFi.localIP().toString().c_str() ) ; // print assigned IP
+  DBGf( "[WIFI] RSSI: %d dBm\r\n", status.wifi_rssi ) ; // print signal strength
 
 #endif
 
-    wifi_Page(); // Update OLED with WiFi status
+  wifi_Page(); // Update OLED with WiFi status
 
 }
 

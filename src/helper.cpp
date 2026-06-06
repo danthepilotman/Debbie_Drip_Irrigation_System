@@ -4,8 +4,9 @@
 
 
 const char *MANIFEST_URL = "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json";
-const char *FIRMWARE_VERSION = "1.0.15";  // current firmware version
+const char *FIRMWARE_VERSION = "1.0.16";  // current firmware version
 
+const char* serverName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/post-esp-data.php";
 
 
 String urlEncode( const String &input )  // URL-encode input
@@ -772,6 +773,70 @@ void check_ota_state()
 }
 
 
+void send_LAMP_DB_update()
+{
+
+  //Check WiFi connection status
+  if ( WiFi.status() == WL_CONNECTED )
+  {
+
+    WiFiClient client;
+
+    HTTPClient http;
+
+    char buff[256];
+    
+    // Prepare your HTTP POST request data
+    String httpRequestData =  String("&moisture_wvc=") + String(soil.moisture)
+                            + "&temperature=" + String(soil.temp)
+                            + "&ec=" + String(soil.ec)
+                            + "&ph=" + String(soil.pH)
+                            + "&nitrogen=" + String(soil.N)
+                            + "&potassium=" + String(soil.K)
+                            + "&phosphorus=" + String(soil.P)
+                            + "&solenoid_state=" + String(status.solenoid_state ? 1 : 0)
+                            + "&time_stamp=" + Timestamp("%Y-%m-%d %H:%M:%S");  // Format timestamp for MySQL DATETIME
+
+
+    // Specify content-type header
+    http.addHeader( F( "Content-Type" ), F( "application/x-www-form-urlencoded" ) );
+    
+                            // Your Domain name with URL path or IP address with path
+    http.begin( client, serverName );  // Specify destination for HTTP request
+
+    int httpResponseCode = http.POST( httpRequestData );  // Send HTTP POST request
+
+    sprintf( buff, "httprequestData:\r\n%s", httpRequestData.c_str() );
+    
+    display_message( buff, 2000 );
+
+          
+    if ( httpResponseCode > 0 )
+    {
+
+        sprintf( buff, "HTTP code:\r\n%d", httpResponseCode );
+        display_message( buff, 2000 );
+
+    }
+
+    else
+    {
+
+      sprintf( buff, "Error code:\r\n%d", httpResponseCode );
+      display_message( buff, 2000 );
+
+    }
+
+    http.end();  // Free resources
+
+  }
+
+  else
+    display_message( "WiFi Disconnected", 2000 );
+  
+}
+
+
 void handle_sample_state()
 {
     get_new_readings();
@@ -779,6 +844,8 @@ void handle_sample_state()
     compute_watering_parameters();
 
     thingSpeak_Update();
+
+    send_LAMP_DB_update();
 
     status.watering_needed ? system_state = STATE_WATER : system_state = STATE_SLEEP;
     

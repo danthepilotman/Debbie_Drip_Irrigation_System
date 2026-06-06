@@ -32,6 +32,7 @@ bool isNewer(String latest);  // compare firmware versions
 void performOTA(String url);  // perform OTA update from URL
 void checkForOTAUpdate();  // check for OTA update and perform if available
 void check_ota_state();  // check OTA state and update flags accordingly
+void send_LAMP_DB_update(); // send update to LAMP database
 void handle_sample_state();  // handle behavior in sample state (read sensors, update ThingSpeak, compute watering parameters)
 
 

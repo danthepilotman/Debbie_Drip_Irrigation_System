@@ -174,12 +174,12 @@ void wifi_Page()
 
     display.clearDisplay(); // Clear the display buffer
 
-    display.setCursor(0,0); // Start at top-left corner
+    display.setCursor( 0, 0 ); // Start at top-left corner
 
     // Display WiFi status
-    display.printf("WiFi: %s \r\n", status.wifi_connectivity ? F("CONNECTED") : F("DISCONNECTED"));
-    display.printf("RSSI: %d dBm\r\n", status.wifi_rssi);
-    display.printf("IP: %s\r\n", WiFi.localIP().toString().c_str() );
+    display.printf( "WiFi: %s \r\n", status.wifi_connectivity ? F( "CONNECTED" ) : F( "DISCONNECTED" ) );
+    display.printf( "RSSI: %d dBm\r\n", status.wifi_rssi );
+    display.printf( "IP: %s\r\n", WiFi.localIP().toString().c_str() );
 
     display.display(); // Update the OLED with new content
 
@@ -191,7 +191,7 @@ void weather_Page()
 
     display.clearDisplay(); // Clear the display buffer
 
-    display.setCursor(0,0); // Start at top-left corner
+    display.setCursor( 0, 0 ); // Start at top-left corner
 
     for( uint8_t i = 0; i <= NUM_OF_PAGES; ++i )
     {

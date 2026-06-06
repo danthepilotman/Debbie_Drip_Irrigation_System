@@ -1,121 +1,280 @@
-%========================
+%==========================================================================
+% NWS HOURLY PRECIPITATION FORECAST
+% WITH THINGSPEAK TALKBACK THRESHOLD LINE
+%==========================================================================
+
+clear;
+clc;
+
+%==========================================================================
 % CONFIGURATION
-%========================
+%==========================================================================
 
 LAT = "29.51889073278589";
 LON = "-81.20344484973997";
+
+talkbackID = 56070;
+apiKey     = 'EJ3TTWSNK2Q6PXSO';
 
 options = weboptions( ...
     'ContentType','json', ...
     'HeaderFields', {'User-Agent','ThingSpeakApp'} );
 
-%========================
-% STEP 1: GET GRIDPOINT
-%========================
-%pointsUrl = sprintf("https://api.weather.gov/points/%s,%s", LAT, LON);
+%==========================================================================
+% READ TALKBACK POSITION #3
+%==========================================================================
 
-%pointsData = webread(pointsUrl, options);
+redLineValue = [];
 
-%if ~isfield(pointsData,'properties') || ...
-%   ~isfield(pointsData.properties,'forecastHourly')
-%    error('NWS points response missing forecastHourly');
-%end
+try
 
-%forecastUrl = pointsData.properties.forecastHourly;
+    tbUrl = sprintf( ...
+        'https://api.thingspeak.com/talkbacks/%d/commands.json?api_key=%s', ...
+        talkbackID, ...
+        apiKey);
 
-%fprintf('URL": %s\n', forecastUrl);
+    commands = webread(tbUrl);
 
-forecastUrl = 'https://api.weather.gov/gridpoints/JAX/86,31/forecast/hourly';
+    if ~isempty(commands)
 
-%========================
-% STEP 2: FETCH HOURLY FORECAST
-%========================
-data = webread(forecastUrl, options);
+        for k = 1:numel(commands)
 
-%========================
-% VALIDATE RESPONSE
-%========================
-if ~isfield(data,'properties') || ...
-   ~isfield(data.properties,'periods')
-    error('NWS response does not contain periods');
+            if isfield(commands(k),'position') && ...
+               commands(k).position == 3
+
+                commandString = strtrim( ...
+                    string(commands(k).command_string));
+
+                redLineValue = str2double(commandString);
+
+                if isnan(redLineValue)
+
+                    warning( ...
+                        'TalkBack Position #3 contains non-numeric value: %s', ...
+                        commandString);
+
+                    redLineValue = [];
+
+                else
+
+                    fprintf( ...
+                        'TalkBack Position #3 Threshold = %.1f%%\n', ...
+                        redLineValue);
+
+                end
+
+                break;
+
+            end
+
+        end
+
+        if isempty(redLineValue)
+
+            warning('TalkBack Position #3 was not found.');
+
+        end
+
+    else
+
+        warning('TalkBack command list is empty.');
+
+    end
+
+catch ME
+
+    warning( ...
+        'Failed to retrieve TalkBack commands: %s', ...
+        ME.message);
+
 end
 
-periods = data.properties.periods;   % STRUCT ARRAY (not cell)
+%==========================================================================
+% NWS FORECAST URL
+%==========================================================================
 
-%========================
-% LIMIT TO 6 HOURS
-%========================
+% Dynamic lookup (optional)
+%
+% pointsUrl = sprintf( ...
+%     'https://api.weather.gov/points/%s,%s', ...
+%     LAT, ...
+%     LON);
+%
+% pointsData = webread(pointsUrl, options);
+%
+% forecastUrl = pointsData.properties.forecastHourly;
+
+forecastUrl = ...
+    'https://api.weather.gov/gridpoints/JAX/86,31/forecast/hourly';
+
+%==========================================================================
+% FETCH HOURLY FORECAST
+%==========================================================================
+
+data = webread(forecastUrl, options);
+
+%==========================================================================
+% VALIDATE RESPONSE
+%==========================================================================
+
+if ~isfield(data,'properties') || ...
+   ~isfield(data.properties,'periods')
+
+    error('NWS response does not contain forecast periods.');
+
+end
+
+periods = data.properties.periods;
+
+%==========================================================================
+% LIMIT TO NEXT 6 HOURS
+%==========================================================================
+
 numHours = min(7, length(periods));
 
-%========================
-% PREALLOCATE ARRAYS
-%========================
+%==========================================================================
+% PREALLOCATE
+%==========================================================================
+
 time = NaT(numHours,1);
 time.TimeZone = 'America/New_York';
 
 weatherMain = strings(numHours,1);
-pop = zeros(numHours,1);
+pop         = zeros(numHours,1);
 
-%========================
-% PARSE DATA
-%========================
+%==========================================================================
+% PARSE FORECAST DATA
+%==========================================================================
+
 for i = 1:numHours
-    
-    p = periods(i);   % STRUCT (not cell)
-    
-    % TIME (ISO8601 string)
+
+    p = periods(i);
+
+    %----------------------------------------------------------------------
+    % Time
+    %----------------------------------------------------------------------
+
     if isfield(p,'startTime')
-        time(i) = datetime(p.startTime, ...
-            'InputFormat','yyyy-MM-dd''T''HH:mm:ssXXX', ...
-            'TimeZone','America/New_York');
+
+        time(i) = datetime( ...
+            p.startTime, ...
+            'InputFormat', ...
+            'yyyy-MM-dd''T''HH:mm:ssXXX', ...
+            'TimeZone', ...
+            'America/New_York');
+
     end
-    
-    % WEATHER DESCRIPTION
+
+    %----------------------------------------------------------------------
+    % Weather Description
+    %----------------------------------------------------------------------
+
     if isfield(p,'shortForecast')
+
         weatherMain(i) = string(p.shortForecast);
+
     else
+
         weatherMain(i) = "Unknown";
+
     end
-    
-    % POP (% already)
+
+    %----------------------------------------------------------------------
+    % Probability of Precipitation
+    %----------------------------------------------------------------------
+
     if isfield(p,'probabilityOfPrecipitation') && ...
        isfield(p.probabilityOfPrecipitation,'value') && ...
        ~isempty(p.probabilityOfPrecipitation.value)
-       
+
         pop(i) = p.probabilityOfPrecipitation.value;
+
     else
+
         pop(i) = 0;
+
     end
+
 end
 
-%========================
-% DISPLAY OUTPUT
-%========================
-disp('6 Hour Forecast (NWS):')
+%==========================================================================
+% DISPLAY FORECAST
+%==========================================================================
+
+fprintf('\n');
+disp('6 Hour Forecast (NWS)')
 disp('Time                 | Weather                  | POP')
-disp('--------------------------------------------------------')
+disp('----------------------------------------------------------')
 
 for i = 1:numHours
+
     fprintf('%-20s | %-22s | %6.1f%%\n', ...
         datestr(time(i),'dd-mmm-yyyy HH:MM'), ...
         weatherMain(i), ...
         pop(i));
+
 end
 
-%========================
-% OPTIONAL PLOT
-%========================
-figure;
-plot(time, pop, '-o');
+if ~isempty(redLineValue)
+
+    fprintf('\nThreshold = %.1f%%\n', redLineValue);
+
+end
+
+%==========================================================================
+% PLOT
+%==========================================================================
+
+figure('Color','white');
+
+plot(time, pop, ...
+    '-o', ...
+    'LineWidth',1.8, ...
+    'MarkerSize',6);
+
+hold on;
 grid on;
+
 ylim([0 110]);
 
-for i = 1:numHours-1
-    text(time(i), pop(i)+5, weatherMain(i), ...
-        'HorizontalAlignment','left', ...
-        'Rotation',60);
+%==========================================================================
+% THRESHOLD LINE FROM TALKBACK POSITION #3
+%==========================================================================
+
+if ~isempty(redLineValue)
+
+    yline(redLineValue, ...
+        'r-', ...
+        sprintf(' %.1f%% Threshold', redLineValue), ...
+        'LineWidth',2, ...
+        'LabelHorizontalAlignment','left');
+
 end
 
-title('6 Hour Forecast (NWS)');
-ylabel('Precipitation Probability (%)');
+%==========================================================================
+% WEATHER LABELS
+%==========================================================================
+
+for i = 1:numHours
+
+    text( ...
+        time(i), ...
+        pop(i)+5, ...
+        weatherMain(i), ...
+        'Rotation',60, ...
+        'HorizontalAlignment','left', ...
+        'FontSize',8);
+
+end
+
+%==========================================================================
+% FORMAT PLOT
+%==========================================================================
+
+title('NWS Hourly Probability of Precipitation');
 xlabel('Time');
+ylabel('Precipitation Probability (%)');
+
+xtickformat('HH:mm');
+
+hold off;

@@ -37,7 +37,7 @@ void setup()
 
     setup_NTP();  // Connect to NTP and setup internal RTC
 
-    tsClient.begin(true);  // Initialize ThingSpeak client with insecure SSL (since we're using setInsecure on the client)
+    tsClient.begin( true );  // Initialize ThingSpeak client with insecure SSL (since we're using setInsecure on the client)
 
     initFlashFS();  // Setup non-volatile storage
 
@@ -70,7 +70,7 @@ void loop()
 
     if ( wakeup_cause == ESP_SLEEP_WAKEUP_EXT1 )
     {
-        if (first_time)
+        if ( first_time )
         {
             rainExpectedSoon();
             first_time = false;
