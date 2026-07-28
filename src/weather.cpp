@@ -12,7 +12,7 @@ const char* LON = "-80.631";  // My house longitude
 */
 
 
-volatile int precip_prob[6] = {-1, -1, -1, -1, -1, -1};  // Store precit probability values
+volatile int precip_prob[6] = {-1, -1, -1, -1, -1, -1};  // Store precipitation probability values
 
 
 // ==================================================
@@ -57,6 +57,7 @@ bool rainExpectedSoon()
     DBGf( "[WEATHER] HTTP code: %d\r\n", code );  // Print HTTP response code
 
 #endif
+
     char buff[256];
     sprintf( buff, "[WEATHER] HTTP code: %d\r\n", code);
     display_message(buff);
@@ -123,20 +124,11 @@ bool rainExpectedSoon()
     for ( JsonObject period : filteredPeriods )
     {
         
-        if ( count > 5 )
+        if ( count == sizeof(precip_prob)/sizeof(precip_prob[0]) )  // limit to first 6 periods
             break; // limit to first 6 periods
         
         precip_prob[count] = period["probabilityOfPrecipitation"]["value"] | -1;
       
-#ifdef DEBUG_ENABLED
-
-        DBGf("[WEATHER] Pop: %d\r\n", precip_prob);
-
-#endif
-
-        if ( precip_prob[count] >= RAIN_PROB_MIN )
-            rain_expected = true;
-
         ++count;
            
     }
@@ -144,6 +136,20 @@ bool rainExpectedSoon()
   
     doc.clear();  // release parsed data
     filter.clear();  // clear temporary filter doc
+
+    uint32_t avg_precip_prob = 0;  // Initialize average precipitation probability
+
+    for( uint8_t i = 0; i < sizeof(precip_prob)/sizeof(precip_prob[0]); ++i )  // Iterate through the precipitation probabilities
+    {
+       avg_precip_prob += ( precip_prob[i] >= 0 ? precip_prob[i] : 0 );  // Sum valid PoP values
+    }
+
+    avg_precip_prob /= sizeof(precip_prob)/sizeof(precip_prob[0]);  // Calculate average PoP
+
+    if ( avg_precip_prob >= settings.rain_min_Prob )  // Check if PoP exceeds threshold
+    {
+        rain_expected = true;
+    }
     
     return rain_expected;  // If you made it past the for loop without finding any precip then no rain is expected
 
