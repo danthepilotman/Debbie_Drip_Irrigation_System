@@ -4,7 +4,7 @@
 
 
 const char *MANIFEST_URL = "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json";
-const char *FIRMWARE_VERSION = "1.0.18";  // current firmware version
+const char *FIRMWARE_VERSION = "1.0.20";  // current firmware version
 
 const char* serverName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/post-esp-data.php";
 
@@ -102,7 +102,7 @@ void solenoid_state_Update()  // Report solenoid state to ThingSpeak
 
     HTTPClient http;
 
-    char buff[256];
+    char buff[128];  // Buffer for debug messages
     
     // Prepare your HTTP POST request data
     String httpRequestData =  String("&solenoid_state=") + String(status.solenoid_state ? 1 : 0)
