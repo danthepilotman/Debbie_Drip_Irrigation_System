@@ -1,3 +1,5 @@
+#ifdef THINGSPEAK_ENABLE
+
 #include "thingspeak.h"  // ThingSpeak helpers: upload, TalkBack parsing, and settings
 
 
@@ -94,7 +96,7 @@ void sendThingSpeak()
 }
 
 
-void getSettings()
+void getThingSpeakSettings()
 {
     
     JsonDocument doc;  // Create JSON document for parsing TalkBack response
@@ -173,13 +175,13 @@ void getSettings()
         switch ( position )
         {
             case 1:  // target soil moisture
-                settings.threshold = cmdStr.toFloat();  // Update threshold
+                settings.moisture_threshold = cmdStr.toFloat();  // Update threshold
                 break;
             case 2:  // watering duration
-                settings.duration = cmdStr.toInt();  // Update duration
+                settings.watering_duration_sec = cmdStr.toInt();  // Update duration
                 break;
             case 3:  // rain expected
-                settings.rain_min_Prob = cmdStr.toInt();  // Update rain minimum probability
+                settings.min_precip_prob = cmdStr.toInt();  // Update rain minimum probability
                 break;
              case 4:  // update schedule
                 update_Schedule ( cmdStr, position );  // Update schedule
@@ -225,7 +227,7 @@ void thingSpeak_Update()
     {                                                                                         
         sendThingSpeak();  // -------- ThingSpeak Upload --------
 
-        getSettings();  // -------- Read Control Settings --------, check TalkBack timestamp to ensure freshness of data before applying settings
+        getThingSpeakSettings();  // -------- Read Control Settings --------, check TalkBack timestamp to ensure freshness of data before applying settings
 
     }
 
@@ -296,3 +298,6 @@ void send_RSSI()
 
 #endif
 }
+
+
+#endif  // THINGSPEAK_ENABLE

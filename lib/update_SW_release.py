@@ -16,7 +16,7 @@ RELEASE_REPO = r"C:\Users\sapy4\Documents\PlatformIO\Projects\Releases\Irrigatio
 
 ENV_NAME = "esp32s3"
 
-INCLUDE_FILE = os.path.join(SOURCE_PROJECT, "src", "helper.cpp")
+INCLUDE_FILE = os.path.join(SOURCE_PROJECT, "src", "ota_update.cpp")
 FIRMWARE_SRC = os.path.join(SOURCE_PROJECT, ".pio", "build", ENV_NAME, "firmware.bin")
 
 MANIFEST_FILE = os.path.join(RELEASE_REPO, "manifest.json")

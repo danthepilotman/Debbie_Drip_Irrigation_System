@@ -87,7 +87,7 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
 #ifdef DEBUG_ENABLED
     
-    printLocalTime( F( "WAKE" ) );  // log wake time
+    printLocalTime( "WAKE" );  // log wake time
 
 #endif
 

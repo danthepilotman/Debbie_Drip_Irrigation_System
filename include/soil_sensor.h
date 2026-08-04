@@ -1,8 +1,9 @@
-#ifndef RS485_H
-#define RS485_H
+#ifndef SOIL_SENSOR_H
+#define SOIL_SENSOR_H
 
+#include <Arduino.h>  // Default Arduino library for core functions
 #include <HardwareSerial.h>  // hardware serial support
-#include "setup.h"
+
 
 
 #define MAX_SAMPLES     10     // sample limit to protect stack
@@ -44,6 +45,6 @@ void setup_RS485(); // Initialize RS485 hardware and serial settings
 RS485_STATUS read_Registers(HardwareSerial &serial, uint8_t deviceAddress, uint16_t startAddress, uint8_t sampleCount, uint16_t *results);  // read registers (with sampling)
 RS485_STATUS read_Registers_raw(HardwareSerial &serial, uint8_t deviceAddress, uint16_t startAddress, uint16_t numRegisters, uint16_t *results);  // raw register read
 uint16_t calc_crc(uint8_t *data, uint8_t length);  // CRC calculation
-
+void get_new_readings();  // read sensors and store values
 
 #endif

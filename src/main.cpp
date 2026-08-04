@@ -1,11 +1,19 @@
 #include "setup.h"
-#include "thingspeak.h"
 #include "weather.h"
 #include "irrigation.h"
 #include "sleep_timer.h"
 #include "update_OLED.h"
 #include "rgb_led.h"
 #include "helper.h"
+#include "LAMP_Server.h"
+#include "ota_update.h"
+
+#ifdef THINGSPEAK_ENABLE
+
+  #include "ThingSpeakClient.h"
+  #include "thingspeak.h"
+
+#endif
 
 
 
@@ -37,23 +45,35 @@ void setup()
 
     setup_NTP();  // Connect to NTP and setup internal RTC
 
-    tsClient.begin( true );  // Initialize ThingSpeak client with insecure SSL (since we're using setInsecure on the client)
-
     initFlashFS();  // Setup non-volatile storage
 
-    loadSettings();  // Load settings from non-volatile storage
+    getServerSettings();  // Load settings from non-volatile storage and compare to server settings. Update if needed.
+
+
+#ifdef THINGSPEAK_ENABLE
+
+    tsClient.begin( true );  // Initialize ThingSpeak client with insecure SSL (since we're using setInsecure on the client)
 
     // Check for power applied (cold boot) AND not waking from button press (i.e. woke from power-on event, not just reset or waking up to update OLED after button press)
     if ( esp_reset_reason()  == ESP_RST_POWERON && status.wifi_connectivity == true )  
     {
-        ping_ThingSpeak();  // Transmit status message to ThingSpeak Channel
-        getSettings();  // Fetch latest control settings from ThingSpeak TalkBack
+
+#ifdef DEBUG_ENABLED
+
+        DBG( "[SETTINGS] Power-on event detected. Checking for server settings update..." );
+#endif
+
+    ping_ThingSpeak();  // Transmit status message to ThingSpeak Channel
+
+    getThingSpeakSettings();  // Fetch latest control settings from ThingSpeak TalkBack
+
     }
-   
+
+#endif  // THINGSPEAK_ENABLE
+ 
 }
 
  
-
 // ==================================================
 // ================= LOOP ===========================
 // ==================================================

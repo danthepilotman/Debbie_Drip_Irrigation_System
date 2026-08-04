@@ -2,7 +2,7 @@
 #define SLEEP_TMR_H  // header guard definition
 
 
-#include "setup.h"  // i    nclude common project definitions and types
+#include "setup.h"  // include common project definitions and types
 
 
 constexpr uint16_t ACTIVE_WINDOW_SEC = 301;   // seconds to stay awake inside active window

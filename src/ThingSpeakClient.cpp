@@ -1,3 +1,5 @@
+#ifdef THINGSPEAK_ENABLE
+
 #include "ThingSpeakClient.h"
 #include <HTTPClient.h>
 
@@ -80,3 +82,6 @@ ThingSpeakResponse ThingSpeakClient::postWithRetry( const char* url, const Strin
 
     return resp;
 }
+
+
+#endif  // THINGSPEAK_ENABLE

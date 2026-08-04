@@ -1,5 +1,5 @@
 #include "setup.h"  // project-wide definitions and prototypes
-#include "RS485.h"
+#include "soil_sensor.h"
 #include "update_OLED.h"  // prototypes for OLED update functions
 #include "helper.h"  // helper functions
 #include "rgb_led.h"  // prototypes for RGB LED functions
@@ -44,10 +44,13 @@ Settings settings = {
     32.1,  // threshold (soil moisture threshold percent)
     1800,  // duration (watering seconds)
     50,  // rain_min_Prob (minimum probability of rain)
-    {{0,0,0},  // times - schedule slot 0
+    {
+      {0,0,0},  // times - schedule slot 0
     {6,0,0},   // schedule slot 1
     {12,0,0},  // schedule slot 2
-    {18,0,0}}  // schedule slot 3
+    {18,0,0}  // schedule slot 3
+  },
+  "2024-01-01 00:00:00"  // updated timestamp
 };
 
 Soil soil;

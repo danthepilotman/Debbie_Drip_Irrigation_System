@@ -1,4 +1,6 @@
-#include <RS485.h>  // RS485 definitions and types
+#include <soil_sensor.h>  // RS485 definitions and types
+#include "helper.h"  // for MAX_TRIES constant
+#include "setup.h"  // for soil structure
 
 
 // Create a hardware serial instance for RS485 communication
@@ -172,4 +174,77 @@ uint16_t calc_crc( uint8_t *data, uint8_t length ) // CRC-16 (modbus) calculatio
     } // end byte loop
 
     return crc; // return computed CRC
+}
+
+
+/******************************* Get SOIL sensor readings and update ThingSpeak *********************/
+void get_new_readings()
+{
+    
+#ifdef DEBUG_ENABLED
+
+    DBG( F( "[STATUS] ===== SYSTEM CYCLE START =====" ) );  // mark cycle start
+
+#endif
+
+    RS485_STATUS rs485_status;  // RS485 operation status
+
+    // -------- Read Soil Sensor --------
+#ifdef SOIL_SENSOR
+
+    uint16_t values[SOIL_REG_SIZE]; // Store 7 register values
+
+#ifdef DEBUG_ENABLED
+
+    DBG( F( "[RS485] Reading soil sensor" ) );
+
+#endif
+
+    for( uint8_t num_of_attempts = 0; num_of_attempts < MAX_TRIES; ++num_of_attempts )  // try up to 5 times
+    {
+        rs485_status = read_Registers( RS485Serial, 0x01, 0x0000, 5, values );  // read registers via Modbus
+
+        if ( rs485_status == RS485_GOOD )
+            break;
+        
+#ifdef DEBUG_ENABLED
+
+        else
+            DBG( F( "[RS485][ERROR] Modbus error" ) );
+#endif
+        
+    }
+       
+#else
+
+    const uint16_t values[SOIL_REG_SIZE] = {227,203,100,70,50,40,30}; // Store 7 register values
+
+#endif
+
+    uint16_t rawMoisture = values[ SOIL_MOISTURE ];  // raw moisture register
+    uint16_t rawTemp     = values[ SOIL_TEMPERATURE ];  // raw temperature register
+    uint16_t rawEC       = values[ SOIL_EC];  // raw EC register
+    uint16_t rawPH       = values[ SOIL_PH ];  // raw pH register
+    uint16_t rawN        = values[ SOIL_N ];  // raw N register
+    uint16_t rawP        = values[ SOIL_P ];  // raw P register
+    uint16_t rawK        = values[ SOIL_K ];  // raw K register
+
+    soil.moisture = float(rawMoisture) / 10.0;  // convert to percent
+    soil.temp     = float( int16_t( rawTemp ) ) / 10.0;  // convert to °C (signed)
+    soil.ec       = float(rawEC);  // conductivity µS/cm
+    soil.pH       = float(rawPH) / 10.0;  // pH scaled by 10
+    soil.N        = rawN;  // N in mg/kg
+    soil.P        = rawP;  // P in mg/kg    
+    soil.K        = rawK;  // K in mg/kg
+
+#ifdef DEBUG_ENABLED
+
+    DBGf( "[DATA] Moisture: %.1f %%\r\n", soil.moisture );  // log moisture
+    DBGf( "[DATA] Temp: %.1f °C\r\n", soil.temp );  // log temperature
+    DBGf( "[DATA] EC: %.0f µS/cm\r\n", soil.ec );  // log EC
+    DBGf( "[DATA] pH: %.1f\r\n", soil.pH );  // log pH
+    DBGf( "[DATA] NPK: %u / %u / %u mg/kg\r\n", rawN, rawP, rawK );  // log NPK registers
+
+#endif
+  
 }

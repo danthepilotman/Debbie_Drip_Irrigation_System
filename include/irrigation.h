@@ -1,8 +1,11 @@
-#include "setup.h"  // global setup headers
-#include "RS485.h"  // RS485 comms
-#include "thingspeak.h"  // ThingSpeak interface
+//#include "setup.h"  // global setup headers
+#include "soil_sensor.h"  // RS485 comms
 #include "weather.h"  // Weather checks
 #include <math.h.>  // math functions for time calculations
+
+#ifdef THINGSPEAK_ENABLE
+    #include "thingspeak.h"  // ThingSpeak interface
+#endif
 
 // ==================================================
 // ========= Prototype Functions ===========

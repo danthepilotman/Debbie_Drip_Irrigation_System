@@ -1,3 +1,5 @@
+#ifdef THINGSPEAK_ENABLE
+
 #pragma once
 
 #include <WiFiClientSecure.h>
@@ -27,3 +29,5 @@ private:
 
 // 👇 global instance declaration
 extern ThingSpeakClient tsClient;
+
+#endif  // THINGSPEAK_ENABLE

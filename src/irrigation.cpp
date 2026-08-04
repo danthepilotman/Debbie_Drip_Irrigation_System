@@ -1,12 +1,14 @@
 #include "irrigation.h"
 #include "rgb_led.h"
+#include "update_OLED.h"
+#include "LAMP_Server.h"
 
 
 
 void compute_watering_parameters()  // evaluate if watering is needed
 {
 
-    if ( soil.moisture < settings.threshold && rainExpectedSoon() == false )  // Determine if watering is needed
+    if ( soil.moisture < settings.moisture_threshold && rainExpectedSoon() == false )  // Determine if watering is needed
         status.watering_needed = YES;
     else
         status.watering_needed = NO;
@@ -60,7 +62,7 @@ void  water_soil()  // perform watering flow control
        
         time_t elapsed_sec = (status.solenoid_state == OFF || watering_start_time == 0) ? 0 : now - watering_start_time;
 
-        time_t watering_time_remaining = (settings.duration > elapsed_sec) ? (settings.duration - elapsed_sec) : 0;
+        time_t watering_time_remaining = (settings.watering_duration_sec > elapsed_sec) ? (settings.watering_duration_sec - elapsed_sec) : 0;
 
         if(  now > 0 && now - last_Print  >= 1)
         {
@@ -123,7 +125,7 @@ void handle_watering_state()
 {
     water_soil();
 
-    if (status.watering_needed == NO && status.solenoid_state == OFF)
+    if ( status.watering_needed == NO && status.solenoid_state == OFF )
     {
         system_state = STATE_SLEEP;
     }

@@ -7,7 +7,7 @@
 #include <time.h>  // time functions
 #include <ArduinoJson.h>  // ArduinoJson library
 #include <LittleFS.h>  // LittleFS filesystem
-#include <ArduinoOTA.h>
+#include <ArduinoOTA.h> // Arduino OTA update library
 
 
 // ==================================================
@@ -22,9 +22,10 @@
 // ==================================================
 // ================== BUILD OPTIONS =================
 // ==================================================
+//#define THINGSPEAK_ENABLE  // define for using TingSpeak for data logging and UI
 #define DEBBIE_HOUSE  // define for Debbie's house config
 #define SOIL_SENSOR  // include soil sensor support
-// #define DEBUG_ENABLED  // enable debug logging
+ //#define DEBUG_ENABLED  // enable debug logging
 
 // ==================================================
 // ================= DEBUG MACROS ===================
@@ -80,7 +81,7 @@ enum SystemState
 extern SystemState system_state;
 
 
-typedef struct TimeSet
+typedef struct ScheduleTime
 {
     uint8_t hour;  // hour component
     uint8_t min;   // minute component
@@ -88,10 +89,11 @@ typedef struct TimeSet
 } ScheduleTime;
 
 struct Settings {
-  float threshold;  // Soil moisture threshold to trigger watering
-  uint32_t duration;  // Watering time in seconds
-  uint32_t rain_min_Prob;  // Minimum probability of rain to set rain_expected flag
-  TimeSet times[4];  // Up to 4 watering times per day
+  float moisture_threshold;  // Soil moisture threshold to trigger watering
+  uint32_t watering_duration_sec;  // Watering time in seconds
+  uint32_t min_precip_prob;  // Minimum probability of rain to set rain_expected flag
+  ScheduleTime times[4];  // Up to 4 watering times per day
+  char updated[20];  // Timestamp of last settings update "YYYY-MM-DD HH:MM:SS"
 };
 
 extern Settings settings;

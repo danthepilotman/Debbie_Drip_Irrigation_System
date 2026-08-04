@@ -1,12 +1,14 @@
-#include "helper.h"  // helper functions and globals
-#include "thingspeak.h"
-#include "irrigation.h"
+#include "helper.h"  // Associated header file
+#include "irrigation.h"  // for compute_watering_parameters() function
+#include "LAMP_Server.h"  // for getServerSettings() function
+#include "soil_sensor.h"  // for get_new_readings() function
+#include "update_OLED.h"  // for currentPage, Page, NUM_OF_PAGES variables
 
+#ifdef THINGSPEAK_ENABLE
+    #include "thingspeak.h"  // thingspeak interface
+    #include "ThingSpeak.h"  // ThingSpeak client
+#endif
 
-const char *MANIFEST_URL = "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json";
-const char *FIRMWARE_VERSION = "1.0.20";  // current firmware version
-
-const char* serverName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/post-esp-data.php";
 
 
 String urlEncode( const String &input )  // URL-encode input
@@ -50,181 +52,174 @@ String Timestamp( const char* format )  // Get formatted timestamp string)
 }
 
 
-void solenoid_state_Update()  // Report solenoid state to ThingSpeak
+bool initFlashFS()  // Initialize LittleFS
 {
-    const char* url = "https://api.thingspeak.com/update";
 
-    status.status_str = String("Watering ") +
-                        String(status.solenoid_state ? "started " : "stopped ") +
-                        Timestamp();  // Consistent timestamp format for status message
+  if ( LittleFS.begin(true) == false )
+  {   // true = format if failed
 
-    char status_c[128];
-
-    urlEncode(status.status_str).toCharArray(status_c, sizeof(status_c));
 
 #ifdef DEBUG_ENABLED
 
-    DBGf("[IRRIGATION] Solenoid is now %s", status.solenoid_state ? "ON\r\n" : "OFF\r\n");
-    
+    DBG( F( "[FILESYSTEM] LittleFS Mount Failed" ) );
+
 #endif
 
-    // Build POST body only
-    String postData = "api_key=" + String(TS_WRITE_KEY);
-    postData += "&field8=" + String(status.solenoid_state ? 1 : 0);
-    postData += "&status=" + String(status_c);
+    return false;
+  }
+  
+#ifdef DEBUG_ENABLED
+
+  DBG( F( "[FILESYSTEM] LittleFS Mounted" ) );  // mounted
+
+#endif
+
+  return true;  // success
+
+}
+
 
 #ifdef DEBUG_ENABLED
 
-    DBGf("[THINGSPEAK] POST body: %s\r\n", postData.c_str());
+void printSettings()  // Print current settings to serial
+{
 
-#endif
-
-    // Single call replaces entire retry + HTTP logic
-    ThingSpeakResponse resp = tsClient.postWithRetry(
-            url,
-            postData,
-            MAX_TRIES,
-            TS_PROCESS_DELAY
-        );
-
-#ifdef DEBUG_ENABLED
-
-    DBGf("[THINGSPEAK] HTTP code: %d, payload: %s\r\n", resp.httpCode, resp.body.c_str() );
-
-#endif
+    DBG(F("---- Settings ----"));  // header
+    Serial.print(F("Threshold: "));  // label
+    DBG(settings.moisture_threshold);  // threshold value
+    Serial.print(F("Duration : "));  // label
+    DBG(settings.watering_duration_sec);  // duration value
+    Serial.print(F("Rain minimum probability: "));  // label
+    DBG(settings.min_precip_prob);  // rain minimum probability value
 
 
-//Check WiFi connection status
-  if ( WiFi.status() == WL_CONNECTED )
+    for  (uint8_t i = 0; i < 4; ++i )  // print each scheduled time
+    {
+
+        Serial.print(F("Time"));  // label
+        Serial.print(i + 1);  // index
+        Serial.print(F(": "));  // separator
+        Serial.print(settings.times[i].hour);  // hour
+        Serial.print(F(":"));  // separator
+        if (settings.times[i].min < 10) Serial.print("0");  // leading zero for minutes
+        Serial.print(settings.times[i].min);  // minute
+        Serial.print(F(":"));  // separator
+        if (settings.times[i].sec < 10) Serial.print("0");  // leading zero for seconds
+        DBG(settings.times[i].sec);  // second
+
+    }
+
+    DBG(F("------------------"));  // footer
+}
+
+#endif  // DEBUG_ENABLED
+
+
+#ifdef THINGSPEAK_ENABLE
+
+bool check_new_settings()  // Compare stored settings with current ones
+{
+  
+  JsonDocument doc;  // Create JSON document for parsing settings file
+  
+  if ( LittleFS.exists( "/settings.json") == false )  // Settings file does not exist
+    return true;  // Need to save settings
+  
+  File file = LittleFS.open( "/settings.json", "r" );  // open settings file for reading
+
+  if (!file)  // open failed
+    return true;
+  
+  DeserializationError err = deserializeJson( doc, file );  // parse JSON file
+
+  file.close();  // close file
+
+  if ( err )  // parse failed
+    return true;
+  
+
+  // ---- Scalars ----
+  if ( doc["threshold"].as<float>() != settings.moisture_threshold )  // threshold differs
+    return true;
+
+  if ( doc["duration"].as<u32_t>()  != settings.watering_duration_sec )  // duration differs
+    return true;
+
+  if ( doc["rain_min_Prob"].as<uint32_t>()  != settings.min_precip_prob )  // rain_min_Prob differs
+    return true;
+
+  // ---- Times ----
+  JsonArray times = doc["times"].as<JsonArray>();  // load times array
+
+  if ( times.isNull() || times.size() != SCHEDULE_COUNT )  // invalid times array
+    return true;
+  
+
+  for ( uint8_t i = 0; i < SCHEDULE_COUNT; ++i )  // iterate times
   {
+    JsonObject t = times[i];  // individual time object
 
-    WiFiClient client;
-
-    HTTPClient http;
-
-    char buff[128];  // Buffer for debug messages
-    
-    // Prepare your HTTP POST request data
-    String httpRequestData =  String("&solenoid_state=") + String(status.solenoid_state ? 1 : 0)
-                            + "&time_stamp=" + Timestamp("%Y-%m-%d %H:%M:%S");  // Format timestamp for MySQL DATETIME
-
-
-    // Specify content-type header
-    http.addHeader( F( "Content-Type" ), F( "application/x-www-form-urlencoded" ) );
-    
-                            // Your Domain name with URL path or IP address with path
-    http.begin( client, serverName );  // Specify destination for HTTP request
-
-    int httpResponseCode = http.POST( httpRequestData );  // Send HTTP POST request
-
-    sprintf( buff, "httprequestData:\r\n%s", httpRequestData.c_str() );
-    
-    display_message( buff, 2000 );
-
-          
-    if ( httpResponseCode > 0 )
-    {
-
-        sprintf( buff, "HTTP code:\r\n%d", httpResponseCode );
-        display_message( buff, 2000 );
-
-    }
-
-    else
-    {
-
-      sprintf( buff, "Error code:\r\n%d", httpResponseCode );
-      display_message( buff, 2000 );
-
-    }
-
-    http.end();  // Free resources
-
+    if (t["h"].as<uint8_t>() != settings.times[i].hour) return true;  // hour differs
+    if (t["m"].as<uint8_t>() != settings.times[i].min)  return true;  // minute differs
+    if (t["s"].as<uint8_t>() != settings.times[i].sec)  return true;  // second differs
   }
 
-  else
-    display_message( "WiFi Disconnected", 2000 );
+  return false;  // no differences
 
 }
 
 
-
-time_t iso8601ToEpochUsingGmtime( const char* ts )  // Parse ISO8601 to epoch
+bool saveSettings()
 {
-
-    int Y, M, D, h, m, s;  // Time components
-
-    if (sscanf(ts, "%4d-%2d-%2dT%2d:%2d:%2dZ", &Y, &M, &D, &h, &m, &s) != 6)  // Parse ISO 8601 timestamp
-      return -1;   // Return error if parsing fails
-
-    struct tm utc = {};  // UTC time structure
-    utc.tm_year = Y - 1900;  // tm_year is years since 1900
-    utc.tm_mon  = M - 1;  // tm_mon is 0-11
-    utc.tm_mday = D;  // tm_mday is day of month
-    utc.tm_hour = h;  // tm_hour is hours since midnight
-    utc.tm_min  = m;  // tm_min is minutes after the hour
-    utc.tm_sec  = s;  // tm_sec is seconds after the minute
-    utc.tm_isdst = 0;  // Not considering daylight saving time
-
-
-    // Get current UTC offset
-    time_t now = time( nullptr );  // Current time in epoch
-    struct tm gmt;  // GMT time structure
-    gmtime_r( &now, &gmt );  // gmt has the now time in epoch
-    
-    struct tm loc;  // Local time structure
-    localtime_r( &now, &loc );  // loc has the time now in epoch adjust for my timezone
-
-    time_t gmtEpoch = mktime( &gmt );  // timestamp in epoch
-    time_t locEpoch = mktime( &loc );  // timestamp in epoch
-    long offset = locEpoch - gmtEpoch;  // should be 18,000 = 5 * 3600
-
-    // Parse as local, then remove offset to get UTC
-    time_t assumedLocal = mktime( &utc );  // timestamp in epoch 
-
-    return assumedLocal + offset;  // Return epoch time adjusted to UTC
-
-}
-
-
-long secondsSincePosition1( JsonArray arr )  // Seconds since TalkBack position 1
-{
-
-    const char* ts = nullptr;  // Timestamp string
-
-    for (JsonObject obj : arr)  // Loop through each object in the array
-    {
-        if ( (int)obj["position"] == 1)  // Check for position 1
-        {
-            ts = obj["created_at"];  // Get timestamp
-            break;  // Exit loop once found
-        }
-    }
-
-    if (!ts)  // No timestamp found
-        return -1;  // Return error
-
-    time_t created = iso8601ToEpochUsingGmtime( ts );  // Convert ISO 8601 to epoch time
-#ifdef DEBUG_ENABLED
-
-    DBGf( "[THINGSPEAK] TB created time: %ld\r\n",  created );  // Debug print created time
-
-#endif
-    
-    if ( created < 0 )  // Error in conversion
-        return -2;  // Return error
-
-    time_t now = time( nullptr );  // Get current epoch time
-
-    long diff = now - created;  // Calculate time difference
-
-#ifdef DEBUG_ENABLED
-
-    DBGf( "[THINGSPEAK] Time diff: %ld\r\n",  diff );  // Debug print time difference
   
+  JsonDocument doc;  // Create JSON document for saving settings
+
+  File file = LittleFS.open("/settings.json", "w");  // open file for writing
+  
+  if ( file == false )  // open failed
+  {
+
+#ifdef DEBUG_ENABLED
+
+    DBG( F( "[FILESYSTEM] Failed to open file for writing" ) );
+
 #endif
 
-    return long( now - created );  // Return time difference in seconds
+    return false;
+  }
+
+
+  doc["threshold"] = settings.moisture_threshold;  // store threshold
+  doc["duration"]  = settings.watering_duration_sec;  // store duration
+  doc["rain_min_Prob"] = settings.min_precip_prob;  // store rain minimum probability
+
+  JsonArray times = doc["times"].to<JsonArray>();  // create times array
+
+
+  for ( uint8_t i = 0; i < SCHEDULE_COUNT; ++i )  // add each scheduled time
+  {
+    times[i]["h"] = settings.times[i].hour;  // save hour
+    times[i]["m"] = settings.times[i].min;  // save minute
+    times[i]["s"] = settings.times[i].sec;  // save second
+  }
+
+  serializeJsonPretty( doc, file );  // write JSON to file
+ 
+  file.close();  // close file
+
+#ifdef DEBUG_ENABLED
+
+  DBG( F( "[FILESYSTEM] Settings saved" ) );  // log saved
+  serializeJsonPretty( doc, Serial );  // echo JSON
+  DBG();  // newline for clarity
+
+#endif
+
+  doc.clear();  // clear JSON doc
+
+  display_message( "[FILESYSTEM] Settings saved", 2000);
+  
+  return true;  // saved OK
 
 }
 
@@ -265,338 +260,7 @@ void update_Schedule ( String cmdStr, uint8_t position )  // Update schedule fro
 
 }
 
-
-bool check_new_settings()  // Compare stored settings with current ones
-{
-  
-  JsonDocument doc;  // Create JSON document for parsing settings file
-  
-  if ( LittleFS.exists( "/settings.json") == false )  // Settings file does not exist
-    return true;  // Need to save settings
-  
-  File file = LittleFS.open( "/settings.json", "r" );  // open settings file for reading
-
-  if (!file)  // open failed
-    return true;
-  
-  DeserializationError err = deserializeJson( doc, file );  // parse JSON file
-
-  file.close();  // close file
-
-  if ( err )  // parse failed
-    return true;
-  
-
-  // ---- Scalars ----
-  if ( doc["threshold"].as<float>() != settings.threshold )  // threshold differs
-    return true;
-
-  if ( doc["duration"].as<u32_t>()  != settings.duration )  // duration differs
-    return true;
-
-  if ( doc["rain_min_Prob"].as<uint32_t>()  != settings.rain_min_Prob )  // rain_min_Prob differs
-    return true;
-
-  // ---- Times ----
-  JsonArray times = doc["times"].as<JsonArray>();  // load times array
-
-  if ( times.isNull() || times.size() != SCHEDULE_COUNT )  // invalid times array
-    return true;
-  
-
-  for ( uint8_t i = 0; i < SCHEDULE_COUNT; ++i )  // iterate times
-  {
-    JsonObject t = times[i];  // individual time object
-
-    if (t["h"].as<uint8_t>() != settings.times[i].hour) return true;  // hour differs
-    if (t["m"].as<uint8_t>() != settings.times[i].min)  return true;  // minute differs
-    if (t["s"].as<uint8_t>() != settings.times[i].sec)  return true;  // second differs
-  }
-
-  return false;  // no differences
-
-}
-
-
-bool initFlashFS()  // Initialize LittleFS
-{
-
-  if ( LittleFS.begin(true) == false )
-  {   // true = format if failed
-
-
-#ifdef DEBUG_ENABLED
-
-    DBG( F( "[FILESYSTEM] LittleFS Mount Failed" ) );
-
-#endif
-
-    return false;
-  }
-  
-#ifdef DEBUG_ENABLED
-
-  DBG( F( "[FILESYSTEM] LittleFS Mounted" ) );  // mounted
-
-#endif
-
-  return true;  // success
-
-}
-
-
-bool loadSettings()  // Load settings from LittleFS
-{
-  
-  JsonDocument doc;  // Create JSON document for parsing settings file
-  
-  if ( LittleFS.exists("/settings.json") == false )  // settings file missing
-  {
-
-#ifdef DEBUG_ENABLED
-
-    DBG( F( "[FILESYSTEM] Settings file not found" ) );
-
-#endif
-    return false;
-  }
-
-  File file = LittleFS.open("/settings.json", "r");  // open file for reading
-  
-  if ( file == false )  // open failed
-  {
-
-#ifdef DEBUG_ENABLED
-
-    DBG( F( "[FILESYSTEM] Failed to open file for reading" ) );
-
-#endif
-
-    return false;
-  }
-
-
-  DeserializationError error = deserializeJson( doc, file );  // parse JSON file
-  file.close();  // close file
-
-  if ( error )  // parse failed
-  {
-
-#ifdef DEBUG_ENABLED
-
-    DBG( F( "[JSON] JSON parse failed" ) );
-
-#endif
-
-    return false;
-  }
-
-  settings.threshold = doc["threshold"].as<float>();  // load threshold
-  settings.duration  = doc["duration"].as<uint32_t>();  // load duration
-  settings.rain_min_Prob = doc["rain_min_Prob"].as<uint32_t>();  // load rain minimum probability  
-
-  JsonArray times = doc["times"].as<JsonArray>();  // load times array
-
-    
-  if ( times.isNull() || times.size() != SCHEDULE_COUNT )  // invalid times
-  {
-
-#ifdef DEBUG_ENABLED
-
-    DBG( F( "[JSON] Invalid times array" ) );
-
-#endif
-
-    return false;
-  }
-
-  for ( uint8_t i = 0; i < SCHEDULE_COUNT; ++i )  // populate settings times
-  {
-    JsonObject t = times[i];  // get time object
-    settings.times[i].hour = t["h"].as<uint8_t>();  // set hour
-    settings.times[i].min  = t["m"].as<uint8_t>();  // set minute
-    settings.times[i].sec  = t["s"].as<uint8_t>();  // set second
-  }
-
-  doc.clear();  // clear JSON doc
-#ifdef DEBUG_ENABLED
-
-  DBG(F("[IRRIGATION] Settings loaded"));  // log loaded
-  printSettings();  // output settings
-
-#endif
-
-  display_message( "[IRRIGATION]\r\nSettings loaded", 1000 );
-
-  settings_Page(); // Update OLED with settings info
-
-  delay(2000);  // Leave time for user to read settings on OLED before proceeding
-
-  return true;
-
-}
-
-
-bool saveSettings()
-{
-  
-  JsonDocument doc;  // Create JSON document for saving settings
-
-  File file = LittleFS.open("/settings.json", "w");  // open file for writing
-  
-  if ( file == false )  // open failed
-  {
-
-#ifdef DEBUG_ENABLED
-
-    DBG( F( "[FILESYSTEM] Failed to open file for writing" ) );
-
-#endif
-
-    return false;
-  }
-
-
-  doc["threshold"] = settings.threshold;  // store threshold
-  doc["duration"]  = settings.duration;  // store duration
-  doc["rain_min_Prob"] = settings.rain_min_Prob;  // store rain minimum probability
-
-  JsonArray times = doc["times"].to<JsonArray>();  // create times array
-
-
-  for ( uint8_t i = 0; i < SCHEDULE_COUNT; ++i )  // add each scheduled time
-  {
-    times[i]["h"] = settings.times[i].hour;  // save hour
-    times[i]["m"] = settings.times[i].min;  // save minute
-    times[i]["s"] = settings.times[i].sec;  // save second
-  }
-
-  serializeJsonPretty( doc, file );  // write JSON to file
- 
-  file.close();  // close file
-
-#ifdef DEBUG_ENABLED
-
-  DBG( F( "[FILESYSTEM] Settings saved" ) );  // log saved
-  serializeJsonPretty( doc, Serial );  // echo JSON
-  DBG();  // newline for clarity
-
-#endif
-
-  doc.clear();  // clear JSON doc
-
-  display_message( "[FILESYSTEM] Settings saved", 2000);
-  
-  return true;  // saved OK
-
-}
-
-#ifdef DEBUG_ENABLED
-
-void printSettings()  // Print current settings to serial
-{
-
-    DBG(F("---- Settings ----"));  // header
-    Serial.print(F("Threshold: "));  // label
-    DBG(settings.threshold);  // threshold value
-    Serial.print(F("Duration : "));  // label
-    DBG(settings.duration);  // duration value
-    Serial.print(F("Rain minimum probability: "));  // label
-    DBG(settings.rain_min_Prob);  // rain minimum probability value
-
-
-    for  (uint8_t i = 0; i < 4; ++i )  // print each scheduled time
-    {
-
-        Serial.print(F("Time"));  // label
-        Serial.print(i + 1);  // index
-        Serial.print(F(": "));  // separator
-        Serial.print(settings.times[i].hour);  // hour
-        Serial.print(F(":"));  // separator
-        if (settings.times[i].min < 10) Serial.print("0");  // leading zero for minutes
-        Serial.print(settings.times[i].min);  // minute
-        Serial.print(F(":"));  // separator
-        if (settings.times[i].sec < 10) Serial.print("0");  // leading zero for seconds
-        DBG(settings.times[i].sec);  // second
-
-    }
-
-    DBG(F("------------------"));  // footer
-}
-
-#endif
-
-/******************************* Get SOIL sensor readings and update ThingSpeak *********************/
-void get_new_readings()
-{
-    
-#ifdef DEBUG_ENABLED
-
-    DBG( F( "[STATUS] ===== SYSTEM CYCLE START =====" ) );  // mark cycle start
-
-#endif
-
-    RS485_STATUS rs485_status;  // RS485 operation status
-
-    // -------- Read Soil Sensor --------
-#ifdef SOIL_SENSOR
-
-    uint16_t values[SOIL_REG_SIZE]; // Store 7 register values
-
-#ifdef DEBUG_ENABLED
-
-    DBG( F( "[RS485] Reading soil sensor" ) );
-
-#endif
-
-    for( uint8_t num_of_attempts = 0; num_of_attempts < MAX_TRIES; ++num_of_attempts )  // try up to 5 times
-    {
-        rs485_status = read_Registers( RS485Serial, 0x01, 0x0000, 5, values );  // read registers via Modbus
-
-        if ( rs485_status == RS485_GOOD )
-            break;
-        
-#ifdef DEBUG_ENABLED
-
-        else
-            DBG( F( "[RS485][ERROR] Modbus error" ) );
-#endif
-        
-    }
-       
-#else
-
-    const uint16_t values[SOIL_REG_SIZE] = {227,203,100,70,50,40,30}; // Store 7 register values
-
-#endif
-
-    uint16_t rawMoisture = values[ SOIL_MOISTURE ];  // raw moisture register
-    uint16_t rawTemp     = values[ SOIL_TEMPERATURE ];  // raw temperature register
-    uint16_t rawEC       = values[ SOIL_EC];  // raw EC register
-    uint16_t rawPH       = values[ SOIL_PH ];  // raw pH register
-    uint16_t rawN        = values[ SOIL_N ];  // raw N register
-    uint16_t rawP        = values[ SOIL_P ];  // raw P register
-    uint16_t rawK        = values[ SOIL_K ];  // raw K register
-
-    soil.moisture = float(rawMoisture) / 10.0;  // convert to percent
-    soil.temp     = float( int16_t( rawTemp ) ) / 10.0;  // convert to °C (signed)
-    soil.ec       = float(rawEC);  // conductivity µS/cm
-    soil.pH       = float(rawPH) / 10.0;  // pH scaled by 10
-    soil.N        = rawN;  // N in mg/kg
-    soil.P        = rawP;  // P in mg/kg    
-    soil.K        = rawK;  // K in mg/kg
-
-#ifdef DEBUG_ENABLED
-
-    DBGf( "[DATA] Moisture: %.1f %%\r\n", soil.moisture );  // log moisture
-    DBGf( "[DATA] Temp: %.1f °C\r\n", soil.temp );  // log temperature
-    DBGf( "[DATA] EC: %.0f µS/cm\r\n", soil.ec );  // log EC
-    DBGf( "[DATA] pH: %.1f\r\n", soil.pH );  // log pH
-    DBGf( "[DATA] NPK: %u / %u / %u mg/kg\r\n", rawN, rawP, rawK );  // log NPK registers
-
-#endif
-  
-}
+#endif  // THINGSPEAK_ENABLE
 
 
 void check_button_press()
@@ -625,280 +289,21 @@ void check_button_press()
 }
 
 
-bool getFirmwareInfo(String &latestVersion, String &firmwareUrl)
-{
-    HTTPClient http;
-
-    http.begin( MANIFEST_URL);
-    int code = http.GET();
-
-    if (code != 200)
-    {
-
-#ifdef DEBUG_ENABLED
-
-        DBG("Failed to fetch manifest");
-
-#endif
-
-        return false;
-    }
-
-    String payload = http.getString();
-    http.end();
-
-    JsonDocument doc;  // Create JSON document for parsing TalkBack response
-    
-    DeserializationError err = deserializeJson(doc, payload);
-
-    if (err)
-    {
-        DBG("JSON parse failed");
-        return false;
-    }
-
-    latestVersion = doc["version"].as<String>();
-    firmwareUrl   = doc["url"].as<String>();
-
-    return true;
-}
-
-
-bool isNewer(String latest)
-{
-    return latest != FIRMWARE_VERSION;
-}
-
-
-void performOTA(String url)
-{
-    
-    char buff[256];
-
-    sprintf(buff, "Starting OTA from:\r\n%s", url.c_str() );
-
-    display_message(buff);
-
-    WiFiClientSecure client;
-    client.setInsecure();  // skip certificate validation (OK for your use case)
-
-    t_httpUpdate_return ret = httpUpdate.update(client, url);  // No cert, no client key
-
-    httpUpdate.onEnd([]() {
-
-#ifdef DEBUG_ENABLED
-
-                DBG("OTA update successful, rebooting...");
-
-#endif
-            });
-
-    switch (ret)
-    {
-        case HTTP_UPDATE_FAILED:
-            sprintf(buff, "OTA Failed: %s\n", httpUpdate.getLastErrorString().c_str());
-            display_message(buff, 2000);
-            break;
-
-        case HTTP_UPDATE_NO_UPDATES:
-            sprintf(buff, "No update available");
-            display_message(buff, 2000);
-            break;
-
-        case HTTP_UPDATE_OK:
-            sprintf(buff, "OTA Success !");
-            display_message(buff, 2000);
-            break;
-    }
-
-     httpUpdate.onEnd([]() {
-
-#ifdef DEBUG_ENABLED
-
-                DBG("OTA update successful, rebooting...");
-
-#endif
-            });
-}
-
-
-void checkForOTAUpdate()
-{
-    String latestVersion;
-    String firmwareUrl;
-
-    if (!getFirmwareInfo(latestVersion, firmwareUrl))
-        return;
-
-#ifdef DEBUG_ENABLED
-
-    DBGf("Current: %s\r\nLatest: %s\r\n", FIRMWARE_VERSION, latestVersion.c_str());
-
-#endif
-
-
-    char buff[256];
-
-    sprintf( buff, "Current: %s\r\nLatest: %s\r\n", FIRMWARE_VERSION, latestVersion.c_str() );
-
-    display_message( buff, 2000 );
-    
-
-    if ( isNewer(latestVersion) )
-    {
-
-#ifdef DEBUG_ENABLED
-
-        DBG("Update available!");
-
-#endif
-
-        display_message(  "Update available!\r\n" );
-    
-        performOTA( firmwareUrl );
-    }
-    
-    else
-    {
-
-#ifdef DEBUG_ENABLED
-
-        DBG("Firmware up to date.");
-
-#endif
-
-        display_message( "Firmware up to date.\r\n", 1000 );
-    }
-
-}
-
-
-void check_ota_state()
-{
-    const esp_partition_t* running = esp_ota_get_running_partition();
-
-    esp_ota_img_states_t ota_state;
-
-    esp_err_t err = esp_ota_get_state_partition(running, &ota_state);
-
-    if (err == ESP_OK)
-    {
-        if (ota_state == ESP_OTA_IMG_PENDING_VERIFY)
-        {
-
-#ifdef DEBUG_ENABLED
-
-            DBG("Pending OTA firmware detected → confirming");
-
-#endif
-
-            display_message( "[OTA] Pending firmware detected\r\nConfirming..." );
-
-            esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
-
-            if(err == ESP_OK)
-            {
-
-#ifdef DEBUG_ENABLED
-
-                DBG("Firmware confirmed successfully");
-
-#endif
-          
-                display_message("[OTA] Firmware confirmed successfully");
-            }
-            else
-            {
-
-#ifdef DEBUG_ENABLED
-
-                DBGf("Failed to confirm firmware: %s\r\n", esp_err_to_name(err));
-
-#endif
-               
-                char buff[256];
-                sprintf(buff, "Failed to confirm firmware:\r\n%s", esp_err_to_name(err));
-                display_message(buff);
-            }
-
-        }
-    }
-}
-
-
-void send_LAMP_DB_update()
-{
-
-  //Check WiFi connection status
-  if ( WiFi.status() == WL_CONNECTED )
-  {
-
-    WiFiClient client;
-
-    HTTPClient http;
-
-    char buff[256];
-    
-    // Prepare your HTTP POST request data
-    String httpRequestData =  String("&moisture_wvc=") + String(soil.moisture)
-                            + "&temperature=" + String(soil.temp)
-                            + "&ec=" + String(soil.ec)
-                            + "&ph=" + String(soil.pH)
-                            + "&nitrogen=" + String(soil.N)
-                            + "&potassium=" + String(soil.K)
-                            + "&phosphorus=" + String(soil.P)
-                            + "&solenoid_state=" + String(status.solenoid_state ? 1 : 0)
-                            + "&time_stamp=" + Timestamp("%Y-%m-%d %H:%M:%S");  // Format timestamp for MySQL DATETIME
-
-
-    // Specify content-type header
-    http.addHeader( F( "Content-Type" ), F( "application/x-www-form-urlencoded" ) );
-    
-                            // Your Domain name with URL path or IP address with path
-    http.begin( client, serverName );  // Specify destination for HTTP request
-
-    int httpResponseCode = http.POST( httpRequestData );  // Send HTTP POST request
-
-    sprintf( buff, "httprequestData:\r\n%s", httpRequestData.c_str() );
-    
-    display_message( buff, 2000 );
-
-          
-    if ( httpResponseCode > 0 )
-    {
-
-        sprintf( buff, "HTTP code:\r\n%d", httpResponseCode );
-        display_message( buff, 2000 );
-
-    }
-
-    else
-    {
-
-      sprintf( buff, "Error code:\r\n%d", httpResponseCode );
-      display_message( buff, 2000 );
-
-    }
-
-    http.end();  // Free resources
-
-  }
-
-  else
-    display_message( "WiFi Disconnected", 2000 );
-  
-}
-
-
 void handle_sample_state()
 {
     get_new_readings();
 
     compute_watering_parameters();
 
+#ifdef THINGSPEAK_ENABLE
+
     thingSpeak_Update();
 
-    send_LAMP_DB_update();
+#else
+
+    sendServerUpdate();  // Update server with latest readings
+
+#endif
 
     status.watering_needed ? system_state = STATE_WATER : system_state = STATE_SLEEP;
     

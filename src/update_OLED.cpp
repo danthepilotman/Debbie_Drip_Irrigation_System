@@ -1,6 +1,8 @@
 #include "update_OLED.h"  // project-wide definitions and prototypes
 #include "helper.h"
 #include "weather.h"
+#include "ota_update.h"
+#include "soil_sensor.h"
 
 
 volatile Page currentPage = PAGE_STATUS;
@@ -134,13 +136,13 @@ void settings_Page()
     display.setCursor(0,0); // Start at top-left corner
 
     // Display watering status
-    display.printf("Threshold: %.1f\r\n", settings.threshold);
+    display.printf("Threshold: %.1f\r\n", settings.moisture_threshold);
 
     // Display solenoid state
-    display.printf("Duration: %d\r\n", settings.duration);
+    display.printf("Duration: %d\r\n", settings.watering_duration_sec);
 
     // Display WiFi status
-    display.printf("Rain Min Prob: %d\r\n", settings.rain_min_Prob);
+    display.printf("Rain Min Prob: %d\r\n", settings.min_precip_prob);
 
      // Display TS status
     for ( uint8_t i = 0; i < SCHEDULE_COUNT; i++ )

@@ -1,9 +1,11 @@
+#ifdef THINGSPEAK_ENABLE
+
 #ifndef TS_FUNCTIONS_H
 #define TS_FUNCTIONS_H
 
 
 #include "setup.h"  // project configuration
-#include "RS485.h"  // RS485 interface
+#include "soil_sensor.h"  // RS485 interface
 #include "helper.h"  // helper utilities
 #include "update_OLED.h"  // OLED update functions
 #include "ThingSpeakClient.h"
@@ -28,8 +30,10 @@ extern const char* TS_WATERING_WRITE_KEY;  // Watering channel write key used fo
 // ==================================================
 void thingSpeak_Update();  // upload readings and fetch TalkBack settings
 void sendThingSpeak();  // upload readings
-void getSettings();  // fetch TalkBack settings
+void getThingSpeakSettings();  // fetch TalkBack settings
 void ping_ThingSpeak();  // Transmit status message to ThingSpeak Channel
 void send_RSSI();  // Send Wifi RSSI to ThingSpeak channel
 
 #endif
+
+#endif  // THINGSPEAK_ENABLE

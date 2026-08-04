@@ -23,7 +23,7 @@ bool rainExpectedSoon()
     
     bool rain_expected = false;
 
-    #ifdef DEBUG_ENABLED
+#ifdef DEBUG_ENABLED
 
     DBG( F( "[WEATHER] Checking forecast" ) );  // User debug message
 
@@ -44,11 +44,11 @@ bool rainExpectedSoon()
     WiFiClientSecure client;
     client.setInsecure();  // you’re already doing this elsewhere    
     HTTPClient http;  // HTTP client for OpenWeather requests
-    http.setTimeout(10000);  // 10 seconds
-    http.useHTTP10(true);
+    http.setTimeout( 10000 );  // 10 seconds
+    http.useHTTP10( true );
     http.begin( client, url );  // start the HTTP session using URL
-    http.addHeader("User-Agent", "ESP32_Irrigation_Controller");
-    http.addHeader("Accept", "application/geo+json");
+    http.addHeader( "User-Agent", "ESP32_Irrigation_Controller" );
+    http.addHeader( "Accept", "application/geo+json" );
 
     int code = http.GET();  // Use HTTP GET to fetch the weather data
 
@@ -60,7 +60,7 @@ bool rainExpectedSoon()
 
     char buff[256];
     sprintf( buff, "[WEATHER] HTTP code: %d\r\n", code);
-    display_message(buff);
+    display_message( buff );
 
     if ( code != HTTP_CODE_OK )
     {
@@ -73,7 +73,7 @@ bool rainExpectedSoon()
 
  #endif 
         
-        display_message( "[WEATHER] HTTP request failed", 2000);
+        display_message( "[WEATHER] HTTP request failed", 2000 );
         
         return false; // If the HTTP request failed, assume no rain expected
 
@@ -85,7 +85,12 @@ bool rainExpectedSoon()
     // -----------------------------
     JsonDocument filter;
 
-    filter["properties"]["periods"][0]["probabilityOfPrecipitation"]["value"] = true;
+    //filter["properties"]["periods"][0]["probabilityOfPrecipitation"]["value"] = true;
+
+    for ( uint8_t i = 0; i < sizeof(precip_prob)/sizeof(precip_prob[0]); i++ )
+    {
+        filter["properties"]["periods"][i]["probabilityOfPrecipitation"]["value"] = true;
+    }
 
     // -----------------------------
     // Stream-deserialize
@@ -146,7 +151,7 @@ bool rainExpectedSoon()
 
     avg_precip_prob /= sizeof(precip_prob)/sizeof(precip_prob[0]);  // Calculate average PoP
 
-    if ( avg_precip_prob >= settings.rain_min_Prob )  // Check if PoP exceeds threshold
+    if ( avg_precip_prob >= settings.min_precip_prob )  // Check if PoP exceeds threshold
     {
         rain_expected = true;
     }
