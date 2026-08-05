@@ -1,5 +1,7 @@
 #include "LAMP_Server.h"  // Associated header file
 #include "update_OLED.h"  // For display_mesage() function
+#include "weather.h" // For avg_precip_prob variable
+#include "ota_update.h" // for FIRMWARE_VERSION const char
 
 
 const char* postServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/post-esp-data.php";
@@ -15,10 +17,6 @@ bool applyLocalSettings()
 
     if (!file)
     {
-        // Local file doesn't exist.
-        // Get settings from Raspberry Pi.
-        getServerSettings();
-
         return false;  // Return false if local settings file doesn't exist
     }
 
@@ -51,7 +49,9 @@ bool applyLocalSettings()
     strlcpy( settings.updated, local_doc["updated"] | "", sizeof( settings.updated ) );
 
 #ifdef DEBUG_ENABLED
-        DBG(F("[SETTINGS] Local settings are applied"));
+
+    DBG(F("[SETTINGS] Local settings are applied"));
+    
 #endif
 
     return true;
@@ -251,16 +251,16 @@ bool saveLocalSettings( JsonDocument &server_doc )  // Save settings to FS
 }
 
 
-void solenoid_state_Update()  // Report solenoid state to ThingSpeak
+void solenoid_state_Update()  // Report solenoid state to server
 {
-    
+
 #ifdef THINGSPEAK_ENABLE
 
     const char* url = "https://api.thingspeak.com/update";
 
     status.status_str = String("Watering ") +
                         String(status.solenoid_state ? "started " : "stopped ") +
-                        Timestamp();  // Consistent timestamp format for status message
+                        Timestamp();
 
     char status_c[128];
 
@@ -268,11 +268,12 @@ void solenoid_state_Update()  // Report solenoid state to ThingSpeak
 
 #ifdef DEBUG_ENABLED
 
-    DBGf("[IRRIGATION] Solenoid is now %s", status.solenoid_state ? "ON\r\n" : "OFF\r\n");
-    
+    DBGf("[IRRIGATION] Solenoid is now %s",
+         status.solenoid_state ? "ON\r\n" : "OFF\r\n");
+
 #endif
 
-    // Build POST body only
+    // Build ThingSpeak POST body
     String postData = "api_key=" + String(TS_WRITE_KEY);
     postData += "&field8=" + String(status.solenoid_state ? 1 : 0);
     postData += "&status=" + String(status_c);
@@ -283,74 +284,96 @@ void solenoid_state_Update()  // Report solenoid state to ThingSpeak
 
 #endif
 
-    // Single call replaces entire retry + HTTP logic
     ThingSpeakResponse resp = tsClient.postWithRetry(
-            url,
-            postData,
-            MAX_TRIES,
-            TS_PROCESS_DELAY
-        );
+        url,
+        postData,
+        MAX_TRIES,
+        TS_PROCESS_DELAY
+    );
 
 #ifdef DEBUG_ENABLED
 
-    DBGf("[THINGSPEAK] HTTP code: %d, payload: %s\r\n", resp.httpCode, resp.body.c_str() );
+    DBGf("[THINGSPEAK] HTTP code: %d, payload: %s\r\n",
+         resp.httpCode,
+         resp.body.c_str());
 
 #endif
 
 
 #else
 
-//Check WiFi connection status
-  if ( WiFi.status() == WL_CONNECTED )
-  {
-
-    WiFiClient client;
-
-    HTTPClient http;
-
-    char buff[128];  // Buffer for debug messages
-    
-    // Prepare your HTTP POST request data
-    String httpRequestData =  String("&solenoid_state=") + String(status.solenoid_state ? 1 : 0)
-                            + "&time_stamp=" + Timestamp("%Y-%m-%d %H:%M:%S");  // Format timestamp for MySQL DATETIME
-
-
-    // Specify content-type header
-    http.addHeader( F( "Content-Type" ), F( "application/x-www-form-urlencoded" ) );
-    
-                            // Your Domain name with URL path or IP address with path
-    http.begin( client, postServerName );  // Specify destination for HTTP request
-
-    int httpResponseCode = http.POST( httpRequestData );  // Send HTTP POST request
-
-    sprintf( buff, "httprequestData:\r\n%s", httpRequestData.c_str() );
-    
-    display_message( buff, 2000 );
-
-          
-    if ( httpResponseCode > 0 )
+    // Check WiFi connection status
+    if (WiFi.status() == WL_CONNECTED)
     {
 
+        WiFiClient client;
+
+        HTTPClient http;
+
+        char buff[256];
+
+
+        // --------------------------------------------------
+        // Create status message
+        // --------------------------------------------------
+
+        status.status_str = String("Watering ") +
+                            String(status.solenoid_state ? "started " : "stopped ") +
+                            Timestamp();
+
+
+        // --------------------------------------------------
+        // Get WiFi RSSI
+        // --------------------------------------------------
+
+        int WiFi_RSSI = WiFi.RSSI();
+
+
+        // --------------------------------------------------
+        // URL encode status message
+        // --------------------------------------------------
+
+        String encodedStatus = urlEncode(status.status_str);
+
+
+        // --------------------------------------------------
+        // Prepare HTTP POST data
+        // --------------------------------------------------
+
+        String httpRequestData =
+              "&solenoid_state=" + String(status.solenoid_state ? 1 : 0)
+            + "&WiFi_RSSI=" + String(WiFi_RSSI)
+            + "&status_message=" + encodedStatus
+            + "&time_stamp=" + Timestamp("%Y-%m-%d %H:%M:%S");
+
+
+        // Specify content type
+        http.addHeader(
+            F("Content-Type"),
+            F("application/x-www-form-urlencoded")
+        );
+
+
+        // Specify destination
+        http.begin(client, postServerName);
+
+
+        // Send HTTP POST request
+        int httpResponseCode = http.POST(httpRequestData);
+
+
         sprintf( buff, "HTTP code:\r\n%d", httpResponseCode );
-        display_message( buff, 2000 );
+
+        display_message(buff, 2000);
+
+        http.end();
 
     }
 
     else
     {
-
-      sprintf( buff, "Error code:\r\n%d", httpResponseCode );
-      display_message( buff, 2000 );
-
+        display_message( "WiFi Disconnected", 2000 );
     }
-
-    http.end();  // Free resources
-
-  }
-
-  else
-    display_message( "WiFi Disconnected", 2000 );
-
 
 #endif  // THINGSPEAK_ENABLE
 
@@ -360,62 +383,79 @@ void solenoid_state_Update()  // Report solenoid state to ThingSpeak
 void sendServerUpdate()
 {
 
-  //Check WiFi connection status
-  if ( WiFi.status() == WL_CONNECTED )
-  {
-
-    WiFiClient client;
-
-    HTTPClient http;
-
-    char buff[256];
-    
-    // Prepare your HTTP POST request data
-    String httpRequestData =  String("&moisture_wvc=") + String(soil.moisture)
-                            + "&temperature=" + String(soil.temp)
-                            + "&ec=" + String(soil.ec)
-                            + "&ph=" + String(soil.pH)
-                            + "&nitrogen=" + String(soil.N)
-                            + "&potassium=" + String(soil.K)
-                            + "&phosphorus=" + String(soil.P)
-                            + "&solenoid_state=" + String(status.solenoid_state ? 1 : 0)
-                            + "&time_stamp=" + Timestamp("%Y-%m-%d %H:%M:%S");  // Format timestamp for MySQL DATETIME
-
-
-    // Specify content-type header
-    http.addHeader( F( "Content-Type" ), F( "application/x-www-form-urlencoded" ) );
-    
-                            // Your Domain name with URL path or IP address with path
-    http.begin( client, postServerName );  // Specify destination for HTTP request
-
-    int httpResponseCode = http.POST( httpRequestData );  // Send HTTP POST request
-
-    sprintf( buff, "httprequestData:\r\n%s", httpRequestData.c_str() );
-    
-    display_message( buff, 2000 );
-
-          
-    if ( httpResponseCode > 0 )
+    // Check WiFi connection status
+    if (WiFi.status() == WL_CONNECTED)
     {
 
-        sprintf( buff, "HTTP code:\r\n%d", httpResponseCode );
-        display_message( buff, 2000 );
+        WiFiClient client;
+
+        HTTPClient http;
+
+        char buff[256];
+
+
+        // --------------------------------------------------
+        // Get WiFi RSSI
+        // --------------------------------------------------
+
+        int WiFi_RSSI = WiFi.RSSI();
+
+
+        // --------------------------------------------------
+        // Prepare HTTP POST data
+        // --------------------------------------------------
+
+        status.status_str = "DB update sent. SW: " + String(FIRMWARE_VERSION);
+        
+        String encodedStatus = urlEncode(status.status_str);
+
+
+        String httpRequestData =
+              "&moisture_wvc=" + String(soil.moisture)
+            + "&temperature=" + String(soil.temp)
+            + "&ec=" + String(soil.ec)
+            + "&ph=" + String(soil.pH)
+            + "&nitrogen=" + String(soil.N)
+            + "&potassium=" + String(soil.K)
+            + "&phosphorus=" + String(soil.P)
+            + "&solenoid_state=" + String(status.solenoid_state ? 1 : 0)
+            + "&average_PoP=" + String(avg_precip_prob)
+            + "&WiFi_RSSI=" + String(WiFi_RSSI)
+            + "&status_message=" + encodedStatus
+            + "&time_stamp=" + Timestamp("%Y-%m-%d %H:%M:%S");
+
+
+        // Specify content type
+        http.addHeader(
+            F("Content-Type"),
+            F("application/x-www-form-urlencoded")
+        );
+
+
+        // Specify destination
+        http.begin(client, postServerName);
+
+
+        // Send HTTP POST request
+        int httpResponseCode = http.POST( httpRequestData );
+
+#ifdef DEBUG_ENABLED
+
+        DBGf("DB POST HTTP code: %d\r\n", httpResponseCode );
+
+#endif
+
+        sprintf( buff, "DB POST HTTP code:\r\n%d", httpResponseCode );
+
+        display_message(buff, 2000);
+
+        http.end();
 
     }
 
     else
     {
-
-      sprintf( buff, "Error code:\r\n%d", httpResponseCode );
-      display_message( buff, 2000 );
-
+        display_message("WiFi Disconnected", 2000);
     }
 
-    http.end();  // Free resources
-
-  }
-
-  else
-    display_message( "WiFi Disconnected", 2000 );
-  
 }

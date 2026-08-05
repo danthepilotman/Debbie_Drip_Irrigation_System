@@ -308,3 +308,56 @@ void handle_sample_state()
     status.watering_needed ? system_state = STATE_WATER : system_state = STATE_SLEEP;
     
 }
+
+
+// ==================================================
+// Convert NWS startTime to epoch time and determine
+// the beginning of the current local hour.
+// ==================================================
+bool getForecastTimes( const char *startTime, time_t &forecast_time, time_t &current_hour )
+{
+  if ( startTime == nullptr )
+    return false;
+
+  int year, month, day, hour, minute, second;
+    
+  // NWS format: 2026-08-04T18:00:00-04:00
+  if ( sscanf( startTime, "%d-%d-%dT%d:%d:%d", &year, &month, &day, &hour, &minute, &second ) != 6 )
+  {
+    return false;
+  }
+
+
+  /************************** Convert NWS forecast time to epoch time *****************************/
+ 
+  struct tm tm_forecast = {};
+
+  tm_forecast.tm_year = year - 1900;
+  tm_forecast.tm_mon  = month - 1;
+  tm_forecast.tm_mday = day;
+  tm_forecast.tm_hour = hour;
+  tm_forecast.tm_min  = minute;
+  tm_forecast.tm_sec  = second;
+  tm_forecast.tm_isdst = -1;
+
+  forecast_time = mktime( &tm_forecast );
+
+  /************************************* Determine beginning of current local hour *******************************/
+
+  time_t now;
+
+  time( &now );
+
+  struct tm tm_now;
+
+  localtime_r( &now, &tm_now );
+    
+  tm_now.tm_min = 0;
+  tm_now.tm_sec = 0;
+  tm_now.tm_isdst = -1;
+
+  current_hour = mktime( &tm_now );
+
+  return true;
+
+}

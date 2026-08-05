@@ -22,10 +22,16 @@
 // ==================================================
 // ================== BUILD OPTIONS =================
 // ==================================================
-//#define THINGSPEAK_ENABLE  // define for using TingSpeak for data logging and UI
 #define DEBBIE_HOUSE  // define for Debbie's house config
+
+#ifdef DEBBIE_HOUSE
+
 #define SOIL_SENSOR  // include soil sensor support
- //#define DEBUG_ENABLED  // enable debug logging
+
+#endif
+
+//#define DEBUG_ENABLED  // enable debug logging
+//#define THINGSPEAK_ENABLE  // define for using TingSpeak for data logging and UI
 
 // ==================================================
 // ================= DEBUG MACROS ===================
@@ -91,7 +97,7 @@ typedef struct ScheduleTime
 struct Settings {
   float moisture_threshold;  // Soil moisture threshold to trigger watering
   uint32_t watering_duration_sec;  // Watering time in seconds
-  uint32_t min_precip_prob;  // Minimum probability of rain to set rain_expected flag
+  float min_precip_prob;  // Minimum probability of rain to set rain_expected flag
   ScheduleTime times[4];  // Up to 4 watering times per day
   char updated[20];  // Timestamp of last settings update "YYYY-MM-DD HH:MM:SS"
 };

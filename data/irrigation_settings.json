@@ -1,7 +1,7 @@
 {
     "moisture_threshold": 52.8,
     "watering_duration": 3600,
-    "min_precip_prob": 50,
+    "min_precip_prob": 55.1,
     "times": [
         "00:00:00",
         "06:00:00",

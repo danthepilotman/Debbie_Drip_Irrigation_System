@@ -43,7 +43,7 @@ const char *ntpServer_3 = "north-america.pool.ntp.org"; // tertiary NTP server
 Settings settings = {
     32.1,  // threshold (soil moisture threshold percent)
     1800,  // duration (watering seconds)
-    50,  // rain_min_Prob (minimum probability of rain)
+    50.1,  // rain_min_Prob (minimum probability of rain)
     {
       {0,0,0},  // times - schedule slot 0
     {6,0,0},   // schedule slot 1

@@ -195,10 +195,12 @@ void weather_Page()
 
     display.setCursor( 0, 0 ); // Start at top-left corner
 
-    for( uint8_t i = 0; i <= NUM_OF_PAGES; ++i )
+    for( uint8_t i = 0; i <= valid_hourly_PoP_count && i < 6; ++i )
     {
         display.printf( "POP[%d]: %d %%\r\n", i, precip_prob[i] );
     }
+
+    display.printf( "AVG POP: %f", avg_precip_prob );
 
     display.display();
 
@@ -212,7 +214,7 @@ void display_message( const char *msg, uint32_t show_time )  // Display message 
 
     display.setCursor( 0, 0 ); // Start at top-left corner
 
-    display.printf( msg );  // Display TS status
+    display.print( msg );  // Display TS status
  
     display.display(); // Update the OLED with new content
 

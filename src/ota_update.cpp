@@ -6,7 +6,7 @@
 
 
 const char *MANIFEST_URL = "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json";
-const char *FIRMWARE_VERSION = "1.1.0";  // current firmware version
+const char *FIRMWARE_VERSION = "1.2.0";  // current firmware version
 
 
 bool getFirmwareInfo( String &latestVersion, String &firmwareUrl )
