@@ -26,7 +26,7 @@
 
 #ifdef DEBBIE_HOUSE
 
-#define SOIL_SENSOR  // include soil sensor support
+  #define SOIL_SENSOR  // include soil sensor support
 
 #endif
 

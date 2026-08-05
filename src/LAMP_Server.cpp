@@ -2,6 +2,7 @@
 #include "update_OLED.h"  // For display_mesage() function
 #include "weather.h" // For avg_precip_prob variable
 #include "ota_update.h" // for FIRMWARE_VERSION const char
+#include "setup.h"  // status_str.wattering_needed variable
 
 
 const char* postServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/post-esp-data.php";
@@ -317,9 +318,7 @@ void solenoid_state_Update()  // Report solenoid state to server
         // Create status message
         // --------------------------------------------------
 
-        status.status_str = String("Watering ") +
-                            String(status.solenoid_state ? "started " : "stopped ") +
-                            Timestamp();
+        status.status_str = String("Watering ") + String(status.solenoid_state ? "started " : "stopped ");
 
 
         // --------------------------------------------------
@@ -341,7 +340,7 @@ void solenoid_state_Update()  // Report solenoid state to server
         // --------------------------------------------------
 
         String httpRequestData =
-              "&solenoid_state=" + String(status.solenoid_state ? 1 : 0)
+              "solenoid_state=" + String(status.solenoid_state ? 1 : 0)
             + "&WiFi_RSSI=" + String(WiFi_RSSI)
             + "&status_message=" + encodedStatus
             + "&time_stamp=" + Timestamp("%Y-%m-%d %H:%M:%S");
@@ -405,13 +404,15 @@ void sendServerUpdate()
         // Prepare HTTP POST data
         // --------------------------------------------------
 
-        status.status_str = "DB update sent. SW: " + String(FIRMWARE_VERSION);
+        status.status_str = String( "DB update sent." ) 
+                          + String( status.watering_needed ? "" : "Watering skipped." ) + 
+                          + "SW: v" + String( FIRMWARE_VERSION );
         
         String encodedStatus = urlEncode(status.status_str);
 
 
         String httpRequestData =
-              "&moisture_wvc=" + String(soil.moisture)
+              "moisture_wvc=" + String(soil.moisture)
             + "&temperature=" + String(soil.temp)
             + "&ec=" + String(soil.ec)
             + "&ph=" + String(soil.pH)
