@@ -404,8 +404,8 @@ void sendServerUpdate()
         // Prepare HTTP POST data
         // --------------------------------------------------
 
-        status.status_str = String( "DB update sent." ) 
-                          + String( status.watering_needed ? "" : "Watering skipped." ) + 
+        status.status_str = String( "DB update sent. " ) 
+                          + String( status.watering_needed ? "" : "Watering skipped. " ) + 
                           + "SW: v" + String( FIRMWARE_VERSION );
         
         String encodedStatus = urlEncode(status.status_str);
