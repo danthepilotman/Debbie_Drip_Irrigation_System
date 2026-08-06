@@ -420,7 +420,7 @@ void sendServerUpdate()
             + "&potassium=" + String(soil.K)
             + "&phosphorus=" + String(soil.P)
             + "&solenoid_state=" + String(status.solenoid_state ? 1 : 0)
-            + "&average_PoP=" + String(avg_precip_prob)
+            + "&average_PoP=" + String( avg_precip_prob, 1 )
             + "&WiFi_RSSI=" + String(WiFi_RSSI)
             + "&status_message=" + encodedStatus
             + "&time_stamp=" + Timestamp("%Y-%m-%d %H:%M:%S");

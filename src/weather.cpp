@@ -1,10 +1,3 @@
-#include "weather.h"  // weather helpers and forecast parsing
-#include "update_OLED.h"  // for display_mesage() function
-#include "helper.h"  // for getForecastHour() function
-#include "sleep_timer.h"  // for next_watering_time() function
-#include <time.h>  // for time library functions
-
-
 /* Leftover for Reference if needed later:
 
 const char* LAT = "29.524";   // Debbie's House latitude
@@ -14,47 +7,52 @@ const char* LAT = "28.027";   // My house latitude
 const char* LON = "-80.631";  // My house longitude
 */
 
+#include "weather.h"       // weather helpers and forecast parsing
+#include "update_OLED.h"   // for display_message() function
+#include "helper.h"        // for getForecastTimes() function
+#include "sleep_timer.h"   // for nextTargetTime() function
+#include <time.h>          // for time library functions
 
-volatile int precip_prob[24];  // NWS hourly forecast precipitation probability values for the next 24 hours (0-23). Values are in percentage [%]
 
-constexpr uint8_t NUM_FORECAST_HOURS = sizeof( precip_prob ) / sizeof( precip_prob[0] );  // Number of forecast hours to store in precip_prob array
+int precip_prob[24];   // NWS hourly forecast precipitation probability [%]
 
-float avg_precip_prob = 0;  // Store average PoP
+float avg_precip_prob = 0;   // Store average PoP
 
-uint8_t valid_hourly_PoP_count = 0;  // Count how many valid hourly forecast periods are found
+uint8_t valid_hourly_PoP_count = 0;
 
 
 // ==================================================
-// ============= WEATHER Forecast ===================
+// Get NWS hourly forecast
 // ==================================================
-bool rainExpectedSoon()
+
+bool getNWSForecast( JsonDocument &doc )
 {
-    bool rain_expected = false;
-
 
 #ifdef DEBUG_ENABLED
 
-    DBG( F( "[WEATHER] Checking forecast" ) );
+    DBG( F( "[WEATHER] Getting NWS forecast" ) );
 
 #endif
 
-    display_message( "[WEATHER] Checking forecast\r\n" );
+    display_message( "[WEATHER] Getting NWS forecast\r\n" );
 
 
 #ifdef DEBBIE_HOUSE
 
-    char url[] = "https://api.weather.gov/gridpoints/JAX/86,33/forecast/hourly";
+    char url[] =
+        "https://api.weather.gov/gridpoints/JAX/86,33/forecast/hourly";
 
 #else
 
-    char url[] = "https://api.weather.gov/gridpoints/MLB/25,69/forecast/hourly";
+    char url[] =
+        "https://api.weather.gov/gridpoints/MLB/25,69/forecast/hourly";
 
 #endif
 
 
-    // ==================================================
+    // --------------------------------------------------
     // HTTP SETUP
-    // ==================================================
+    // --------------------------------------------------
 
     WiFiClientSecure client;
 
@@ -73,7 +71,11 @@ bool rainExpectedSoon()
     http.addHeader( "Accept", "application/geo+json" );
 
 
-    int code = http.GET();  // HTTP GET
+    // --------------------------------------------------
+    // HTTP GET
+    // --------------------------------------------------
+
+    int code = http.GET();
 
 
 #ifdef DEBUG_ENABLED
@@ -82,10 +84,9 @@ bool rainExpectedSoon()
 
 #endif
 
+    char buff[128];
 
-    char buff[256];
-
-    sprintf( buff, "[WEATHER] HTTP code: %d\r\n", code );
+    snprintf( buff, sizeof(buff), "[WEATHER] HTTP code: %d\r\n", code );
 
     display_message( buff );
 
@@ -106,56 +107,36 @@ bool rainExpectedSoon()
     }
 
 
-    time_t next_target = nextTargetTime();     // DETERMINE NEXT TARGET
+    // --------------------------------------------------
+    // JSON FILTER
+    // --------------------------------------------------
 
-#ifdef DEBUG_ENABLED
+    JsonDocument filter;
 
-        struct tm next_target_localTime;
+    filter["properties"]["periods"][0]["startTime"] = true;
 
-        localtime_r( &next_target, &next_target_localTime );
-
-        char next_target_buffer[32];
-
-        strftime(next_target_buffer, sizeof(next_target_buffer), "%Y-%m-%d %H:%M:%S", &next_target_localTime);
-
-        DBGf("[TIME} Next target time: %s\r\n", next_target_buffer );
-
-#endif
+    filter["properties"]["periods"][0]["probabilityOfPrecipitation"]["value"] = true;
 
 
-    // ==================================================
-    // JSON FILTERS
-    // ==================================================
+    // --------------------------------------------------
+    // STREAM DESERIALIZE
+    // --------------------------------------------------
 
-    JsonDocument filter;  // Create JSON filer document 
-
-    filter["properties"]["periods"][0]["startTime"] = true;  // Create timestamp filer
-
-    filter["properties"]["periods"][0]["probabilityOfPrecipitation"]["value"] = true;  // Create POP filter
+    DeserializationError err = deserializeJson( doc, http.getStream(), DeserializationOption::Filter( filter ) );
 
 
-    // ==================================================
-    // STREAM-DESERIALIZE
-    // ==================================================
-
-    JsonDocument doc;  // Create JSON document for storing filtered forecast data
-
-    // Deserialize JSON from HTTP response stream to JsonDocument with filtering
-    DeserializationError err = deserializeJson( doc, http.getStream(), DeserializationOption::Filter( filter ) );  
-
-    http.end();  // Close HTTP connection and free resources
+    http.end();
 
 
     if ( err )
     {
-
 #ifdef DEBUG_ENABLED
 
-        DBGf( "JSON parse failed: %s\r\n", err.c_str() );
+        DBGf( "[WEATHER] JSON parse failed: %s\r\n", err.c_str() );
 
 #endif
 
-        sprintf( buff, "JSON parse failed: %s\r\n", err.c_str() );
+        snprintf( buff, sizeof(buff), "JSON parse failed: %s\r\n", err.c_str() );
 
         display_message( buff, 2000 );
 
@@ -163,83 +144,205 @@ bool rainExpectedSoon()
     }
 
 
-    JsonArray filteredPeriods = doc["properties"]["periods"];  // FILTER FORECAST PERIODS
+    return true;
+}
 
 
-#ifndef DEBUG_ENABLED
+// ==================================================
+// Process forecast periods
+// ==================================================
 
-    serializeJsonPretty( filteredPeriods, Serial );
-    Serial.println();
-    Serial.flush();
+uint8_t processForecastPeriods( JsonArray filteredPeriods, time_t next_target )
+{
+    uint8_t count = 0;
 
-#endif
-
-
-/********************************* PROCESS FORECAST PERIODS *************************************/
 
     for ( JsonObject period : filteredPeriods )
     {
-
-        if ( valid_hourly_PoP_count >= NUM_FORECAST_HOURS )
+        if ( count >= MAX_FORECAST_HOURS )
+        {
             break;
+        }
 
-        // ----------------------------------------------
+
+        // --------------------------------------------------
         // Get NWS startTime
-        // ----------------------------------------------
+        // --------------------------------------------------
 
         const char *startTime = period["startTime"].as<const char *>();
+
+
 
         if ( startTime == nullptr )
         {
             continue;
         }
-     
-        
-        /*************************** Determine forecast time and current hour *****************************/
+
+
+        // --------------------------------------------------
+        // Determine forecast time and current hour
+        // --------------------------------------------------
 
         time_t forecast_time;
         time_t current_hour;
 
-        if ( getForecastTimes( startTime, forecast_time, current_hour ) == false )
+
+        // --------------------------------------------------
+        // Skip forecast periods that have already ended
+        // --------------------------------------------------
+
+        if ( getForecastTimes( startTime, forecast_time, current_hour ) == false || forecast_time < current_hour  )
         {
             continue;
         }
 
-        if ( forecast_time < current_hour )  // Skip forecast periods that have already ended.
-        {
-            continue;
-        }
 
-        if ( forecast_time >= next_target )  // Stop at the next scheduled target.
+        // --------------------------------------------------
+        // Stop at next scheduled watering target
+        // --------------------------------------------------
+
+        if ( forecast_time >= next_target )
         {
             break;
         }
 
-        precip_prob[valid_hourly_PoP_count] = period["probabilityOfPrecipitation"]["value"] | -1; // Store POP values
+
+        // --------------------------------------------------
+        // Store PoP
+        // --------------------------------------------------
+
+        precip_prob[count] = period["probabilityOfPrecipitation"]["value"] | -1;
 
 
 #ifdef DEBUG_ENABLED
 
-        DBGf( "[WEATHER] %s  PoP=%d%%\r\n", startTime, precip_prob[valid_hourly_PoP_count] );
+        DBGf( "[WEATHER] %s  PoP=%d%%\r\n", startTime, precip_prob[count] );
 
 #endif
 
-        ++valid_hourly_PoP_count;  // Increment valid hourly forecast count
 
+        ++count;
     }
 
 
-    /************************* CLEAN UP JSON ***************************/
-  
-    doc.clear();
+    return count;
+}
 
-    filter.clear();
 
-    /********************* CHECK FOR FORECAST DATA *********************/
+// ==================================================
+// Calculate average PoP
+// ==================================================
 
+float calculateAveragePoP( uint8_t count )
+{
+    if ( count == 0 )
+    {
+        return -1;
+    }
+
+
+    int total = 0;
+
+    uint8_t valid_count = 0;
+
+
+    for ( uint8_t i = 0; i < count; ++i )
+    {
+        if ( precip_prob[i] >= 0 )
+        {
+            total += precip_prob[i];
+
+            ++valid_count;
+        }
+    }
+
+
+    if ( valid_count == 0 )
+    {
+        return -1;
+    }
+
+
+    return (float)total / valid_count;
+}
+
+
+// ==================================================
+// ============= WEATHER FORECAST ==================
+// ==================================================
+
+bool rainExpectedSoon()
+{
+    // --------------------------------------------------
+    // Reset results from previous forecast
+    // --------------------------------------------------
+
+    valid_hourly_PoP_count = 0;
+
+    avg_precip_prob = 0;
+
+
+    // --------------------------------------------------
+    // Determine next scheduled watering target
+    // --------------------------------------------------
+
+    time_t next_target = nextTargetTime();
+
+
+#ifdef DEBUG_ENABLED
+
+    struct tm next_target_localTime;
+
+    localtime_r( &next_target, &next_target_localTime );
+
+    char next_target_buffer[32];
+
+    strftime( next_target_buffer, sizeof(next_target_buffer), "%Y-%m-%d %H:%M:%S", &next_target_localTime );
+
+    DBGf( "[TIME] Next target time: %s\r\n", next_target_buffer );
+
+#endif
+
+
+    // --------------------------------------------------
+    // Get NWS forecast
+    // --------------------------------------------------
+
+    JsonDocument doc;
+
+    if ( getNWSForecast( doc ) == false )
+    {
+        return false;
+    }
+
+    JsonArray filteredPeriods = doc["properties"]["periods"];
+
+
+#ifndef DEBUG_ENABLED
+
+    serializeJsonPretty( filteredPeriods, Serial );
+
+    Serial.println();
+
+    Serial.flush();
+
+#endif
+
+
+    // --------------------------------------------------
+    // Process forecast periods
+    // --------------------------------------------------
+
+    valid_hourly_PoP_count = processForecastPeriods( filteredPeriods, next_target );
+
+
+    // --------------------------------------------------
+    // Check for forecast data
+    // --------------------------------------------------
 
     if ( valid_hourly_PoP_count == 0 )
     {
+
 #ifdef DEBUG_ENABLED
 
         DBG( F( "[WEATHER] No forecast periods found" ) );
@@ -252,17 +355,11 @@ bool rainExpectedSoon()
     }
 
 
-    /****************************** CALCULATE AVERAGE PoP ******************************/
-  
-    for ( uint8_t i = 0; i < valid_hourly_PoP_count; ++i )  // Add up all Pop values
-    {
-        if ( precip_prob[i] >= 0 )
-        {
-            avg_precip_prob += precip_prob[i];
-        }
-    }
+    // --------------------------------------------------
+    // Calculate average PoP
+    // --------------------------------------------------
 
-    avg_precip_prob /= valid_hourly_PoP_count;  // Divide by number of valid forecast periods to get average
+    avg_precip_prob = calculateAveragePoP( valid_hourly_PoP_count );
 
 
 #ifdef DEBUG_ENABLED
@@ -272,15 +369,10 @@ bool rainExpectedSoon()
 #endif
 
 
-    // ==================================================
-    // CHECK RAIN THRESHOLD
-    // ==================================================
+    // --------------------------------------------------
+    // Check rain threshold
+    // --------------------------------------------------
 
-    if ( avg_precip_prob >= settings.min_precip_prob )
-    {
-        rain_expected = true;
-    }
+     return avg_precip_prob >= settings.min_precip_prob;
 
-
-    return rain_expected;
 }

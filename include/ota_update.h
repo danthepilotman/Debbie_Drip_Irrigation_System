@@ -3,7 +3,6 @@
 
 #include <Arduino.h>
 
-extern const char *MANIFEST_URL;
 extern const char *FIRMWARE_VERSION;
 
 

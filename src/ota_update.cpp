@@ -5,12 +5,14 @@
 #include <esp_ota_ops.h>  // For OTA update state checking
 
 
-const char *MANIFEST_URL = "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json";
-const char *FIRMWARE_VERSION = "1.2.3";  // current firmware version
+const char *FIRMWARE_VERSION = "1.2.4";  // current firmware version
 
 
 bool getFirmwareInfo( String &latestVersion, String &firmwareUrl )
 {
+
+    const char *MANIFEST_URL = "https://raw.githubusercontent.com/danthepilotman/Releases/main/Irrigation_System/manifest.json";
+    
     HTTPClient http;
 
     http.begin( MANIFEST_URL);
