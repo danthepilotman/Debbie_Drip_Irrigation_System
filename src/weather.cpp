@@ -66,9 +66,9 @@ bool getNWSForecast( JsonDocument &doc )
 
     http.begin( client, url );
 
-    http.addHeader( "User-Agent", "ESP32_Irrigation_Controller" );
+    http.addHeader( F( "User-Agent" ), F( "ESP32_Irrigation_Controller" ) );
 
-    http.addHeader( "Accept", "application/geo+json" );
+    http.addHeader( F( "Accept" ), F( "application/geo+json" ) );
 
 
     // --------------------------------------------------
@@ -310,11 +310,22 @@ bool rainExpectedSoon()
 
     JsonDocument doc;
 
-    if ( getNWSForecast( doc ) == false )
+    for( uint8_t i = 0; i <= MAX_TRIES; i++ )
     {
-        return false;
-    }
 
+        if ( getNWSForecast( doc ) == true )
+        {
+            break;
+        }
+
+        if( i == MAX_TRIES)
+        {
+            return false;
+        }
+
+    }
+    
+    
     JsonArray filteredPeriods = doc["properties"]["periods"];
 
 

@@ -318,7 +318,7 @@ void solenoid_state_Update()  // Report solenoid state to server
         // Create status message
         // --------------------------------------------------
 
-        status.status_str = String("Watering ") + String(status.solenoid_state ? "started " : "stopped ");
+        status.status_str = String("Watering ") + String( status.solenoid_state ? "started." : "stopped." );
 
 
         // --------------------------------------------------
@@ -340,16 +340,14 @@ void solenoid_state_Update()  // Report solenoid state to server
         // --------------------------------------------------
 
         String httpRequestData =
-              "solenoid_state=" + String(status.solenoid_state ? 1 : 0)
-            + "&WiFi_RSSI=" + String(WiFi_RSSI)
+              "solenoid_state=" + String( status.solenoid_state ? 1 : 0 )
+            + "&WiFi_RSSI=" + String( WiFi_RSSI )
             + "&status_message=" + encodedStatus
-            + "&time_stamp=" + Timestamp("%Y-%m-%d %H:%M:%S");
+            + "&time_stamp=" + Timestamp( "%Y-%m-%d %H:%M:%S" );
 
 
         // Specify content type
-        http.addHeader(
-            F("Content-Type"),
-            F("application/x-www-form-urlencoded")
+        http.addHeader( F("Content-Type"), F("application/x-www-form-urlencoded" )
         );
 
 
@@ -412,10 +410,10 @@ void sendServerUpdate()
 
 
         String httpRequestData =
-              "moisture_wvc=" + String(soil.moisture)
-            + "&temperature=" + String(soil.temp)
+              "moisture_wvc=" + String(soil.moisture, 1)
+            + "&temperature=" + String(soil.temp, 1)
             + "&ec=" + String(soil.ec)
-            + "&ph=" + String(soil.pH)
+            + "&ph=" + String( soil.pH, 1 )
             + "&nitrogen=" + String(soil.N)
             + "&potassium=" + String(soil.K)
             + "&phosphorus=" + String(soil.P)
