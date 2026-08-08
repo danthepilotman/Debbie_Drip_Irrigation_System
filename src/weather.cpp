@@ -263,7 +263,7 @@ float calculateAveragePoP( uint8_t count )
     }
 
 
-    return (float)total / valid_count;
+    return float( total ) / valid_count;
 }
 
 
@@ -279,7 +279,7 @@ bool rainExpectedSoon()
 
     valid_hourly_PoP_count = 0;
 
-    avg_precip_prob = 0;
+    avg_precip_prob = -1;
 
 
     // --------------------------------------------------
@@ -381,7 +381,7 @@ bool rainExpectedSoon()
 
 
     // --------------------------------------------------
-    // Check rain threshold
+    // Check precipitation threshold
     // --------------------------------------------------
 
      return avg_precip_prob >= settings.min_precip_prob;
