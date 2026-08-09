@@ -4,15 +4,22 @@ import json
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 # ==============================
 # CONFIG
 # ==============================
-#SOURCE_PROJECT = r"C:\Users\LEONDaniel\Documents\GitHub\Debbie_Drip_Irrigation_System"
-#RELEASE_REPO = r"C:\Users\LEONDaniel\Documents\GitHub\Releases\Irrigation_System"
 
-SOURCE_PROJECT = r"C:\Users\sapy4\Documents\PlatformIO\Projects\Debbie_Drip_Irrigation_System"
-RELEASE_REPO = r"C:\Users\sapy4\Documents\PlatformIO\Projects\Releases\Irrigation_System"
+user_profile = Path(os.environ["USERPROFILE"])
+
+if user_profile.name == "sapy4":
+    project_root = user_profile / "Documents" / "PlatformIO" / "Projects"
+else:
+    project_root = user_profile / "Documents" / "GitHub"
+
+SOURCE_PROJECT = project_root / "Debbie_Drip_Irrigation_System"
+RELEASE_REPO = project_root / "Releases" / "Irrigation_System"
+
 
 ENV_NAME = "esp32s3"
 

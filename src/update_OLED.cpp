@@ -195,10 +195,10 @@ void weather_Page()
 
     display.setCursor( 0, 0 ); // Start at top-left corner
 
-    for( uint8_t i = 0; i <= valid_hourly_PoP_count && i < 6; ++i )
-    {
-        display.printf( "POP[%d]: %d %%\r\n", i, precip_prob[i] );
-    }
+    // for( uint8_t i = 0; i <= valid_hourly_PoP_count && i < 6; ++i )
+    // {
+    //     display.printf( "POP[%d]: %d %%\r\n", i, precip_prob[i] );
+    // }
 
     display.printf( "AVG POP: %f", avg_precip_prob );
 

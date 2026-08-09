@@ -152,119 +152,54 @@ bool getNWSForecast( JsonDocument &doc )
 // Process forecast periods
 // ==================================================
 
-uint8_t processForecastPeriods( JsonArray filteredPeriods, time_t next_target )
+uint8_t processForecastPeriods( JsonArray filteredPeriods, time_t next_target, int &total, uint8_t &valid_count)
 {
     uint8_t count = 0;
 
+    total = 0;
+    valid_count = 0;
 
-    for ( JsonObject period : filteredPeriods )
+    for (JsonObject period : filteredPeriods)
     {
-        if ( count >= MAX_FORECAST_HOURS )
-        {
+        if (count >= MAX_FORECAST_HOURS)
             break;
-        }
 
+        const char *startTime =
+            period["startTime"].as<const char *>();
 
-        // --------------------------------------------------
-        // Get NWS startTime
-        // --------------------------------------------------
-
-        const char *startTime = period["startTime"].as<const char *>();
-
-
-
-        if ( startTime == nullptr )
-        {
+        if (startTime == nullptr)
             continue;
-        }
-
-
-        // --------------------------------------------------
-        // Determine forecast time and current hour
-        // --------------------------------------------------
 
         time_t forecast_time;
         time_t current_hour;
 
-
-        // --------------------------------------------------
-        // Skip forecast periods that have already ended
-        // --------------------------------------------------
-
-        if ( getForecastTimes( startTime, forecast_time, current_hour ) == false || forecast_time < current_hour  )
+        if (getForecastTimes(
+                startTime,
+                forecast_time,
+                current_hour) == false ||
+            forecast_time < current_hour)
         {
             continue;
         }
 
-
-        // --------------------------------------------------
-        // Stop at next scheduled watering target
-        // --------------------------------------------------
-
-        if ( forecast_time >= next_target )
-        {
+        if (forecast_time >= next_target)
             break;
+
+        int pop =
+            period["probabilityOfPrecipitation"]["value"] | -1;
+
+        if (pop >= 0)
+        {
+            total += pop;
+            ++valid_count;
         }
-
-
-        // --------------------------------------------------
-        // Store PoP
-        // --------------------------------------------------
-
-        precip_prob[count] = period["probabilityOfPrecipitation"]["value"] | -1;
-
-
-#ifdef DEBUG_ENABLED
-
-        DBGf( "[WEATHER] %s  PoP=%d%%\r\n", startTime, precip_prob[count] );
-
-#endif
-
 
         ++count;
     }
 
-
     return count;
 }
 
-
-// ==================================================
-// Calculate average PoP
-// ==================================================
-
-float calculateAveragePoP( uint8_t count )
-{
-    if ( count == 0 )
-    {
-        return -1;
-    }
-
-
-    int total = 0;
-
-    uint8_t valid_count = 0;
-
-
-    for ( uint8_t i = 0; i < count; ++i )
-    {
-        if ( precip_prob[i] >= 0 )
-        {
-            total += precip_prob[i];
-
-            ++valid_count;
-        }
-    }
-
-
-    if ( valid_count == 0 )
-    {
-        return -1;
-    }
-
-
-    return float( total ) / valid_count;
-}
 
 
 // ==================================================
@@ -277,9 +212,9 @@ bool rainExpectedSoon()
     // Reset results from previous forecast
     // --------------------------------------------------
 
-    valid_hourly_PoP_count = 0;
+    valid_hourly_PoP_count = 0;  // Initialize valid_hourly_PoP_count
 
-    avg_precip_prob = -1;
+    avg_precip_prob = -3;  // Initialize  avg_precip_prob
 
 
     // --------------------------------------------------
@@ -310,17 +245,18 @@ bool rainExpectedSoon()
 
     JsonDocument doc;
 
-    for( uint8_t i = 0; i <= MAX_TRIES; i++ )
+    for( uint8_t i = 0; i <= MAX_TRIES; ++i )
     {
-
-        if ( getNWSForecast( doc ) == true )
-        {
-            break;
-        }
 
         if( i == MAX_TRIES)
         {
+            avg_precip_prob = -2;
             return false;
+        }
+        
+        if ( getNWSForecast( doc ) == true )
+        {
+            break;
         }
 
     }
@@ -329,7 +265,7 @@ bool rainExpectedSoon()
     JsonArray filteredPeriods = doc["properties"]["periods"];
 
 
-#ifndef DEBUG_ENABLED
+#ifdef DEBUG_ENABLED
 
     serializeJsonPretty( filteredPeriods, Serial );
 
@@ -339,20 +275,17 @@ bool rainExpectedSoon()
 
 #endif
 
-
     // --------------------------------------------------
     // Process forecast periods
     // --------------------------------------------------
 
-    valid_hourly_PoP_count = processForecastPeriods( filteredPeriods, next_target );
-
-
-    // --------------------------------------------------
-    // Check for forecast data
-    // --------------------------------------------------
+    int total = 0;
+  
+    processForecastPeriods( filteredPeriods, next_target, total, valid_hourly_PoP_count );
 
     if ( valid_hourly_PoP_count == 0 )
     {
+        avg_precip_prob = -1;
 
 #ifdef DEBUG_ENABLED
 
@@ -361,18 +294,14 @@ bool rainExpectedSoon()
 #endif
 
         display_message( "[WEATHER] No forecast periods found", 2000 );
-
-        return false;
     }
 
+    else
+    {
+        avg_precip_prob = float(total) / valid_hourly_PoP_count;
+    }
 
-    // --------------------------------------------------
-    // Calculate average PoP
-    // --------------------------------------------------
-
-    avg_precip_prob = calculateAveragePoP( valid_hourly_PoP_count );
-
-
+    
 #ifdef DEBUG_ENABLED
 
     DBGf( "[WEATHER] Average PoP: %.1f%%\r\n", avg_precip_prob );
@@ -380,10 +309,6 @@ bool rainExpectedSoon()
 #endif
 
 
-    // --------------------------------------------------
-    // Check precipitation threshold
-    // --------------------------------------------------
-
-     return avg_precip_prob >= settings.min_precip_prob;
+    return avg_precip_prob >= settings.min_precip_prob;  // Check precipitation threshold
 
 }
