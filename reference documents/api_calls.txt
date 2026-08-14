@@ -4,8 +4,8 @@ https://api.openweathermap.org/data/3.0/onecall?lat=29.52&lon=-81.21&exclude=cur
 
 
 
-https://api.weather.gov/gridpoints/JAX/86,33/forecast/hourly 
-https://api.weather.gov/gridpoints/MLB/25,69/forecast/hourly
+https://api.weather.gov/gridpoints/JAX/86,31/forecast/hourly 
+https://api.weather.gov/gridpoints/MLB/57,49/forecast/hourly
 
 
 https://api.thingspeak.com/update?api_key=60SYG2RIJ0TW4D32&field1=51.2&field2=81.9&field3=213&field4=6.4&field5=212&field6=314&field7=198&field8=0&status=Update%20sent%20Fri%20May%2008%2C%202026%2006%3A00%3A13%20PM%20SW%3A%20v1%2E0%2E12
