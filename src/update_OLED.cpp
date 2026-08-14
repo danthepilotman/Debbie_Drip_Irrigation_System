@@ -80,14 +80,11 @@ void status_Page()
 
     display.setCursor( 0, 0 ); // Start at top-left corner
 
-    
-    display.printf( "Rain expected: %s \r\n", status.rain_expected ? F("YES") : F("NO") );
-    display.printf( "Watering needed: %s \r\n", status.watering_needed ? F("YES") : F("NO") );
-    display.printf( "Solenoid: %s \r\n", status.solenoid_state ? F("OPENED") : F("CLOSED") );
-     
+    display.printf( "Rain expected: %s\r\n", status.rain_expected ? F("YES") : F("NO") );
+    display.printf( "Watering needed: %s\r\n", status.watering_needed ? F("YES") : F("NO") );
+    display.printf( "Solenoid: %s\r\n", status.solenoid_state ? F("OPENED") : F("CLOSED") );
     display.printf( "Status: %s\r\n", status.status_str.c_str() );  // Display TS status
  
-
     display.display(); // Update the OLED with new content
   
 }
@@ -106,7 +103,7 @@ void soil_Page()
     display.printf("WVC: %.1f\r\n", soil.moisture);
    
     // Display solenoid state
-    display.printf("Temp: %.0f\r\n", 1.8 * soil.temp + 32.0);
+    display.printf("Temp: %.1f\r\n", 1.8 * soil.temp + 32.0);
 
     // Display WiFi status
     display.printf("EC: %.0f\r\n", soil.ec);
@@ -136,13 +133,13 @@ void settings_Page()
     display.setCursor(0,0); // Start at top-left corner
 
     // Display watering status
-    display.printf("Threshold: %.1f\r\n", settings.moisture_threshold);
+    display.printf( "Threshold: %.1f\r\n", settings.moisture_threshold );
 
     // Display solenoid state
-    display.printf("Duration: %d\r\n", settings.watering_duration_sec);
+    display.printf( "Duration: %lu\r\n", settings.watering_duration_sec );
 
     // Display WiFi status
-    display.printf("Rain Min Prob: %d\r\n", settings.min_precip_prob);
+    display.printf( "Rain Min Prob: %.1f\r\n", settings.min_precip_prob );
 
      // Display TS status
     for ( uint8_t i = 0; i < SCHEDULE_COUNT; i++ )

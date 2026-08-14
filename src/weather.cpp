@@ -16,7 +16,7 @@ const char* LON = "-80.631";  // My house longitude
 
 int precip_prob[24];   // NWS hourly forecast precipitation probability [%]
 
-float avg_precip_prob = 0;   // Store average PoP
+float avg_precip_prob = -3;   // Store average PoP
 
 uint8_t valid_hourly_PoP_count = 0;
 
@@ -36,16 +36,13 @@ bool getNWSForecast( JsonDocument &doc )
 
     display_message( "[WEATHER] Getting NWS forecast\r\n" );
 
-
 #ifdef DEBBIE_HOUSE
 
-    char url[] =
-        "https://api.weather.gov/gridpoints/JAX/86,33/forecast/hourly";
+    const char url[] = "https://api.weather.gov/gridpoints/JAX/86,33/forecast/hourly";
 
 #else
 
-    char url[] =
-        "https://api.weather.gov/gridpoints/MLB/25,69/forecast/hourly";
+    const char url[] = "https://api.weather.gov/gridpoints/MLB/25,69/forecast/hourly";
 
 #endif
 
@@ -84,7 +81,7 @@ bool getNWSForecast( JsonDocument &doc )
 
 #endif
 
-    char buff[128];
+    char buff[256];
 
     snprintf( buff, sizeof(buff), "[WEATHER] HTTP code: %d\r\n", code );
 
@@ -93,7 +90,7 @@ bool getNWSForecast( JsonDocument &doc )
 
     if ( code != HTTP_CODE_OK )
     {
-        http.end();
+        http.end();  // Kill http connection
 
 #ifdef DEBUG_ENABLED
 
@@ -101,9 +98,9 @@ bool getNWSForecast( JsonDocument &doc )
 
 #endif
 
-        display_message( "[WEATHER] HTTP request failed", 2000 );
+        display_message( "[WEATHER] HTTP request failed", 2000 );  // Show error mesage on OLED
 
-        return false;
+        return false;  // Return false since http request was NOT successful
     }
 
 
@@ -111,11 +108,11 @@ bool getNWSForecast( JsonDocument &doc )
     // JSON FILTER
     // --------------------------------------------------
 
-    JsonDocument filter;
+    JsonDocument filter;  // Create filter object
 
-    filter["properties"]["periods"][0]["startTime"] = true;
+    filter["properties"]["periods"][0]["startTime"] = true;  // Define startTime filter
 
-    filter["properties"]["periods"][0]["probabilityOfPrecipitation"]["value"] = true;
+    filter["properties"]["periods"][0]["probabilityOfPrecipitation"]["value"] = true;  // Define PoP filter
 
 
     // --------------------------------------------------
@@ -125,7 +122,7 @@ bool getNWSForecast( JsonDocument &doc )
     DeserializationError err = deserializeJson( doc, http.getStream(), DeserializationOption::Filter( filter ) );
 
 
-    http.end();
+    http.end();  // Kill http connection once Json is deserialized
 
 
     if ( err )
@@ -138,13 +135,13 @@ bool getNWSForecast( JsonDocument &doc )
 
         snprintf( buff, sizeof(buff), "JSON parse failed: %s\r\n", err.c_str() );
 
-        display_message( buff, 2000 );
+        display_message( buff, 2000 );  // Display OLED erro message
 
-        return false;
+        return false;  // Return false since Json deserialization failed
     }
 
 
-    return true;
+    return true;  // If you made it this far the NWS forecast PoP values were succesfully obtained
 }
 
 
@@ -152,52 +149,45 @@ bool getNWSForecast( JsonDocument &doc )
 // Process forecast periods
 // ==================================================
 
-uint8_t processForecastPeriods( JsonArray filteredPeriods, time_t next_target, int &total, uint8_t &valid_count)
+void processForecastPeriods( JsonArray filteredPeriods, time_t next_target, int &total, uint8_t &valid_count)
 {
     uint8_t count = 0;
 
     total = 0;
     valid_count = 0;
 
-    for (JsonObject period : filteredPeriods)
+    for ( JsonObject period : filteredPeriods )
     {
-        if (count >= MAX_FORECAST_HOURS)
+        if ( count >= MAX_FORECAST_HOURS )
             break;
 
-        const char *startTime =
-            period["startTime"].as<const char *>();
+        const char *startTime = period["startTime"].as<const char *>();
 
-        if (startTime == nullptr)
+        if ( startTime == nullptr )
             continue;
 
         time_t forecast_time;
         time_t current_hour;
 
-        if (getForecastTimes(
-                startTime,
-                forecast_time,
-                current_hour) == false ||
-            forecast_time < current_hour)
+        if ( getForecastTimes( startTime, forecast_time, current_hour ) == false || forecast_time < current_hour )
         {
-            continue;
+            continue;  // Skip missing or outdated forecasts
         }
 
-        if (forecast_time >= next_target)
-            break;
+        if ( forecast_time >= next_target )
+            break;  // Break out of the loop once you encounter a forecast that is at or after the next target time
 
-        int pop =
-            period["probabilityOfPrecipitation"]["value"] | -1;
+        int pop = period["probabilityOfPrecipitation"]["value"] | -4;
 
-        if (pop >= 0)
+        if ( pop >= 0 )
         {
-            total += pop;
-            ++valid_count;
+            total += pop;  // Only add current PoP if it is a positive value
+            ++valid_count;  // Only increase the valid count if the current Pop is a positive value
         }
 
-        ++count;
+        ++count;  // Increment loop counter
     }
 
-    return count;
 }
 
 
@@ -248,16 +238,18 @@ bool rainExpectedSoon()
     for( uint8_t i = 0; i <= MAX_TRIES; ++i )
     {
 
-        if( i == MAX_TRIES)
+        if( i == MAX_TRIES)  // Check if attempts have been exhausted
         {
-            avg_precip_prob = -2;
-            return false;
+            avg_precip_prob = -2;  // Set error code value
+            return false;  // Retrun false since forecast was unavailable
         }
         
         if ( getNWSForecast( doc ) == true )
         {
-            break;
+            break;  // Break out of loop once forecase is succesfully obtained
         }
+
+        delay(5000);  // Wait between forecast fetch attempts
 
     }
     
@@ -294,6 +286,8 @@ bool rainExpectedSoon()
 #endif
 
         display_message( "[WEATHER] No forecast periods found", 2000 );
+
+        return false;  // Return false if we couldn't retreive any valid hourly PoP values
     }
 
     else

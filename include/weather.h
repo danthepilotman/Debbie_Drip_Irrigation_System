@@ -22,8 +22,8 @@ extern uint8_t valid_hourly_PoP_count;  // Count how many valid hourly forecast 
 
 
 bool getNWSForecast( JsonDocument &doc );
-uint8_t processForecastPeriods( JsonArray filteredPeriods, time_t next_target, int &total, uint8_t &valid_count);
 float calculateAveragePoP( uint8_t count );
 bool rainExpectedSoon();  // check upcoming hourly forecast for rain
+void processForecastPeriods( JsonArray filteredPeriods, time_t next_target, int &total, uint8_t &valid_count );
 
 #endif
