@@ -38,11 +38,11 @@ bool getNWSForecast( JsonDocument &doc )
 
 #ifdef DEBBIE_HOUSE
 
-    const char url[] = "https://api.weather.gov/gridpoints/JAX/86,33/forecast/hourly";
+    const char url[] = "https://api.weather.gov/gridpoints/JAX/86,31/forecast/hourly";
 
 #else
 
-    const char url[] = "https://api.weather.gov/gridpoints/MLB/25,69/forecast/hourly";
+    const char url[] = "https://api.weather.gov/gridpoints/MLB/57,49/forecast/hourly";
 
 #endif
 
