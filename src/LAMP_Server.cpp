@@ -16,13 +16,13 @@ bool applyLocalSettings()
 
     File file = LittleFS.open("/irrigation_settings.json", "r");  // Open settings file for reading
 
-    if (!file)
+    if ( !file )
     {
         return false;  // Return false if local settings file doesn't exist
     }
 
 
-    if ( deserializeJson( local_doc, file ) )  // Deserialize JSON from file into document
+    if ( deserializeJson( local_doc, file ) != DeserializationError::Ok )  // Deserialize JSON from file into document
     {
         file.close();  // Close file
         return false; // Return false on deserialization error
@@ -30,13 +30,13 @@ bool applyLocalSettings()
 
     file.close();
 
-    settings.moisture_threshold = local_doc["moisture_threshold"] | 55.0;
+    settings.moisture_threshold = local_doc["moisture_threshold"] | 54.5;
     settings.watering_duration_sec  = local_doc["watering_duration"]  | 3600;
-    settings.min_precip_prob    = local_doc["min_precip_prob"]    | 50.0;
+    settings.min_precip_prob    = local_doc["min_precip_prob"]    | 60.0;
 
     JsonArray times = local_doc["times"];
 
-    for ( uint8_t i = 0; i < SCHEDULE_COUNT && i < times.size(); i++ )
+    for ( uint8_t i = 0; i < SCHEDULE_COUNT && i < times.size(); ++i )
     {
         uint8_t h, m, s;
 
@@ -87,7 +87,7 @@ bool getServerSettings()
 
     DeserializationError error = deserializeJson( server_doc, http.getStream() );  // Deserialize JSON from HTTP response stream to JsonDocument
 
-    if ( error ) // Check for deserialization errors
+    if ( error !=DeserializationError::Ok ) // Check for deserialization errors
     {
 #ifdef DEBUG_ENABLED
         DBGf("[SETTINGS] JSON parse failed: %s", error.c_str());
@@ -124,6 +124,7 @@ bool getServerSettings()
     } 
 
     return true;  // Return true on success 
+
 }
 
 
@@ -197,7 +198,7 @@ void applyDownloadedSettings( JsonDocument &server_doc )
     // Copy server timestamp
     //--------------------------------------------------
 
-    strlcpy( settings.updated, server_doc["updated"] | "", sizeof(settings.updated ) );  // Copy server timestamp to local settings, default to empty string if not present
+    strlcpy( settings.updated, server_doc["updated"] | "", sizeof( settings.updated ) );  // Copy server timestamp to local settings, default to empty string if not present
 
 
     //--------------------------------------------------
@@ -238,17 +239,30 @@ bool saveLocalSettings( JsonDocument &server_doc )  // Save settings to FS
         return false;  // Return false on failure
     }
 
-    serializeJsonPretty( server_doc, file );  // Save JSON to file
+    if ( serializeJsonPretty( server_doc, file ) > 0 )  // Save JSON to file
+    {
 
-    file.close();  // Close file
+        file.close();  // Close file
+
+        return true;  // Return true on success
+
+    }
+
+    else
+    {
+
+        file.close();  // Close file
 
 #ifdef DEBUG_ENABLED
 
-    serializeJsonPretty( server_doc, Serial );
+        serializeJsonPretty( server_doc, Serial );
 
 #endif
 
-    return true;  // Return true on success
+        return false;  // Return false if no bytes written to file
+
+    }
+
 }
 
 
@@ -381,7 +395,7 @@ void sendServerUpdate()
 {
 
     // Check WiFi connection status
-    if (WiFi.status() == WL_CONNECTED)
+    if ( WiFi.status() == WL_CONNECTED )
     {
 
         WiFiClient client;
@@ -419,7 +433,7 @@ void sendServerUpdate()
             + "&phosphorus=" + String(soil.P)
             + "&solenoid_state=" + String(status.solenoid_state ? 1 : 0)
             + "&average_PoP=" + String( avg_precip_prob, 1 )
-            + "&WiFi_RSSI=" + String(WiFi_RSSI)
+            + "&WiFi_RSSI=" + String( WiFi_RSSI )
             + "&status_message=" + encodedStatus
             + "&time_stamp=" + Timestamp("%Y-%m-%d %H:%M:%S");
 

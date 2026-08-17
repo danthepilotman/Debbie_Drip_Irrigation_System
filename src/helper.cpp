@@ -291,21 +291,22 @@ void check_button_press()
 
 void handle_sample_state()
 {
-    get_new_readings();
+  
+  get_new_readings();
 
-    compute_watering_parameters();
+  compute_watering_parameters();
 
 #ifdef THINGSPEAK_ENABLE
 
-    thingSpeak_Update();
+  thingSpeak_Update();
 
 #else
 
-    sendServerUpdate();  // Update server with latest readings
+  sendServerUpdate();  // Update server with latest readings
 
 #endif
 
-    status.watering_needed ? system_state = STATE_WATER : system_state = STATE_SLEEP;
+  status.watering_needed ? system_state = STATE_WATER : system_state = STATE_SLEEP;
     
 }
 

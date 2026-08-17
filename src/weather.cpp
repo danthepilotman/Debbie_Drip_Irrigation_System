@@ -61,12 +61,11 @@ bool getNWSForecast( JsonDocument &doc )
 
     http.useHTTP10( true );
 
-    http.begin( client, url );
-
     http.addHeader( F( "User-Agent" ), F( "ESP32_Irrigation_Controller" ) );
 
     http.addHeader( F( "Accept" ), F( "application/geo+json" ) );
 
+    http.begin( client, url );
 
     // --------------------------------------------------
     // HTTP GET
@@ -83,7 +82,7 @@ bool getNWSForecast( JsonDocument &doc )
 
     char buff[256];
 
-    snprintf( buff, sizeof(buff), "[WEATHER] HTTP code: %d\r\n", code );
+    snprintf( buff, sizeof( buff ), "[WEATHER] HTTP code: %d\r\n", code );
 
     display_message( buff );
 
@@ -125,7 +124,7 @@ bool getNWSForecast( JsonDocument &doc )
     http.end();  // Kill http connection once Json is deserialized
 
 
-    if ( err )
+    if ( err != DeserializationError::Ok )
     {
 #ifdef DEBUG_ENABLED
 
@@ -133,7 +132,7 @@ bool getNWSForecast( JsonDocument &doc )
 
 #endif
 
-        snprintf( buff, sizeof(buff), "JSON parse failed: %s\r\n", err.c_str() );
+        snprintf( buff, sizeof( buff ), "JSON parse failed: %s\r\n", err.c_str() );
 
         display_message( buff, 2000 );  // Display OLED erro message
 
@@ -249,7 +248,7 @@ bool rainExpectedSoon()
             break;  // Break out of loop once forecase is succesfully obtained
         }
 
-        delay(5000);  // Wait between forecast fetch attempts
+        delay( 5000 );  // Wait between forecast fetch attempts
 
     }
     
@@ -292,7 +291,7 @@ bool rainExpectedSoon()
 
     else
     {
-        avg_precip_prob = float(total) / valid_hourly_PoP_count;
+        avg_precip_prob = float( total ) / valid_hourly_PoP_count;
     }
 
     
@@ -303,6 +302,6 @@ bool rainExpectedSoon()
 #endif
 
 
-    return avg_precip_prob >= settings.min_precip_prob;  // Check precipitation threshold
+    return ( avg_precip_prob >= settings.min_precip_prob );  // Check precipitation threshold
 
 }

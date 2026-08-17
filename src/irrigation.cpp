@@ -8,7 +8,7 @@
 void compute_watering_parameters()  // evaluate if watering is needed
 {
 
-    if ( ( soil.moisture < settings.moisture_threshold ) && ( rainExpectedSoon() == false ) )  // Determine if watering is needed
+    if ( ( rainExpectedSoon() == NO ) && ( soil.moisture < settings.moisture_threshold ) )  // Determine if watering is needed
         status.watering_needed = YES;
     else
         status.watering_needed = NO;
