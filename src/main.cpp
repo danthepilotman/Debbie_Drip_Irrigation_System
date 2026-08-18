@@ -49,6 +49,8 @@ void setup()
 
     getServerSettings();  // Load settings from non-volatile storage and compare to server settings. Update if needed.
 
+    uploadErrorLog(); // Upload error log to LAMP Server
+
 
 #ifdef THINGSPEAK_ENABLE
 

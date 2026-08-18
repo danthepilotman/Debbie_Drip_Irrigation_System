@@ -1,8 +1,9 @@
-#include "update_OLED.h"  // project-wide definitions and prototypes
-#include "helper.h"
-#include "weather.h"
-#include "ota_update.h"
-#include "soil_sensor.h"
+#include "update_OLED.h"  // Assocated helper file
+#include "helper.h"  // 
+#include "weather.h"  // For weather page
+#include "ota_update.h"  // For OTA messages
+#include "soil_sensor.h" // For soil page
+#include "LAMP_Server.h"  // For error logging
 
 
 volatile Page currentPage = PAGE_STATUS;
@@ -20,10 +21,17 @@ void setup_OLED()
   
   if( display.begin( SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS ) == false )
   { 
+
+    logError( "[DISPLAY] SSD1306 allocation failed" );
+    
 #ifdef DEBUG
+
     DBG(F("SSD1306 allocation failed\r\n"));
+
 #endif
+
     for(;;); // Don't proceed, loop forever
+
   }
 
   // Clear the buffer

@@ -1,6 +1,7 @@
 #include <soil_sensor.h>  // RS485 definitions and types
 #include "helper.h"  // for MAX_TRIES constant
 #include "setup.h"  // for soil structure
+#include "LAMP_Server.h"  // For error logging
 
 
 // Create a hardware serial instance for RS485 communication
@@ -207,11 +208,18 @@ void get_new_readings()
         if ( rs485_status == RS485_GOOD )
             break;
         
-#ifdef DEBUG_ENABLED
+
 
         else
+        {
+            
+            logError( "[RS485] Modbus error" );
+
+#ifdef DEBUG_ENABLED
+
             DBG( F( "[RS485][ERROR] Modbus error" ) );
 #endif
+        }
         
     }
        

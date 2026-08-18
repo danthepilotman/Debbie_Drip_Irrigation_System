@@ -9,12 +9,16 @@ const char* postServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Ir
 
 const char* settingsServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/get_settings.php";
 
+const char* postErrorLogServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/logs/post-error-log.php";
+
+const char* logFileName = "/error_log.txt";
+
 
 bool applyLocalSettings()
 {
     JsonDocument local_doc;
 
-    File file = LittleFS.open("/irrigation_settings.json", "r");  // Open settings file for reading
+    File file = LittleFS.open("/irrigation_settings.json", FILE_READ );  // Open settings file for reading
 
     if ( !file )
     {
@@ -229,12 +233,15 @@ void applyDownloadedSettings( JsonDocument &server_doc )
 bool saveLocalSettings( JsonDocument &server_doc )  // Save settings to FS
 {
 
-    File file = LittleFS.open("/irrigation_settings.json", "w");  // Open file for writing
+    File file = LittleFS.open("/irrigation_settings.json", FILE_WRITE );  // Open file for writing
 
     if (!file)  // Check if file opened successfully
     {
+
 #ifdef DEBUG_ENABLED
+
         DBG(F("[FILESYSTEM] Failed to open settings file"));
+
 #endif
         return false;  // Return false on failure
     }
@@ -252,6 +259,8 @@ bool saveLocalSettings( JsonDocument &server_doc )  // Save settings to FS
     {
 
         file.close();  // Close file
+
+        logError( "Failed to save local settings file" );
 
 #ifdef DEBUG_ENABLED
 
@@ -361,8 +370,7 @@ void solenoid_state_Update()  // Report solenoid state to server
 
 
         // Specify content type
-        http.addHeader( F("Content-Type"), F("application/x-www-form-urlencoded" )
-        );
+        http.addHeader( F("Content-Type"), F("application/x-www-form-urlencoded" ) );
 
 
         // Specify destination
@@ -370,12 +378,12 @@ void solenoid_state_Update()  // Report solenoid state to server
 
 
         // Send HTTP POST request
-        int httpResponseCode = http.POST(httpRequestData);
+        int httpResponseCode = http.POST( httpRequestData );
 
 
         sprintf( buff, "HTTP code:\r\n%d", httpResponseCode );
 
-        display_message(buff, 2000);
+        display_message( buff, 2000 );
 
         http.end();
 
@@ -383,6 +391,8 @@ void solenoid_state_Update()  // Report solenoid state to server
 
     else
     {
+        logError( "WiFi Disconnected" );
+
         display_message( "WiFi Disconnected", 2000 );
     }
 
@@ -439,10 +449,7 @@ void sendServerUpdate()
 
 
         // Specify content type
-        http.addHeader(
-            F("Content-Type"),
-            F("application/x-www-form-urlencoded")
-        );
+        http.addHeader( F("Content-Type"), F("application/x-www-form-urlencoded") );
 
 
         // Specify destination
@@ -468,7 +475,114 @@ void sendServerUpdate()
 
     else
     {
+        logError( "WiFi Disconnected" );
+
         display_message("WiFi Disconnected", 2000);
+    }
+
+}
+
+
+void logError( const char* errortext )
+{
+  File file = LittleFS.open( logFileName, FILE_APPEND );  // Open file for appending
+
+  if ( !file )
+  {
+      Serial.println( F( "[FS] Failed to open error log for appending" ) ); // Report error if file can't open
+      return;
+  }
+
+  file.print( Timestamp( "%d-%m-%Y %H:%M:%S" ).c_str() );  // Add timestamp to error file entry
+
+  file.print( " - " );  // Add separator
+  
+  file.println( errortext );  // Error message text written to file
+
+  file.close();  // Close error log file
+
+}
+
+
+bool uploadErrorLog()
+{
+
+    // Make sure the log file exists and contains something
+    if ( !LittleFS.exists( logFileName ) )
+    {
+        Serial.println( "No error log to upload" );
+        return true;
+    }
+
+    File file = LittleFS.open( logFileName, FILE_READ );
+
+    if ( !file )
+    {
+        Serial.println( "Failed to open error log" );
+        return false;
+    }
+
+    WiFiClient client;
+    HTTPClient http;
+
+    http.begin( client, postErrorLogServerName );
+    http.addHeader( "Content-Type", "text/plain" );
+
+    // Send the LittleFS file directly
+    int httpCode = http.sendRequest( "POST", &file, file.size() );
+
+    file.close();
+
+    bool uploadSuccessful = false;
+
+    if ( httpCode == HTTP_CODE_OK )
+    {
+        String response = http.getString();
+
+        Serial.printf( "Error log upload response: %s\n", response.c_str() );
+
+        // Server must explicitly confirm receipt
+        if ( response == "OK" )
+        {
+            uploadSuccessful = true;
+        }
+        else
+        {
+            Serial.println( "Server did not confirm error log receipt" );
+        }
+    }
+    else
+    {
+        Serial.printf( "Error log upload failed. HTTP code: %d\n", httpCode );
+
+        if ( httpCode < 0 )
+        {
+            Serial.printf( "HTTP error: %s\n", http.errorToString(httpCode).c_str() );
+        }
+    }
+
+    http.end();
+
+    // Only delete the local log after confirmed receipt
+    if ( uploadSuccessful )
+    {
+        if ( LittleFS.remove( logFileName ) )
+        {
+            Serial.println( "Error log successfully uploaded and deleted" );
+        }
+        else
+        {
+            Serial.println( "Error log uploaded, but failed to delete local file" );
+        }
+
+        return true;
+    }
+    else
+    {
+
+    Serial.println( "Error log retained because upload was not confirmed" );
+
+    return false;
     }
 
 }

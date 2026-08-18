@@ -11,6 +11,7 @@ const char* LON = "-80.631";  // My house longitude
 #include "update_OLED.h"   // for display_message() function
 #include "helper.h"        // for getForecastTimes() function
 #include "sleep_timer.h"   // for nextTargetTime() function
+#include "LAMP_Server.h"  // For error logging
 #include <time.h>          // for time library functions
 
 
@@ -90,6 +91,8 @@ bool getNWSForecast( JsonDocument &doc )
     if ( code != HTTP_CODE_OK )
     {
         http.end();  // Kill http connection
+
+        logError( "[WEATHER] HTTP request failed" );
 
 #ifdef DEBUG_ENABLED
 
@@ -245,7 +248,7 @@ bool rainExpectedSoon()
         
         if ( getNWSForecast( doc ) == true )
         {
-            break;  // Break out of loop once forecase is succesfully obtained
+            break;  // Break out of loop once forecast is successfully obtained
         }
 
         delay( 5000 );  // Wait between forecast fetch attempts
@@ -277,6 +280,8 @@ bool rainExpectedSoon()
     if ( valid_hourly_PoP_count == 0 )
     {
         avg_precip_prob = -1;
+
+        logError( "[WEATHER] No forecast periods found" );
 
 #ifdef DEBUG_ENABLED
 

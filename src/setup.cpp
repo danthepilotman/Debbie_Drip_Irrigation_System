@@ -3,6 +3,7 @@
 #include "update_OLED.h"  // prototypes for OLED update functions
 #include "helper.h"  // helper functions
 #include "rgb_led.h"  // prototypes for RGB LED functions
+#include "LAMP_Server.h"  // For error logging
 
 
 // User interface serial port setup parameters
@@ -177,6 +178,8 @@ void connect_WiFi()
 
 #endif    
 
+  logError( "[WIFI] Unable to connect to WiFi" );  
+
   display.print(F( "[WIFI] Unable to connect to WiFi" )); 
   display.display();
 
@@ -225,6 +228,7 @@ void setup_NTP()
 
 #endif
 
+    logError( "[NTP] Failed to obtain time from NTP server" );
  
     display_message( "[NTP] Failed to obtain time from NTP server\r\n"  );
 

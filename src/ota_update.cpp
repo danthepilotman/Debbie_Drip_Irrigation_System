@@ -1,11 +1,12 @@
 #include "ota_update.h"  // associated header file
 #include "update_OLED.h"  // for display_message() function
 #include "setup.h"  // for debug macros, Json, WifiClientSecure, HTTPClient, Arduino OTA update library
+#include "LAMP_Server.h"  // For error logging
 #include <HTTPUpdate.h>  // For OTA update functionality
 #include <esp_ota_ops.h>  // For OTA update state checking
 
 
-const char *FIRMWARE_VERSION = "1.2.12";  // current firmware version
+const char *FIRMWARE_VERSION = "1.3.1";  // current firmware version
 
 
 bool getFirmwareInfo( String &latestVersion, String &firmwareUrl )
@@ -21,6 +22,8 @@ bool getFirmwareInfo( String &latestVersion, String &firmwareUrl )
 
     if ( code != HTTP_CODE_OK )
     {
+
+        logError( "[OTA] Failed to fetch manifest" );
 
 #ifdef DEBUG_ENABLED
 
@@ -40,7 +43,8 @@ bool getFirmwareInfo( String &latestVersion, String &firmwareUrl )
 
     if ( err )
     {
-        DBG("JSON parse failed");
+        logError( "[OTA] JSON parse failed" );
+        DBG("[OTA] JSON parse failed");
         return false;
     }
 
@@ -66,7 +70,7 @@ bool isNewerVersion( const String &latestVersion )
     // Parse current firmware version
     //--------------------------------------------------
 
-    if (sscanf( FIRMWARE_VERSION, "%d.%d.%d", &currentMajor, &currentMinor, &currentPatch ) != 3 )
+    if ( sscanf( FIRMWARE_VERSION, "%d.%d.%d", &currentMajor, &currentMinor, &currentPatch ) != 3 )
     {
         return false;
     }
@@ -230,7 +234,7 @@ void check_ota_state()
 
             esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
 
-            if(err == ESP_OK)
+            if( err == ESP_OK )
             {
 
 #ifdef DEBUG_ENABLED
@@ -244,6 +248,8 @@ void check_ota_state()
             else
             {
 
+                
+
 #ifdef DEBUG_ENABLED
 
                 DBGf( "[OTA] Failed to confirm firmware: %s\r\n", esp_err_to_name(err));
@@ -251,8 +257,9 @@ void check_ota_state()
 #endif
                
                 char buff[256];
-                sprintf(buff, "[OTA] Failed to confirm firmware:\r\n%s", esp_err_to_name(err));
-                display_message(buff);
+                sprintf( buff, "[OTA] Failed to confirm firmware:\r\n%s", esp_err_to_name(err) );
+                logError ( buff );
+                display_message( buff );
             }
 
         }
