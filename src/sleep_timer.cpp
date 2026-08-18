@@ -1,6 +1,7 @@
 #include "sleep_timer.h"  // sleep timer helpers, schedule constants, and settings
-#include "update_OLED.h"
+#include "update_OLED.h"  // For OLED display of messages
 #include "rgb_led.h"  // prototypes for RGB LED functions
+#include "LAMP_Server.h"  // For uploading error log file
 
 #ifdef DEBUG_ENABLED
 
@@ -170,9 +171,11 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
 #endif
 
+    uploadErrorLog(); // Upload error log to LAMP Server
+
     display.clearDisplay();
     display.setCursor( 0, 0 );
-    
+
     display.print( F( "[STATUS]\r\nEntering Deep Sleep\r\n" ) );
     display.printf( "[POWER]\r\nSleeping for %.0fs\r\n(early buffer = %ds)\r\n", sleep_seconds, WAKE_EARLY_BUFFER_SEC );   
     display.printf( "Next target:\r\n %s", ctime( &target ) );  // show next target time in human-readable form

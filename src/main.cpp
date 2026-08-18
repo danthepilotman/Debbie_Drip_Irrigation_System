@@ -49,9 +49,7 @@ void setup()
 
     getServerSettings();  // Load settings from non-volatile storage and compare to server settings. Update if needed.
 
-    uploadErrorLog(); // Upload error log to LAMP Server
-
-
+    
 #ifdef THINGSPEAK_ENABLE
 
     tsClient.begin( true );  // Initialize ThingSpeak client with insecure SSL (since we're using setInsecure on the client)

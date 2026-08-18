@@ -6,7 +6,7 @@
 #include <esp_ota_ops.h>  // For OTA update state checking
 
 
-const char *FIRMWARE_VERSION = "1.3.1";  // current firmware version
+const char *FIRMWARE_VERSION = "1.3.2";  // current firmware version
 
 
 bool getFirmwareInfo( String &latestVersion, String &firmwareUrl )

@@ -568,11 +568,13 @@ bool uploadErrorLog()
     {
         if ( LittleFS.remove( logFileName ) )
         {
-            Serial.println( "Error log successfully uploaded and deleted" );
+            Serial.println(  "[FS]Error log successfully uploaded and deleted" );
+            display_message( "[FS]Error log successfully uploaded and deleted\r\n" , 2000 );
         }
         else
         {
-            Serial.println( "Error log uploaded, but failed to delete local file" );
+            Serial.println(  "[FS] Error log uploaded, but failed to delete local file" );
+            display_message( "[FS] Error log uploaded, but failed to delete local file\r\n" , 2000 );
         }
 
         return true;
