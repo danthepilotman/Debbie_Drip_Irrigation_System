@@ -519,7 +519,7 @@ void logError( const char* errortext )
       return;
   }
 
-  file.print( Timestamp( "%d-%m-%Y %H:%M:%S" ).c_str() );  // Add timestamp to error file entry
+  file.print( Timestamp( "%m-%d-%Y %H:%M:%S" ).c_str() );  // Add timestamp to error file entry
 
   file.print( " - " );  // Add separator
   
