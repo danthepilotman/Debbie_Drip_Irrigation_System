@@ -32,7 +32,10 @@ void setup_RS485()
  RS485_STATUS read_Registers( HardwareSerial &serial, uint8_t deviceAddress, uint16_t startAddress, uint8_t sampleCount, uint16_t *results ) // read registers; sample count controls repeated reads
 {
     if ( sampleCount == 0 || sampleCount > MAX_SAMPLES ) // validate sample count
+    {
+        logError ( "[RS485] Ivalid sample count" );
         return INVALID_PARAM; // invalid parameter
+    }
 
     uint16_t samples[MAX_SAMPLES][NUM_REGISTERS];  // store raw samples per register
 
@@ -45,7 +48,10 @@ void setup_RS485()
         RS485_STATUS rs485_status = read_Registers_raw( serial, deviceAddress, startAddress, NUM_REGISTERS, samples[s] );  // raw read into sample slot
 
         if ( rs485_status != RS485_GOOD ) // check read status
+        {   
+            logError ( "[RS485] Register read failed" );
             return rs485_status; // propagate error
+        }
 
         delay( 50 );   // settling time between reads
     } // end sample collection
@@ -130,7 +136,13 @@ RS485_STATUS read_Registers_raw( HardwareSerial &serial, uint8_t deviceAddress, 
 
     // Validate response length
     if ( index < (5 + numRegisters * 2 ) )  // insufficient reply length
+    {
+
+        logError ( "[RS485] Invalid response length" );
+
         return RESPONSE_INCOMPLETE; // reply didn't include expected bytes
+
+    }
     
 
     // Check CRC: compute CRC over all bytes except the last two CRC bytes
@@ -139,7 +151,10 @@ RS485_STATUS read_Registers_raw( HardwareSerial &serial, uint8_t deviceAddress, 
     uint16_t received_crc = ( response[index - 1] << 8 ) | response[index - 2];  // Received CRC assembled as (Hi<<8) | Lo
 
     if ( response_crc != received_crc ) // Compare CRCs
+    {
+        logError ( "[RS485] CRC mismatch" );
         return CRC_MISMATCH; // CRC mismatch indicates corrupted frame
+    }
     
 
     // Parse register values: assemble high/low bytes to 16-bit registers
@@ -201,23 +216,25 @@ void get_new_readings()
 
 #endif
 
-    for( uint8_t num_of_attempts = 0; num_of_attempts < MAX_TRIES; ++num_of_attempts )  // try up to 5 times
+    for( uint8_t num_of_attempts = 0; num_of_attempts < MAX_TRIES; num_of_attempts++ )  // try up to 5 times
     {
         rs485_status = read_Registers( RS485Serial, 0x01, 0x0000, 5, values );  // read registers via Modbus
 
         if ( rs485_status == RS485_GOOD )
-            break;
-        
+        {
 
+            break;
+
+        }
 
         else
         {
             
-            logError( "[RS485] Modbus error" );
+            logError( "[RS485] Register read error" );
 
 #ifdef DEBUG_ENABLED
 
-            DBG( F( "[RS485][ERROR] Modbus error" ) );
+            DBG( F( "[RS485] Register read error" ) );
 #endif
         }
         

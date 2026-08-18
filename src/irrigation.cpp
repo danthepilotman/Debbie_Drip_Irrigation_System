@@ -28,16 +28,26 @@ void solenoid_control()  // apply solenoid state and report
     
     digitalWrite( RELAY_PIN, status.solenoid_state ? HIGH : LOW );  // Apply solenoid state to relay
     
-    if ( status.solenoid_state == ON) 
+    if ( status.solenoid_state == ON)
+    { 
+
         rgb_show_color( BLUE ); // Set LED to BLUE (indicating system is watering)
 
-    else
-        rgb_show_color( BLACK ); // Set LED to off (indicating system is not watering)
-    
-    
+    }
 
+    else
+    {
+
+        rgb_show_color( BLACK ); // Set LED to off (indicating system is not watering)
+        
+    }
+    
     if ( status.wifi_connectivity == true )
+    {
+
         solenoid_state_Update();  // Update TS with watering start/stop events
+
+    }
 
 }
 

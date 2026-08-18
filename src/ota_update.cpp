@@ -6,7 +6,7 @@
 #include <esp_ota_ops.h>  // For OTA update state checking
 
 
-const char *FIRMWARE_VERSION = "1.3.2";  // current firmware version
+const char *FIRMWARE_VERSION = "1.3.3";  // current firmware version
 
 
 bool getFirmwareInfo( String &latestVersion, String &firmwareUrl )
@@ -43,9 +43,13 @@ bool getFirmwareInfo( String &latestVersion, String &firmwareUrl )
 
     if ( err )
     {
+
         logError( "[OTA] JSON parse failed" );
+
         DBG("[OTA] JSON parse failed");
+
         return false;
+
     }
 
     latestVersion = doc["version"].as<String>();
@@ -122,19 +126,21 @@ void performOTA( String url )
 
     t_httpUpdate_return ret = httpUpdate.update(client, url);  // No cert, no client key
 
-    httpUpdate.onEnd([]() {
+    httpUpdate.onEnd([]()
+    {
 
 #ifdef DEBUG_ENABLED
 
                 DBG("OTA update successful, rebooting...");
 
 #endif
-            });
+    });
 
     switch ( ret )
     {
         case HTTP_UPDATE_FAILED:
             sprintf( buff, "OTA Failed: %s\n", httpUpdate.getLastErrorString().c_str() );
+            logError ( buff );
             display_message( buff, 2000 );
             break;
 
@@ -149,7 +155,8 @@ void performOTA( String url )
             break;
     }
 
-    httpUpdate.onEnd([]() {
+    httpUpdate.onEnd([]()
+    {
 
 #ifdef DEBUG_ENABLED
 
@@ -166,7 +173,13 @@ void checkForOTAUpdate()
     String firmwareUrl;
 
     if ( getFirmwareInfo( latestVersion, firmwareUrl ) == false )
+    {
+        
+        logError ( "[OTA] Unable to obtain firwmare info" );
+
         return;
+
+    }
 
 #ifdef DEBUG_ENABLED
 
@@ -245,10 +258,9 @@ void check_ota_state()
           
                 display_message("[OTA] Firmware confirmed successfully");
             }
+
             else
             {
-
-                
 
 #ifdef DEBUG_ENABLED
 
@@ -257,9 +269,13 @@ void check_ota_state()
 #endif
                
                 char buff[256];
+
                 sprintf( buff, "[OTA] Failed to confirm firmware:\r\n%s", esp_err_to_name(err) );
+
                 logError ( buff );
+
                 display_message( buff );
+                
             }
 
         }

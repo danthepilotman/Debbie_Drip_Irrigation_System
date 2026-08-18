@@ -213,14 +213,15 @@ void setup_NTP()
 
   struct tm timeinfo; // allocate time info struct
 
-  uint8_t tries = 0; // retry counter for NTP
-
   configTzTime( timeZone, ntpServer_1, ntpServer_2, ntpServer_3 ); // configure timezone and NTP servers
 
-  display_message( "[NTP] Obtaining time from NTP server\r\n"  );
+  display_message( "[NTP] Obtaining time from NTP server\r\n" );
 
-  while( getLocalTime( &timeinfo ) == false && tries < 5 ) // attempt to get time with retries
+  for ( uint8_t tries = 0; tries < 5; ++tries )
   {
+
+    if ( getLocalTime( &timeinfo ) == true )
+      break;
 
 #ifdef DEBUG_ENABLED
 
@@ -228,17 +229,21 @@ void setup_NTP()
 
 #endif
 
-    logError( "[NTP] Failed to obtain time from NTP server" );
- 
     display_message( "[NTP] Failed to obtain time from NTP server\r\n"  );
 
-    tries++;  // retry a few times
+      // retry a few times
   }
 
   
   if ( getLocalTime( &timeinfo ) == false ) // final check after retries
-    return; // give up if still no time
-    
+  {
+
+    logError( "[NTP] Failed to obtain time from NTP server" );
+
+    return; // give up if still no ti
+
+  }
+      
   else
   {
 

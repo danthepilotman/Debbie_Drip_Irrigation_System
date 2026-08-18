@@ -129,6 +129,7 @@ bool getNWSForecast( JsonDocument &doc )
 
     if ( err != DeserializationError::Ok )
     {
+
 #ifdef DEBUG_ENABLED
 
         DBGf( "[WEATHER] JSON parse failed: %s\r\n", err.c_str() );
@@ -137,7 +138,9 @@ bool getNWSForecast( JsonDocument &doc )
 
         snprintf( buff, sizeof( buff ), "JSON parse failed: %s\r\n", err.c_str() );
 
-        display_message( buff, 2000 );  // Display OLED erro message
+        logError ( buff );  // Log error message
+
+        display_message( buff, 2000 );  // Display OLED error message
 
         return false;  // Return false since Json deserialization failed
     }
@@ -243,6 +246,9 @@ bool rainExpectedSoon()
         if( i == MAX_TRIES)  // Check if attempts have been exhausted
         {
             avg_precip_prob = -2;  // Set error code value
+
+            logError ( "[WX] Could not obtain NWS forecast");
+
             return false;  // Retrun false since forecast was unavailable
         }
         
@@ -291,7 +297,7 @@ bool rainExpectedSoon()
 
         display_message( "[WEATHER] No forecast periods found", 2000 );
 
-        return false;  // Return false if we couldn't retreive any valid hourly PoP values
+        return false;  // Return false if we couldn't retrieve any valid hourly PoP values
     }
 
     else

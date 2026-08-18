@@ -25,11 +25,20 @@ bool applyLocalSettings()
         return false;  // Return false if local settings file doesn't exist
     }
 
+    DeserializationError error =  deserializeJson( local_doc, file );
 
-    if ( deserializeJson( local_doc, file ) != DeserializationError::Ok )  // Deserialize JSON from file into document
+    if ( error != DeserializationError::Ok )  // Deserialize JSON from file into document
     {
+        char buff[512];
+
+        snprintf ( buff, sizeof ( buff ), "[SETTINGS] Local JSON parse failed: %s", error.c_str() );  // Build message
+
+        logError ( buff );
+
         file.close();  // Close file
+
         return false; // Return false on deserialization error
+
     }
 
     file.close();
@@ -74,6 +83,12 @@ bool getServerSettings()
     if ( httpCode != HTTP_CODE_OK )  // Check for successful response
     {
 
+        char buff[512];  // Message buffer
+        
+        snprintf ( buff, sizeof ( buff ), "[SETTINGS] HTTP GET failed: %d", httpCode );  // Build message
+        
+        logError ( buff );  // Log to error file
+
 #ifdef DEBUG_ENABLED
         DBGf("[SETTINGS] HTTP GET failed: %d", httpCode);
 #endif
@@ -93,11 +108,20 @@ bool getServerSettings()
 
     if ( error !=DeserializationError::Ok ) // Check for deserialization errors
     {
+
+        char buff[512];  // Message buffer
+        
+        snprintf ( buff, sizeof ( buff ), "[SETTINGS] Server JSON parse failed: %s", error.c_str() );  // Build message
+        
+        logError ( buff );  // Log to error file
+
 #ifdef DEBUG_ENABLED
-        DBGf("[SETTINGS] JSON parse failed: %s", error.c_str());
+
+        DBGf("[SETTINGS] JSON parse failed: %s", error.c_str());  // Print debug statement
 #endif
 
         http.end();  // Free resources
+
         return false;  // Return false on failure
     }
 
@@ -211,6 +235,8 @@ void applyDownloadedSettings( JsonDocument &server_doc )
 
     if ( saveLocalSettings( server_doc ) == false )  // Check if saving settings to FS was successful
     {
+
+        logError ( "[SETTINGS] Failed to save local settings" );
 
 #ifdef DEBUG_ENABLED
         DBG(F("[SETTINGS] Failed to save local settings"));
@@ -327,7 +353,7 @@ void solenoid_state_Update()  // Report solenoid state to server
 #else
 
     // Check WiFi connection status
-    if (WiFi.status() == WL_CONNECTED)
+    if ( WiFi.status() == WL_CONNECTED )
     {
 
         WiFiClient client;
@@ -335,7 +361,6 @@ void solenoid_state_Update()  // Report solenoid state to server
         HTTPClient http;
 
         char buff[256];
-
 
         // --------------------------------------------------
         // Create status message
@@ -374,7 +399,7 @@ void solenoid_state_Update()  // Report solenoid state to server
 
 
         // Specify destination
-        http.begin(client, postServerName);
+        http.begin( client, postServerName );
 
 
         // Send HTTP POST request
@@ -546,18 +571,22 @@ bool uploadErrorLog()
         {
             uploadSuccessful = true;
         }
+
         else
         {
             Serial.println( "Server did not confirm error log receipt" );
         }
     }
+
     else
     {
+        logError ( "[FS] Error log upload failed." );
+        
         Serial.printf( "Error log upload failed. HTTP code: %d\n", httpCode );
 
         if ( httpCode < 0 )
         {
-            Serial.printf( "HTTP error: %s\n", http.errorToString(httpCode).c_str() );
+            Serial.printf( "HTTP error: %s\n", http.errorToString( httpCode ).c_str() );
         }
     }
 
@@ -579,12 +608,14 @@ bool uploadErrorLog()
 
         return true;
     }
+
     else
     {
 
     Serial.println( "Error log retained because upload was not confirmed" );
 
     return false;
+
     }
 
 }

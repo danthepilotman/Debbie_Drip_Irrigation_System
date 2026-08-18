@@ -54,7 +54,7 @@ String Timestamp( const char* format )  // Get formatted timestamp string)
 bool initFlashFS()  // Initialize LittleFS
 {
 
-  if ( LittleFS.begin(true) == false )
+  if ( LittleFS.begin( true ) == false )
   {   // true = format if failed
 
 
@@ -65,6 +65,7 @@ bool initFlashFS()  // Initialize LittleFS
 #endif
 
     return false;
+
   }
   
 #ifdef DEBUG_ENABLED
@@ -271,15 +272,17 @@ void check_button_press()
 
   if ( buttonPressed )
   {
+
     buttonPressed = false;
 
     unsigned long now = millis();
 
-    if (now - lastButtonTime > debounceDelay)
+    if ( now - lastButtonTime > debounceDelay )
     {
+
       lastButtonTime = now;
 
-      currentPage = (Page)((currentPage + 1) % NUM_OF_PAGES);  // Cycle pages
+      currentPage = Page( ( currentPage + 1 ) % NUM_OF_PAGES );  // Cycle pages
 
     }
 
@@ -316,17 +319,23 @@ void handle_sample_state()
 // ==================================================
 bool getForecastTimes( const char *startTime, time_t &forecast_time, time_t &current_hour )
 {
+
   if ( startTime == nullptr )
+  {
+
     return false;
+
+  }
 
   int year, month, day, hour, minute, second;
     
   // NWS format: 2026-08-04T18:00:00-04:00
   if ( sscanf( startTime, "%d-%d-%dT%d:%d:%d", &year, &month, &day, &hour, &minute, &second ) != 6 )
   {
-    return false;
-  }
 
+    return false;
+
+  }
 
   /************************** Convert NWS forecast time to epoch time *****************************/
  
