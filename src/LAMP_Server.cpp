@@ -5,11 +5,11 @@
 #include "setup.h"  // status_str.wattering_needed variable
 
 
-const char* postServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/post-esp-data.php";
+const char* postServerName =         "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/post-esp-data.php";
 
-const char* settingsServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/get_settings.php";
+const char* settingsServerName =     "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/get_settings.php";
 
-const char* postErrorLogServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/logs/post-error-log.php";
+const char* postErrorLogServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/post-error-log.php";
 
 const char* logFileName = "/error_log.txt";
 
@@ -510,6 +510,7 @@ void sendServerUpdate()
 
 void logError( const char* errortext )
 {
+
   File file = LittleFS.open( logFileName, FILE_APPEND );  // Open file for appending
 
   if ( !file )
@@ -533,7 +534,7 @@ bool uploadErrorLog()
 {
 
     // Make sure the log file exists and contains something
-    if ( !LittleFS.exists( logFileName ) )
+    if ( LittleFS.exists( logFileName ) == false )
     {
         Serial.println( "No error log to upload" );
         return true;
