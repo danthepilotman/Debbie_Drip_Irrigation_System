@@ -121,7 +121,7 @@ bool getNWSForecast( JsonDocument &doc )
         else
         {
 
-           snprintf( buff, sizeof( buff ), "[WX] HTTP GET failed: %s\n", http.errorToString( code ).c_str() ); 
+           snprintf( buff, sizeof( buff ), "[WX] HTTP GET failed: %s", http.errorToString( code ).c_str() ); 
 
            logError( buff );
            
@@ -142,11 +142,11 @@ bool getNWSForecast( JsonDocument &doc )
     if ( err != DeserializationError::Ok )
     {
 
-        snprintf( buff, sizeof( buff ), "[WX] JSON parse failed: %s\r\n", err.c_str() );
+        snprintf( buff, sizeof( buff ), "[WX] JSON parse failed: %s", err.c_str() );
 
 #ifdef DEBUG_ENABLED
 
-        DBGf( "[WX] JSON parse failed: %s\r\n", err.c_str() );
+        DBG( "[WX] JSON parse failed: %s\r\n", err.c_str() );
 
 #endif
 
