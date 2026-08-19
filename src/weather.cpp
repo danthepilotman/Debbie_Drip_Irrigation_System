@@ -31,11 +31,11 @@ bool getNWSForecast( JsonDocument &doc )
 
 #ifdef DEBUG_ENABLED
 
-    DBG( F( "[WEATHER] Getting NWS forecast" ) );
+    DBG( F( "[WX] Getting NWS forecast" ) );
 
 #endif
 
-    display_message( "[WEATHER] Getting NWS forecast\r\n" );
+    display_message( "[WX] Getting NWS forecast\r\n" );
 
 #ifdef DEBBIE_HOUSE
 
@@ -47,6 +47,15 @@ bool getNWSForecast( JsonDocument &doc )
 
 #endif
 
+    // --------------------------------------------------
+    // JSON FILTER
+    // --------------------------------------------------
+
+    JsonDocument filter;  // Create filter object
+
+    filter["properties"]["periods"][0]["startTime"] = true;  // Define startTime filter
+
+    filter["properties"]["periods"][0]["probabilityOfPrecipitation"]["value"] = true;  // Define PoP filter
 
     // --------------------------------------------------
     // HTTP SETUP
@@ -62,60 +71,20 @@ bool getNWSForecast( JsonDocument &doc )
 
     http.useHTTP10( true );
 
-    http.addHeader( F( "User-Agent" ), F( "ESP32_Irrigation_Controller" ) );
+    http.setUserAgent( F("ESP32 Irrigation Controller") );
 
     http.addHeader( F( "Accept" ), F( "application/geo+json" ) );
 
-    http.begin( client, url );
+    if ( http.begin( client, url ) == false )
+    {
+        logError ( "[WX] HTTP begin failed" );
+    }
 
     // --------------------------------------------------
     // HTTP GET
     // --------------------------------------------------
 
     int code = http.GET();
-
-
-#ifdef DEBUG_ENABLED
-
-    DBGf( "[WEATHER] HTTP code: %d\r\n", code );
-
-#endif
-
-    char buff[256];
-
-    snprintf( buff, sizeof( buff ), "[WEATHER] HTTP code: %d\r\n", code );
-
-    display_message( buff );
-
-
-    if ( code != HTTP_CODE_OK )
-    {
-        http.end();  // Kill http connection
-
-        logError( "[WEATHER] HTTP request failed" );
-
-#ifdef DEBUG_ENABLED
-
-        DBG( F( "[WEATHER] HTTP request failed" ) );
-
-#endif
-
-        display_message( "[WEATHER] HTTP request failed", 2000 );  // Show error mesage on OLED
-
-        return false;  // Return false since http request was NOT successful
-    }
-
-
-    // --------------------------------------------------
-    // JSON FILTER
-    // --------------------------------------------------
-
-    JsonDocument filter;  // Create filter object
-
-    filter["properties"]["periods"][0]["startTime"] = true;  // Define startTime filter
-
-    filter["properties"]["periods"][0]["probabilityOfPrecipitation"]["value"] = true;  // Define PoP filter
-
 
     // --------------------------------------------------
     // STREAM DESERIALIZE
@@ -126,17 +95,60 @@ bool getNWSForecast( JsonDocument &doc )
 
     http.end();  // Kill http connection once Json is deserialized
 
-
-    if ( err != DeserializationError::Ok )
-    {
-
+    
 #ifdef DEBUG_ENABLED
 
-        DBGf( "[WEATHER] JSON parse failed: %s\r\n", err.c_str() );
+    DBGf( "[WX] HTTP code: %d\r\n", code );
 
 #endif
 
-        snprintf( buff, sizeof( buff ), "JSON parse failed: %s\r\n", err.c_str() );
+    char buff[256];
+
+    snprintf( buff, sizeof( buff ), "[WX] HTTP code: %d\r\n", code );
+
+    display_message( buff );
+
+    if ( code != HTTP_CODE_OK )
+    {
+    
+        if ( code > 0 )
+        {
+
+            logError( buff );
+
+        }
+
+        else
+        {
+
+           snprintf( buff, sizeof( buff ), "[WX] HTTP GET failed: %s\n", http.errorToString( code ).c_str() ); 
+
+           logError( buff );
+           
+        }
+
+#ifdef DEBUG_ENABLED
+
+        DBG( F( "[WX] HTTP request failed" ) );
+
+#endif
+
+        display_message( buff, 2000 );  // Show error message on OLED
+
+        return false;  // Return false since http request was NOT successful
+    }
+
+   
+    if ( err != DeserializationError::Ok )
+    {
+
+        snprintf( buff, sizeof( buff ), "[WX] JSON parse failed: %s\r\n", err.c_str() );
+
+#ifdef DEBUG_ENABLED
+
+        DBGf( "[WX] JSON parse failed: %s\r\n", err.c_str() );
+
+#endif
 
         logError ( buff );  // Log error message
 
@@ -146,7 +158,7 @@ bool getNWSForecast( JsonDocument &doc )
     }
 
 
-    return true;  // If you made it this far the NWS forecast PoP values were succesfully obtained
+    return true;  // If you made it this far the NWS forecast PoP values were successfully obtained
 }
 
 
@@ -287,15 +299,15 @@ bool rainExpectedSoon()
     {
         avg_precip_prob = -1;
 
-        logError( "[WEATHER] No forecast periods found" );
+        logError( "[WX] No forecast periods found" );
 
 #ifdef DEBUG_ENABLED
 
-        DBG( F( "[WEATHER] No forecast periods found" ) );
+        DBG( F( "[WX] No forecast periods found" ) );
 
 #endif
 
-        display_message( "[WEATHER] No forecast periods found", 2000 );
+        display_message( "[WX] No forecast periods found", 2000 );
 
         return false;  // Return false if we couldn't retrieve any valid hourly PoP values
     }
@@ -308,7 +320,7 @@ bool rainExpectedSoon()
     
 #ifdef DEBUG_ENABLED
 
-    DBGf( "[WEATHER] Average PoP: %.1f%%\r\n", avg_precip_prob );
+    DBGf( "[WX] Average PoP: %.1f%%\r\n", avg_precip_prob );
 
 #endif
 
