@@ -13,6 +13,8 @@ const char* postErrorLogServerName = "http://dldesigns.doesntexist.com:30/LAMP-S
 
 const char* logFileName = "/error_log.txt";
 
+const uint8_t IRRIGATION_ZONE = 1;
+
 
 bool applyLocalSettings()
 {
@@ -388,7 +390,8 @@ void solenoid_state_Update()  // Report solenoid state to server
         // --------------------------------------------------
 
         String httpRequestData =
-              "solenoid_state=" + String( status.solenoid_state ? 1 : 0 )
+            String( "zone=" ) + String( IRRIGATION_ZONE )
+            + "&solenoid_state=" + String( status.solenoid_state ? 1 : 0 )
             + "&WiFi_RSSI=" + String( WiFi_RSSI )
             + "&status_message=" + encodedStatus
             + "&time_stamp=" + Timestamp( "%Y-%m-%d %H:%M:%S" );
@@ -459,7 +462,8 @@ void sendServerUpdate()
 
 
         String httpRequestData =
-              "moisture_wvc=" + String(soil.moisture, 1)
+            String( "zone=" ) + String( IRRIGATION_ZONE )
+            +  "&moisture_wvc=" + String(soil.moisture, 1)
             + "&temperature=" + String(soil.temp, 1)
             + "&ec=" + String(soil.ec)
             + "&ph=" + String( soil.pH, 1 )
