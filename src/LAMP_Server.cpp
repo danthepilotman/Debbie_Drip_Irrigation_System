@@ -390,7 +390,7 @@ void solenoid_state_Update()  // Report solenoid state to server
         // --------------------------------------------------
 
         String httpRequestData =
-            String( "zone=" ) + String( IRRIGATION_ZONE )
+            "zone=" + String( IRRIGATION_ZONE )
             + "&solenoid_state=" + String( status.solenoid_state ? 1 : 0 )
             + "&WiFi_RSSI=" + String( WiFi_RSSI )
             + "&status_message=" + encodedStatus
@@ -462,7 +462,7 @@ void sendServerUpdate()
 
 
         String httpRequestData =
-            String( "zone=" ) + String( IRRIGATION_ZONE )
+            "zone=" + String( IRRIGATION_ZONE )
             +  "&moisture_wvc=" + String(soil.moisture, 1)
             + "&temperature=" + String(soil.temp, 1)
             + "&ec=" + String(soil.ec)
