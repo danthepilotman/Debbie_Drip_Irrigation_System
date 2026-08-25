@@ -306,54 +306,6 @@ bool saveLocalSettings( JsonDocument &server_doc )  // Save settings to FS
 void solenoid_state_Update()  // Report solenoid state to server
 {
 
-#ifdef THINGSPEAK_ENABLE
-
-    const char* url = "https://api.thingspeak.com/update";
-
-    status.status_str = String("Watering ") +
-                        String(status.solenoid_state ? "started " : "stopped ") +
-                        Timestamp();
-
-    char status_c[128];
-
-    urlEncode(status.status_str).toCharArray(status_c, sizeof(status_c));
-
-#ifdef DEBUG_ENABLED
-
-    DBGf("[IRRIGATION] Solenoid is now %s",
-         status.solenoid_state ? "ON\r\n" : "OFF\r\n");
-
-#endif
-
-    // Build ThingSpeak POST body
-    String postData = "api_key=" + String(TS_WRITE_KEY);
-    postData += "&field8=" + String(status.solenoid_state ? 1 : 0);
-    postData += "&status=" + String(status_c);
-
-#ifdef DEBUG_ENABLED
-
-    DBGf("[THINGSPEAK] POST body: %s\r\n", postData.c_str());
-
-#endif
-
-    ThingSpeakResponse resp = tsClient.postWithRetry(
-        url,
-        postData,
-        MAX_TRIES,
-        TS_PROCESS_DELAY
-    );
-
-#ifdef DEBUG_ENABLED
-
-    DBGf("[THINGSPEAK] HTTP code: %d, payload: %s\r\n",
-         resp.httpCode,
-         resp.body.c_str());
-
-#endif
-
-
-#else
-
     // Check WiFi connection status
     if ( WiFi.status() == WL_CONNECTED )
     {
@@ -401,30 +353,39 @@ void solenoid_state_Update()  // Report solenoid state to server
         http.addHeader( F("Content-Type"), F("application/x-www-form-urlencoded" ) );
 
 
-        // Specify destination
-        http.begin( client, postServerName );
+       for ( uint8_t i = 0; i < MAX_TRIES; ++i )
+       {
 
+            http.begin( client, postServerName );  // Specify destination
 
-        // Send HTTP POST request
-        int httpResponseCode = http.POST( httpRequestData );
+            int httpResponseCode = http.POST( httpRequestData );  // Send HTTP POST request and get response code
 
+            sprintf( buff, "[IRRIGATION] DB solenoid state POST failed. HTTP code: %d", httpResponseCode );  // Build OLED message
 
-        sprintf( buff, "HTTP code:\r\n%d", httpResponseCode );
+            display_message( buff, 2000 );  // Show OLED message
 
-        display_message( buff, 2000 );
+            http.end();  // Close HTTP connection
 
-        http.end();
+            if ( httpResponseCode == HTTP_CODE_OK )  // Check HTTP post response code
+            {
+                break;  // End loop if we successfully posted an update
+            }
+
+            else
+            {
+                logError( buff );
+            }
+       
+        }
 
     }
 
     else
     {
-        logError( "WiFi Disconnected" );
+        logError( "[WIFI] Disconnected" );
 
-        display_message( "WiFi Disconnected", 2000 );
+        display_message( "[WIFI] Disconnected", 2000 );
     }
-
-#endif  // THINGSPEAK_ENABLE
 
 }
 
@@ -432,8 +393,7 @@ void solenoid_state_Update()  // Report solenoid state to server
 void sendServerUpdate()
 {
 
-    // Check WiFi connection status
-    if ( WiFi.status() == WL_CONNECTED )
+    if ( WiFi.status() == WL_CONNECTED )   // Check WiFi connection status
     {
 
         WiFiClient client;
@@ -458,19 +418,19 @@ void sendServerUpdate()
                           + String( status.watering_needed ? "" : "Watering skipped. " ) + 
                           + "SW: v" + String( FIRMWARE_VERSION );
         
-        String encodedStatus = urlEncode(status.status_str);
+        String encodedStatus = urlEncode( status.status_str );
 
 
         String httpRequestData =
             "zone=" + String( IRRIGATION_ZONE )
-            +  "&moisture_wvc=" + String(soil.moisture, 1)
-            + "&temperature=" + String(soil.temp, 1)
-            + "&ec=" + String(soil.ec)
+            + "&moisture_wvc=" + String( soil.moisture, 1 )
+            + "&temperature=" + String( soil.temp, 1 )
+            + "&ec=" + String( soil.ec )
             + "&ph=" + String( soil.pH, 1 )
-            + "&nitrogen=" + String(soil.N)
-            + "&potassium=" + String(soil.K)
-            + "&phosphorus=" + String(soil.P)
-            + "&solenoid_state=" + String(status.solenoid_state ? 1 : 0)
+            + "&nitrogen=" + String( soil.N )
+            + "&potassium=" + String( soil.K )
+            + "&phosphorus=" + String( soil.P )
+            + "&solenoid_state=" + String( status.solenoid_state ? 1 : 0 )
             + "&average_PoP=" + String( avg_precip_prob, 1 )
             + "&WiFi_RSSI=" + String( WiFi_RSSI )
             + "&status_message=" + encodedStatus
@@ -481,32 +441,43 @@ void sendServerUpdate()
         http.addHeader( F("Content-Type"), F("application/x-www-form-urlencoded") );
 
 
-        // Specify destination
-        http.begin(client, postServerName);
+        for( uint8_t i = 0; i < MAX_TRIES; ++i )
+        {
+            http.begin( client, postServerName );  // Specify destination
 
+            int httpResponseCode = http.POST( httpRequestData );  // Send POST data and receive response
 
-        // Send HTTP POST request
-        int httpResponseCode = http.POST( httpRequestData );
+            http.end();  // Close HTTP connection
 
 #ifdef DEBUG_ENABLED
 
-        DBGf("DB POST HTTP code: %d\r\n", httpResponseCode );
+            DBGf("DB POST HTTP code: %d\r\n", httpResponseCode );
 
 #endif
 
-        sprintf( buff, "DB POST HTTP code:\r\n%d", httpResponseCode );
+            sprintf( buff, "[IRRIGATION] DB soil readings POST failed. HTTP code: %d", httpResponseCode );  // Build OLED message
 
-        display_message(buff, 2000);
+            display_message( buff, 2000 );  // Show OLED message
 
-        http.end();
+            if ( httpResponseCode == HTTP_CODE_OK )  // Check HTTP post response code
+            {
+                break;  // End loop if we successfully posted an update
+            }
+
+            else
+            {
+                logError( buff );
+            }
+
+        }
 
     }
 
     else
     {
-        logError( "WiFi Disconnected" );
+        logError( "[WIFI] Disconnected" );
 
-        display_message("WiFi Disconnected", 2000);
+        display_message( "[WIFI] Disconnected", 2000 );
     }
 
 }
