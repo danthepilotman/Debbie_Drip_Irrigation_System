@@ -20,11 +20,13 @@ bool applyLocalSettings()
 {
     JsonDocument local_doc;
 
-    File file = LittleFS.open("/irrigation_settings.json", FILE_READ );  // Open settings file for reading
+    File file = LittleFS.open( "/irrigation_settings.json", FILE_READ );  // Open settings file for reading
 
     if ( !file )
     {
-        return false;  // Return false if local settings file doesn't exist
+        logError ( "[FS] Couldn't open irrigation_settings.json" );
+
+        return false;  // Return false if local settings file can't be opened
     }
 
     DeserializationError error =  deserializeJson( local_doc, file );
@@ -33,7 +35,7 @@ bool applyLocalSettings()
     {
         char buff[512];
 
-        snprintf ( buff, sizeof ( buff ), "[SETTINGS] Local JSON parse failed: %s", error.c_str() );  // Build message
+        snprintf ( buff, sizeof ( buff ), "[SETTINGS] irrigation_settings.json parse failed: %s", error.c_str() );  // Build message
 
         logError ( buff );
 
@@ -47,7 +49,7 @@ bool applyLocalSettings()
 
     settings.moisture_threshold = local_doc["moisture_threshold"] | 54.5;
     settings.watering_duration_sec  = local_doc["watering_duration"]  | 3600;
-    settings.min_precip_prob    = local_doc["min_precip_prob"]    | 60.0;
+    settings.min_precip_prob = local_doc["min_precip_prob"]    | 60.0;
 
     JsonArray times = local_doc["times"];
 
@@ -78,75 +80,68 @@ bool getServerSettings()
 {
     HTTPClient http;
 
-    http.begin( settingsServerName );  // Specify destination for HTTP request
-
-    int httpCode = http.GET();  // Send HTTP GET request
-
-    if ( httpCode != HTTP_CODE_OK )  // Check for successful response
-    {
-
-        char buff[512];  // Message buffer
-        
-        snprintf ( buff, sizeof ( buff ), "[SETTINGS] HTTP GET failed: %d", httpCode );  // Build message
-        
-        logError ( buff );  // Log to error file
-
-#ifdef DEBUG_ENABLED
-        DBGf("[SETTINGS] HTTP GET failed: %d", httpCode);
-#endif
-
-        http.end();  // Free resources
-        return false; // Return false on failure
-    }
-
-
-    //--------------------------------------------------
-    // Deserialize HTTP response directly into JSON doc
-    //--------------------------------------------------
-
     JsonDocument server_doc; // Create a JSON document to hold the response
 
-    DeserializationError error = deserializeJson( server_doc, http.getStream() );  // Deserialize JSON from HTTP response stream to JsonDocument
 
-    if ( error !=DeserializationError::Ok ) // Check for deserialization errors
+    for ( uint8_t i = 0; i <= MAX_TRIES; ++i )
     {
-
-        char buff[512];  // Message buffer
+    
+        if ( i == MAX_TRIES )
+        {
+            return false; // Return false on failure
+        }
         
-        snprintf ( buff, sizeof ( buff ), "[SETTINGS] Server JSON parse failed: %s", error.c_str() );  // Build message
-        
-        logError ( buff );  // Log to error file
+        http.begin( settingsServerName );  // Specify destination for HTTP request
 
-#ifdef DEBUG_ENABLED
+        int httpCode = http.GET();  // Send HTTP GET request
 
-        DBGf("[SETTINGS] JSON parse failed: %s", error.c_str());  // Print debug statement
-#endif
+        //--------------------------------------------------
+        // Deserialize HTTP response directly into JSON doc
+        //--------------------------------------------------
+
+        DeserializationError error = deserializeJson( server_doc, http.getStream() );  // Deserialize JSON from HTTP response stream to JsonDocument
 
         http.end();  // Free resources
 
-        return false;  // Return false on failure
+        
+        if ( httpCode != HTTP_CODE_OK )  // Check for successful response
+        {
+
+            char buff[512];  // Message buffer
+                
+            snprintf ( buff, sizeof ( buff ), "[SETTINGS] HTTP GET failed: %d", httpCode );  // Build message
+                
+            logError ( buff );  // Log to error file
+
+#ifdef DEBUG_ENABLED
+            DBGf("[SETTINGS] HTTP GET failed: %d", httpCode);
+#endif
+                
+        }
+        
+        if ( error !=DeserializationError::Ok ) // Check for deserialization errors
+        {
+
+            char buff[512];  // Message buffer
+            
+            snprintf ( buff, sizeof ( buff ), "[SETTINGS] Server JSON parse failed: %s", error.c_str() );  // Build message
+            
+            logError ( buff );  // Log to error file
+
+    #ifdef DEBUG_ENABLED
+
+            DBGf("[SETTINGS] JSON parse failed: %s", error.c_str());  // Print debug statement
+    #endif
+
+        }
+
     }
-
-
-    //--------------------------------------------------
-    // HTTP connection no longer needed
-    //--------------------------------------------------
-
-    http.end(); // Free resources
-
-
-    //--------------------------------------------------
-    // Check server timestamp
-    //--------------------------------------------------
-
-    const char *serverUpdated = server_doc["updated"] | "";  // Get server timestamp, default to empty string if not present
-
 
     //--------------------------------------------------
     // Determine whether server has newer settings
     //--------------------------------------------------
 
-    if ( serverSettingsAreNewer( serverUpdated ) )  // Compare server timestamp with local timestamp
+    if ( serverSettingsAreNewer( server_doc["updated"] | "" ) )  // Compare server timestamp with local timestamp
     {
 
         applyDownloadedSettings( server_doc );  // Apply new settings from server
@@ -176,8 +171,6 @@ bool serverSettingsAreNewer( const char *serverUpdated )
         return false;  // If server timestamp is null or empty, apply local settings
     }
 
-   
-   
     return strcmp( serverUpdated, settings.updated ) > 0;  // Return true if server timestamp is newer than local timestamp
 
 }
