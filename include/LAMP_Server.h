@@ -23,6 +23,7 @@ void sendServerUpdate(); // send update to server
 void solenoid_state_Update();  // report solenoid state
 void sendServerUpdate();  // send soil readings updates to server
 void logToFile( const char* text, const char* fileName ); // log text to file
-bool uploadFile( const char* fileName, const char* postServerName ); // Upload file to LAMP server
+bool uploadFile( const char* fileName ); // Upload file to LAMP server
+void logSettings( const char *source );  // Log settings to a local file
 
 #endif

@@ -5,43 +5,13 @@
 #include "setup.h"  // status_str.wattering_needed variable
 
 
-const char* postServerName =         "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/post-esp-data.php";
-
-const char* settingsServerName =     "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/get_settings.php";
-
-const char* postErrorLogServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/post-error-log.php";
-
-const char* postDebugLogServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/post-debug-log.php";
+const char* postServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/";
 
 const char* errorlogFileName = "/error_log.txt";
 
 const char* debuglogFileName = "/debug_log.txt";
 
 const uint8_t IRRIGATION_ZONE = 1;
-
-
-
-
-void logSettings( const char *source )
-{
-
-    char buff[512];
-
-    snprintf(
-        buff,
-        sizeof(buff),
-        "[SETTINGS] %s: threshold=%.1f duration=%lu minPoP=%.1f updated=%s",
-        source,
-        settings.moisture_threshold,
-        settings.watering_duration_sec,
-        settings.min_precip_prob,
-        settings.updated
-        );
-
-   logToFile( buff, debuglogFileName );
-
-}
-
 
 
 bool getServerSettings()
@@ -59,7 +29,9 @@ bool getServerSettings()
             return false; // Return false on failure
         }
         
-        http.begin( settingsServerName );  // Specify destination for HTTP request
+        const String url = String( postServerName ) + String ( "get_settings.php" );
+        
+        http.begin( url );  // Specify destination for HTTP request
 
         int httpCode = http.GET();  // Send HTTP GET request
 
@@ -101,7 +73,7 @@ bool getServerSettings()
             snprintf(
                 buff,
                 sizeof(buff),
-                "[SETTINGS] Server: threshold=%.1f duration=%lu minPoP=%.1f updated=%s",
+                "[SETTINGS] Server doc: threshold=%.1f duration=%lu minPoP=%.1f updated=%s",
                 server_doc["moisture_threshold"] | 0.0,
                 server_doc["watering_duration"] | 0UL,
                 server_doc["min_precip_prob"] | 0.0,
@@ -183,7 +155,7 @@ bool serverSettingsAreNewer( const char *serverUpdated )
     }
 
     // Log timestamp comparison
-    int comparison = strcmp(serverUpdated, settings.updated);
+    int comparison = strcmp( serverUpdated, settings.updated );
 
     snprintf(
         buff,
@@ -258,7 +230,7 @@ bool applyLocalSettings()
     
 #endif
 
-    logSettings("local"); // Log settings after applying local json values
+    logSettings( "Local" ); // Log settings after applying local json values
 
     return true;
 }
@@ -310,7 +282,7 @@ void applyDownloadedSettings( JsonDocument &server_doc )
 
     strlcpy( settings.updated, server_doc["updated"] | settings.updated, sizeof( settings.updated ) );  // Copy server timestamp to local settings, default to empty string if not present
 
-    logSettings("server");  // Log settings after updating from server file
+    logSettings( "Server" );  // Log settings after updating from server file
 
 
     //--------------------------------------------------
@@ -320,7 +292,7 @@ void applyDownloadedSettings( JsonDocument &server_doc )
     if ( saveLocalSettings( server_doc ) == false )  // Check if saving settings to FS was successful
     {
 
-       logToFile ( "[FS] Failed to save local settings", errorlogFileName );
+       logToFile ( "[FS] Failed to save updated server settings to local file", errorlogFileName );
 
 #ifdef DEBUG_ENABLED
         DBG(F("[SETTINGS] Failed to save local settings"));
@@ -331,7 +303,7 @@ void applyDownloadedSettings( JsonDocument &server_doc )
     else
     {
 
-       logToFile( "[FS] Saved updated local settings", debuglogFileName );
+       logToFile( "[FS] Successfully saved updated server settings to local file", debuglogFileName );
 
 #ifdef DEBUG_ENABLED
         DBG(F("[SETTINGS] New settings saved locally"));
@@ -385,6 +357,27 @@ bool saveLocalSettings( JsonDocument &server_doc )  // Save settings to FS
 }
 
 
+void logSettings( const char *source )
+{
+
+    char buff[512];
+
+    snprintf(
+        buff,
+        sizeof(buff),
+        "[SETTINGS] %s: threshold=%.1f duration=%lu minPoP=%.1f updated=%s",
+        source,
+        settings.moisture_threshold,
+        settings.watering_duration_sec,
+        settings.min_precip_prob,
+        settings.updated
+        );
+
+   logToFile( buff, debuglogFileName );
+
+}
+
+
 void solenoid_state_Update()  // Report solenoid state to server
 {
 
@@ -434,11 +427,12 @@ void solenoid_state_Update()  // Report solenoid state to server
         // Specify content type
         http.addHeader( F("Content-Type"), F("application/x-www-form-urlencoded" ) );
 
+        const String url = String( postServerName ) + String ( "post-esp-data.php" );
 
-       for ( uint8_t i = 0; i < MAX_TRIES; ++i )
-       {
+        for ( uint8_t i = 0; i < MAX_TRIES; ++i )
+        {
 
-            http.begin( client, postServerName );  // Specify destination
+            http.begin( client, url );  // Specify destination
 
             int httpResponseCode = http.POST( httpRequestData );  // Send HTTP POST request and get response code
 
@@ -522,10 +516,11 @@ void sendServerUpdate()
         // Specify content type
         http.addHeader( F("Content-Type"), F("application/x-www-form-urlencoded") );
 
+        const String url = String( postServerName ) + String ( "post-esp-data.php" );
 
         for( uint8_t i = 0; i < MAX_TRIES; ++i )
         {
-            http.begin( client, postServerName );  // Specify destination
+            http.begin( client, url );  // Specify destination
 
             int httpResponseCode = http.POST( httpRequestData );  // Send POST data and receive response
 
@@ -580,14 +575,14 @@ void logToFile( const char* text, const char* fileName )
 
   file.print( " - " );  // Add separator
   
-  file.println( text );  // Error message text written to file
+  file.print( text );  // Error message text written to file
 
   file.close();  // Close error log file
 
 }
 
 
-bool uploadFile( const char* fileName, const char* postServerName )
+bool uploadFile( const char* fileName )
 {
 
     // Make sure the log file exists and contains something
@@ -608,7 +603,10 @@ bool uploadFile( const char* fileName, const char* postServerName )
     WiFiClient client;
     HTTPClient http;
 
-    http.begin( client, postServerName );
+    const String url = String( postServerName ) + String ( "post-log.php" );
+
+    http.begin( client, url );
+    http.addHeader( "X-Log-File", fileName );
     http.addHeader( "Content-Type", "text/plain" );
 
     // Send the LittleFS file directly
@@ -640,16 +638,15 @@ bool uploadFile( const char* fileName, const char* postServerName )
     {
         char buff[256];
 
-        snprintf ( buff, sizeof ( buff ), "[FS] %s upload failed.", fileName );  // Build message
+        snprintf ( buff, 
+                   sizeof ( buff ), 
+                   "[FS] %s upload failed. HTTP code: %d - %s\r\n",
+                   fileName, httpCode, http.errorToString( httpCode ).c_str() );  // Build message
 
         logToFile ( buff, errorlogFileName );
         
-        Serial.printf( "File upload failed. HTTP code: %d\n", httpCode );
+        Serial.printf( buff );
 
-        if ( httpCode < 0 )
-        {
-            Serial.printf( "HTTP error: %s\n", http.errorToString( httpCode ).c_str() );
-        }
     }
 
     http.end();

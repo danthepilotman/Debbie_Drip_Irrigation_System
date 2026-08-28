@@ -165,8 +165,8 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
 /*********************************** Send logs before going into deep sleep *****************************************/
 
-    uploadFile( errorlogFileName, postErrorLogServerName ); // Upload error log to LAMP Server
-    uploadFile( debuglogFileName, postDebugLogServerName ); // Upload debug log to LAMP Server
+    uploadFile( errorlogFileName ); // Upload error log to LAMP Server
+    uploadFile( debuglogFileName ); // Upload debug log to LAMP Server
 
 /*********************************** Enter Deep Sleep *****************************************/
 #ifdef DEBUG_ENABLED
