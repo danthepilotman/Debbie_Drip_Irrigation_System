@@ -104,36 +104,20 @@ bool getNWSForecast( JsonDocument &doc )
 
     char buff[256];
 
-    snprintf( buff, sizeof( buff ), "[WX] HTTP code: %d\r\n", code );
+    snprintf( buff, sizeof( buff ), "[WX] HTTP GET result: %d - %s", code, http.errorToString( code ).c_str() );
 
     display_message( buff );
 
     if ( code != HTTP_CODE_OK )
     {
     
-        if ( code > 0 )
-        {
-
-           logToFile( buff, errorlogFileName );
-
-        }
-
-        else
-        {
-
-           snprintf( buff, sizeof( buff ), "[WX] HTTP GET failed: %s", http.errorToString( code ).c_str() ); 
-
-          logToFile( buff, errorlogFileName );
-           
-        }
+        logToFile( buff, errorlogFileName );
 
 #ifdef DEBUG_ENABLED
 
         DBG( F( "[WX] HTTP request failed" ) );
 
 #endif
-
-        display_message( buff, 2000 );  // Show error message on OLED
 
         return false;  // Return false since http request was NOT successful
     }
@@ -150,7 +134,7 @@ bool getNWSForecast( JsonDocument &doc )
 
 #endif
 
-       logToFile ( buff, errorlogFileName );  // Log error message
+        logToFile ( buff, errorlogFileName );  // Log error message
 
         display_message( buff, 2000 );  // Display OLED error message
 
