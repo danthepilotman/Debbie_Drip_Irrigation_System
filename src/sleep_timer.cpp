@@ -171,7 +171,8 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
 #endif
 
-    uploadErrorLog(); // Upload error log to LAMP Server
+    uploadFile( errorlogFileName, postErrorLogServerName ); // Upload error log to LAMP Server
+    uploadFile( debuglogFileName, postDebugLogServerName ); // Upload debug log to LAMP Server
 
     display.clearDisplay();
     display.setCursor( 0, 0 );

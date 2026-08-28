@@ -41,17 +41,18 @@ const char *ntpServer_3 = "north-america.pool.ntp.org"; // tertiary NTP server
 
 
 // Default initialization (optional)
-Settings settings = {
+Settings settings =
+{
     54.5,  // threshold (soil moisture threshold percent)
     3600,  // duration (watering seconds)
     60.0,  // rain_min_Prob (minimum probability of rain)
     {
       {0,0,0},  // times - schedule slot 0
-    {6,0,0},   // schedule slot 1
-    {12,0,0},  // schedule slot 2
-    {18,0,0}  // schedule slot 3
-  },
-  "2024-01-01 00:00:00"  // updated timestamp
+      {6,0,0},   // schedule slot 1
+      {12,0,0},  // schedule slot 2
+      {18,0,0}  // schedule slot 3
+    },
+    "2024-01-01 00:00:00"  // updated timestamp
 };
 
 Soil soil;
@@ -178,7 +179,7 @@ void connect_WiFi()
 
 #endif    
 
-  logError( "[WIFI] Unable to connect to WiFi" );  
+ logToFile( "[WIFI] Unable to connect to WiFi", errorlogFileName );  
 
   display.print(F( "[WIFI] Unable to connect to WiFi" )); 
   display.display();
@@ -238,7 +239,7 @@ void setup_NTP()
   if ( getLocalTime( &timeinfo ) == false ) // final check after retries
   {
 
-    logError( "[NTP] Failed to obtain time from NTP server" );
+   logToFile( "[NTP] Failed to obtain time from NTP server", errorlogFileName );
 
     return; // give up if still no ti
 

@@ -11,69 +11,37 @@ const char* settingsServerName =     "http://dldesigns.doesntexist.com:30/LAMP-S
 
 const char* postErrorLogServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/post-error-log.php";
 
-const char* logFileName = "/error_log.txt";
+const char* postDebugLogServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/post-debug-log.php";
+
+const char* errorlogFileName = "/error_log.txt";
+
+const char* debuglogFileName = "/debug_log.txt";
 
 const uint8_t IRRIGATION_ZONE = 1;
 
 
-bool applyLocalSettings()
+
+
+void logSettings( const char *source )
 {
-    JsonDocument local_doc;
 
-    File file = LittleFS.open( "/irrigation_settings.json", FILE_READ );  // Open settings file for reading
+    char buff[512];
 
-    if ( !file )
-    {
-        logError ( "[FS] Couldn't open irrigation_settings.json" );
+    snprintf(
+        buff,
+        sizeof(buff),
+        "[SETTINGS] %s: threshold=%.1f duration=%lu minPoP=%.1f updated=%s",
+        source,
+        settings.moisture_threshold,
+        settings.watering_duration_sec,
+        settings.min_precip_prob,
+        settings.updated
+        );
 
-        return false;  // Return false if local settings file can't be opened
-    }
+   logToFile( buff, debuglogFileName );
 
-    DeserializationError error =  deserializeJson( local_doc, file );
-
-    if ( error != DeserializationError::Ok )  // Deserialize JSON from file into document
-    {
-        char buff[512];
-
-        snprintf ( buff, sizeof ( buff ), "[SETTINGS] irrigation_settings.json parse failed: %s", error.c_str() );  // Build message
-
-        logError ( buff );
-
-        file.close();  // Close file
-
-        return false; // Return false on deserialization error
-
-    }
-
-    file.close();
-
-    settings.moisture_threshold = local_doc["moisture_threshold"] | 54.5;
-    settings.watering_duration_sec  = local_doc["watering_duration"]  | 3600;
-    settings.min_precip_prob = local_doc["min_precip_prob"]    | 60.0;
-
-    JsonArray times = local_doc["times"];
-
-    for ( uint8_t i = 0; i < SCHEDULE_COUNT && i < times.size(); ++i )
-    {
-        uint8_t h, m, s;
-
-        sscanf( times[i], "%d:%d:%d", &h, &m, &s);
-
-        settings.times[i].hour = h;
-        settings.times[i].min  = m;
-        settings.times[i].sec  = s;
-    }
-
-    strlcpy( settings.updated, local_doc["updated"] | "", sizeof( settings.updated ) );
-
-#ifdef DEBUG_ENABLED
-
-    DBG(F("[SETTINGS] Local settings are applied"));
-    
-#endif
-
-    return true;
 }
+
 
 
 bool getServerSettings()
@@ -95,48 +63,77 @@ bool getServerSettings()
 
         int httpCode = http.GET();  // Send HTTP GET request
 
+        if ( httpCode != HTTP_CODE_OK )  // Check for successful response
+        {
+
+            http.end();  // Close HTTP connection
+
+            char buff[512];  // Message buffer
+                    
+            snprintf ( buff, sizeof ( buff ), "[SETTINGS] HTTP GET failed: %d", httpCode );  // Build message
+                    
+            logToFile ( buff, errorlogFileName );  // Log to error file
+
+            display_message ( buff, 2000 );  // Show error message on OLED
+
+    #ifdef DEBUG_ENABLED
+            DBGf("[SETTINGS] HTTP GET failed: %d", httpCode);
+    #endif
+            
+            continue;  // Skip the remainder of the for loop
+                    
+        }
+    
+
         //--------------------------------------------------
         // Deserialize HTTP response directly into JSON doc
         //--------------------------------------------------
 
         DeserializationError error = deserializeJson( server_doc, http.getStream() );  // Deserialize JSON from HTTP response stream to JsonDocument
 
-        http.end();  // Free resources
+        http.end();  // Close HTTP connection after JSON processing is complete
 
-        
-        if ( httpCode != HTTP_CODE_OK )  // Check for successful response
+         if ( error == DeserializationError::Ok )
+        {
+            
+            char buff[512];
+
+            snprintf(
+                buff,
+                sizeof(buff),
+                "[SETTINGS] Server: threshold=%.1f duration=%lu minPoP=%.1f updated=%s",
+                server_doc["moisture_threshold"] | 0.0,
+                server_doc["watering_duration"] | 0UL,
+                server_doc["min_precip_prob"] | 0.0,
+                server_doc["updated"] | ""
+            );
+
+            logToFile( buff, errorlogFileName );
+
+            break;  // break out of loop if everything worked
+        }
+
+        else
         {
 
             char buff[512];  // Message buffer
                 
-            snprintf ( buff, sizeof ( buff ), "[SETTINGS] HTTP GET failed: %d", httpCode );  // Build message
+            snprintf ( buff, sizeof ( buff ), "[SETTINGS] Server JSON parse failed: %s", error.c_str() );  // Build message
                 
-            logError ( buff );  // Log to error file
+            logToFile ( buff, errorlogFileName );  // Log to error file
+
+            display_message ( buff, 2000 );
 
 #ifdef DEBUG_ENABLED
-            DBGf("[SETTINGS] HTTP GET failed: %d", httpCode);
+
+            BGf("[SETTINGS] JSON parse failed: %s", error.c_str());  // Print debug statement
 #endif
-                
-        }
-        
-        if ( error !=DeserializationError::Ok ) // Check for deserialization errors
-        {
 
-            char buff[512];  // Message buffer
-            
-            snprintf ( buff, sizeof ( buff ), "[SETTINGS] Server JSON parse failed: %s", error.c_str() );  // Build message
-            
-            logError ( buff );  // Log to error file
+            }
 
-    #ifdef DEBUG_ENABLED
+    }  // end for loop
 
-            DBGf("[SETTINGS] JSON parse failed: %s", error.c_str());  // Print debug statement
-    #endif
-
-        }
-
-    }
-
+    
     //--------------------------------------------------
     // Determine whether server has newer settings
     //--------------------------------------------------
@@ -155,6 +152,20 @@ bool getServerSettings()
 
 bool serverSettingsAreNewer( const char *serverUpdated )
 {
+    // Log timestamps to erro file
+
+    char buff[256];
+
+    snprintf(
+        buff,
+        sizeof(buff),
+        "[SETTINGS] Compare: server=%s local=%s",
+        serverUpdated,
+        settings.updated
+    );
+
+    logToFile( buff, errorlogFileName );
+    
     
     if ( applyLocalSettings() == false )  // Load local settings to ensure we have the latest timestamp
     {
@@ -171,8 +182,85 @@ bool serverSettingsAreNewer( const char *serverUpdated )
         return false;  // If server timestamp is null or empty, apply local settings
     }
 
-    return strcmp( serverUpdated, settings.updated ) > 0;  // Return true if server timestamp is newer than local timestamp
+    // Log timestamp comparison
+    int comparison = strcmp(serverUpdated, settings.updated);
 
+    snprintf(
+        buff,
+        sizeof(buff),
+        "[SETTINGS] Timestamp comparison=%d",
+        comparison
+    );
+
+    logToFile( buff, errorlogFileName );
+
+    return comparison > 0;
+    
+    
+    //return strcmp( serverUpdated, settings.updated ) > 0;  // Return true if server timestamp is newer than local timestamp
+
+}
+
+
+bool applyLocalSettings()
+{
+    JsonDocument local_doc;
+
+    File file = LittleFS.open( "/irrigation_settings.json", FILE_READ );  // Open settings file for reading
+
+    if ( !file )
+    {
+        logToFile ( "[FS] Couldn't open irrigation_settings.json", errorlogFileName );
+
+        return false;  // Return false if local settings file can't be opened
+    }
+
+    DeserializationError error =  deserializeJson( local_doc, file );
+
+    if ( error != DeserializationError::Ok )  // Deserialize JSON from file into document
+    {
+        char buff[512];
+
+        snprintf ( buff, sizeof ( buff ), "[SETTINGS] irrigation_settings.json parse failed: %s", error.c_str() );  // Build message
+
+        logToFile ( buff, errorlogFileName );
+
+        file.close();  // Close file
+
+        return false; // Return false on deserialization error
+
+    }
+
+    file.close();
+
+    settings.moisture_threshold = local_doc["moisture_threshold"] | 54.5;
+    settings.watering_duration_sec  = local_doc["watering_duration"]  | 3600;
+    settings.min_precip_prob = local_doc["min_precip_prob"]    | 60.0;
+
+    JsonArray times = local_doc["times"];
+
+    for ( uint8_t i = 0; i < SCHEDULE_COUNT && i < times.size(); ++i )
+    {
+        unsigned int h, m, s;
+
+        sscanf( times[i], "%u:%u:%u", &h, &m, &s);
+
+        settings.times[i].hour = h;
+        settings.times[i].min  = m;
+        settings.times[i].sec  = s;
+    }
+
+    strlcpy( settings.updated, local_doc["updated"] | "", sizeof( settings.updated ) );
+
+#ifdef DEBUG_ENABLED
+
+    DBG(F("[SETTINGS] Local settings are applied"));
+    
+#endif
+
+    logSettings("local"); // Log settings after applying local json values
+
+    return true;
 }
 
 
@@ -202,7 +290,7 @@ void applyDownloadedSettings( JsonDocument &server_doc )
 
     JsonArray times = server_doc["times"];  // Get watering schedule array from JSON document
 
-    for (uint8_t i = 0; i < SCHEDULE_COUNT && i < times.size(); i++ )  // Loop through each schedule slot, up to SCHEDULE_COUNT or the size of the JSON array
+    for ( uint8_t i = 0; i < SCHEDULE_COUNT && i < times.size(); i++ )  // Loop through each schedule slot, up to SCHEDULE_COUNT or the size of the JSON array
     {
         unsigned int h;
         unsigned int m;
@@ -223,6 +311,8 @@ void applyDownloadedSettings( JsonDocument &server_doc )
 
     strlcpy( settings.updated, server_doc["updated"] | "", sizeof( settings.updated ) );  // Copy server timestamp to local settings, default to empty string if not present
 
+    logSettings("server");  // Log settings after updating from server file
+
 
     //--------------------------------------------------
     // Save updated settings locally
@@ -231,7 +321,7 @@ void applyDownloadedSettings( JsonDocument &server_doc )
     if ( saveLocalSettings( server_doc ) == false )  // Check if saving settings to FS was successful
     {
 
-        logError ( "[SETTINGS] Failed to save local settings" );
+       logToFile ( "[FS] Failed to save local settings", errorlogFileName );
 
 #ifdef DEBUG_ENABLED
         DBG(F("[SETTINGS] Failed to save local settings"));
@@ -241,6 +331,8 @@ void applyDownloadedSettings( JsonDocument &server_doc )
 
     else
     {
+
+       logToFile( "[FS] Saved updated local settings", errorlogFileName );
 
 #ifdef DEBUG_ENABLED
         DBG(F("[SETTINGS] New settings saved locally"));
@@ -280,8 +372,6 @@ bool saveLocalSettings( JsonDocument &server_doc )  // Save settings to FS
     {
 
         file.close();  // Close file
-
-        logError( "Failed to save local settings file" );
 
 #ifdef DEBUG_ENABLED
 
@@ -366,7 +456,7 @@ void solenoid_state_Update()  // Report solenoid state to server
 
             else
             {
-                logError( buff );
+               logToFile( buff, errorlogFileName );
             }
        
         }
@@ -375,7 +465,7 @@ void solenoid_state_Update()  // Report solenoid state to server
 
     else
     {
-        logError( "[WIFI] Disconnected" );
+       logToFile( "[WIFI] Disconnected", errorlogFileName );
 
         display_message( "[WIFI] Disconnected", 2000 );
     }
@@ -459,7 +549,7 @@ void sendServerUpdate()
 
             else
             {
-                logError( buff );
+               logToFile( buff, errorlogFileName );
             }
 
         }
@@ -468,7 +558,7 @@ void sendServerUpdate()
 
     else
     {
-        logError( "[WIFI] Disconnected" );
+       logToFile( "[WIFI] Disconnected", errorlogFileName );
 
         display_message( "[WIFI] Disconnected", 2000 );
     }
@@ -476,10 +566,10 @@ void sendServerUpdate()
 }
 
 
-void logError( const char* errortext )
+void logToFile( const char* text, const char* fileName )
 {
 
-  File file = LittleFS.open( logFileName, FILE_APPEND );  // Open file for appending
+  File file = LittleFS.open( fileName, FILE_APPEND );  // Open file for appending
 
   if ( !file )
   {
@@ -491,35 +581,35 @@ void logError( const char* errortext )
 
   file.print( " - " );  // Add separator
   
-  file.println( errortext );  // Error message text written to file
+  file.println( text );  // Error message text written to file
 
   file.close();  // Close error log file
 
 }
 
 
-bool uploadErrorLog()
+bool uploadFile( const char* fileName, const char* postServerName )
 {
 
     // Make sure the log file exists and contains something
-    if ( LittleFS.exists( logFileName ) == false )
+    if ( LittleFS.exists( fileName ) == false )
     {
-        Serial.println( "No error log to upload" );
+        Serial.println( "No file to upload" );
         return true;
     }
 
-    File file = LittleFS.open( logFileName, FILE_READ );
+    File file = LittleFS.open( fileName, FILE_READ );
 
     if ( !file )
     {
-        Serial.println( "Failed to open error log" );
+        Serial.printf( "Failed to open file:  %s\r\n", fileName );
         return false;
     }
 
     WiFiClient client;
     HTTPClient http;
 
-    http.begin( client, postErrorLogServerName );
+    http.begin( client, postServerName );
     http.addHeader( "Content-Type", "text/plain" );
 
     // Send the LittleFS file directly
@@ -533,7 +623,7 @@ bool uploadErrorLog()
     {
         String response = http.getString();
 
-        Serial.printf( "Error log upload response: %s\n", response.c_str() );
+        Serial.printf( "File upload response: %s\n", response.c_str() );
 
         // Server must explicitly confirm receipt
         if ( response == "OK" )
@@ -543,15 +633,19 @@ bool uploadErrorLog()
 
         else
         {
-            Serial.println( "Server did not confirm error log receipt" );
+            Serial.println( "Server did not confirm file receipt" );
         }
     }
 
     else
     {
-        logError ( "[FS] Error log upload failed." );
+        char buff[256];
+
+        snprintf ( buff, sizeof ( buff ), "[FS] %s upload failed.", fileName );  // Build message
+
+        logToFile ( buff, errorlogFileName );
         
-        Serial.printf( "Error log upload failed. HTTP code: %d\n", httpCode );
+        Serial.printf( "File upload failed. HTTP code: %d\n", httpCode );
 
         if ( httpCode < 0 )
         {
@@ -564,15 +658,22 @@ bool uploadErrorLog()
     // Only delete the local log after confirmed receipt
     if ( uploadSuccessful )
     {
-        if ( LittleFS.remove( logFileName ) )
+        
+        char buff[256];
+
+        snprintf ( buff, sizeof ( buff ), "[FS] %s upload failed.", fileName );  // Build message
+
+        if ( LittleFS.remove( fileName ) )
         {
-            Serial.println(  "[FS]Error log successfully uploaded and deleted" );
-            display_message( "[FS]Error log successfully uploaded and deleted\r\n" , 2000 );
+            snprintf ( buff, sizeof ( buff ), "[FS] %s successfully uploaded and deleted\r\n", fileName );  // Build message
+            Serial.printf( buff );
+            display_message( buff , 2000 );
         }
         else
         {
-            Serial.println(  "[FS] Error log uploaded, but failed to delete local file" );
-            display_message( "[FS] Error log uploaded, but failed to delete local file\r\n" , 2000 );
+            snprintf ( buff, sizeof ( buff ), "[FS] %s uploaded, but failed to delete local file\r\n", fileName );  // Build message
+            Serial.printf(  buff, fileName );
+            display_message( buff , 2000 );
         }
 
         return true;
@@ -581,7 +682,7 @@ bool uploadErrorLog()
     else
     {
 
-    Serial.println( "Error log retained because upload was not confirmed" );
+    Serial.printf( "%s file retained because upload was not confirmed\r\n", fileName );
 
     return false;
 

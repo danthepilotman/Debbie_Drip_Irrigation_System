@@ -6,7 +6,7 @@
 #include <esp_ota_ops.h>  // For OTA update state checking
 
 
-const char *FIRMWARE_VERSION = "1.3.10";  // current firmware version
+const char *FIRMWARE_VERSION = "1.3.13";  // current firmware version
 
 
 bool getFirmwareInfo( String &latestVersion, String &firmwareUrl )
@@ -23,7 +23,7 @@ bool getFirmwareInfo( String &latestVersion, String &firmwareUrl )
     if ( code != HTTP_CODE_OK )
     {
 
-        logError( "[OTA] Failed to fetch manifest" );
+       logToFile( "[OTA] Failed to fetch manifest", errorlogFileName );
 
 #ifdef DEBUG_ENABLED
 
@@ -44,7 +44,7 @@ bool getFirmwareInfo( String &latestVersion, String &firmwareUrl )
     if ( err )
     {
 
-        logError( "[OTA] JSON parse failed" );
+       logToFile( "[OTA] JSON parse failed", errorlogFileName );
 
         DBG("[OTA] JSON parse failed");
 
@@ -140,7 +140,7 @@ void performOTA( String url )
     {
         case HTTP_UPDATE_FAILED:
             sprintf( buff, "OTA Failed: %s\n", httpUpdate.getLastErrorString().c_str() );
-            logError ( buff );
+           logToFile ( buff, errorlogFileName );
             display_message( buff, 2000 );
             break;
 
@@ -175,7 +175,7 @@ void checkForOTAUpdate()
     if ( getFirmwareInfo( latestVersion, firmwareUrl ) == false )
     {
         
-        logError ( "[OTA] Unable to obtain firwmare info" );
+       logToFile ( "[OTA] Unable to obtain firwmare info", errorlogFileName );
 
         return;
 
@@ -272,7 +272,7 @@ void check_ota_state()
 
                 sprintf( buff, "[OTA] Failed to confirm firmware:\r\n%s", esp_err_to_name(err) );
 
-                logError ( buff );
+                logToFile ( buff, errorlogFileName );
 
                 display_message( buff );
                 

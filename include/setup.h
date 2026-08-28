@@ -89,9 +89,9 @@ extern SystemState system_state;
 
 typedef struct ScheduleTime
 {
-    uint8_t hour;  // hour component
-    uint8_t min;   // minute component
-    uint8_t sec;   // second component
+    unsigned int hour;  // hour component
+    unsigned int min;   // minute component
+    unsigned int sec;   // second component
 } ScheduleTime;
 
 struct Settings {

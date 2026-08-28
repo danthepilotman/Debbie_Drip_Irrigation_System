@@ -33,7 +33,7 @@ void setup_RS485()
 {
     if ( sampleCount == 0 || sampleCount > MAX_SAMPLES ) // validate sample count
     {
-        logError ( "[RS485] Ivalid sample count" );
+       logToFile ( "[RS485] Ivalid sample count", errorlogFileName );
         return INVALID_PARAM; // invalid parameter
     }
 
@@ -49,7 +49,7 @@ void setup_RS485()
 
         if ( rs485_status != RS485_GOOD ) // check read status
         {   
-            logError ( "[RS485] Register read failed" );
+           logToFile ( "[RS485] Register read failed", errorlogFileName );
             return rs485_status; // propagate error
         }
 
@@ -138,7 +138,7 @@ RS485_STATUS read_Registers_raw( HardwareSerial &serial, uint8_t deviceAddress, 
     if ( index < (5 + numRegisters * 2 ) )  // insufficient reply length
     {
 
-        logError ( "[RS485] Invalid response length" );
+       logToFile ( "[RS485] Invalid response length", errorlogFileName );
 
         return RESPONSE_INCOMPLETE; // reply didn't include expected bytes
 
@@ -152,7 +152,7 @@ RS485_STATUS read_Registers_raw( HardwareSerial &serial, uint8_t deviceAddress, 
 
     if ( response_crc != received_crc ) // Compare CRCs
     {
-        logError ( "[RS485] CRC mismatch" );
+       logToFile ( "[RS485] CRC mismatch", errorlogFileName );
         return CRC_MISMATCH; // CRC mismatch indicates corrupted frame
     }
     
@@ -230,7 +230,7 @@ void get_new_readings()
         else
         {
             
-            logError( "[RS485] Register read error" );
+           logToFile( "[RS485] Register read error", errorlogFileName );
 
 #ifdef DEBUG_ENABLED
 

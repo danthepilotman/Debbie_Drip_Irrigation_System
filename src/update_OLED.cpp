@@ -22,7 +22,7 @@ void setup_OLED()
   if( display.begin( SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS ) == false )
   { 
 
-    logError( "[DISPLAY] SSD1306 allocation failed" );
+   logToFile( "[DISPLAY] SSD1306 allocation failed", errorlogFileName );
     
 #ifdef DEBUG
 

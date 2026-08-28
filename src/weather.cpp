@@ -77,7 +77,7 @@ bool getNWSForecast( JsonDocument &doc )
 
     if ( http.begin( client, url ) == false )
     {
-        logError ( "[WX] HTTP begin failed" );
+       logToFile ( "[WX] HTTP begin failed", errorlogFileName );
     }
 
     // --------------------------------------------------
@@ -114,7 +114,7 @@ bool getNWSForecast( JsonDocument &doc )
         if ( code > 0 )
         {
 
-            logError( buff );
+           logToFile( buff, errorlogFileName );
 
         }
 
@@ -123,7 +123,7 @@ bool getNWSForecast( JsonDocument &doc )
 
            snprintf( buff, sizeof( buff ), "[WX] HTTP GET failed: %s", http.errorToString( code ).c_str() ); 
 
-           logError( buff );
+          logToFile( buff, errorlogFileName );
            
         }
 
@@ -150,7 +150,7 @@ bool getNWSForecast( JsonDocument &doc )
 
 #endif
 
-        logError ( buff );  // Log error message
+       logToFile ( buff, errorlogFileName );  // Log error message
 
         display_message( buff, 2000 );  // Display OLED error message
 
@@ -259,7 +259,7 @@ bool rainExpectedSoon()
         {
             avg_precip_prob = -2;  // Set error code value
 
-            logError ( "[WX] Could not obtain NWS forecast");
+           logToFile ( "[WX] Could not obtain NWS forecast", errorlogFileName );
 
             return false;  // Retrun false since forecast was unavailable
         }
@@ -299,7 +299,7 @@ bool rainExpectedSoon()
     {
         avg_precip_prob = -1;
 
-        logError( "[WX] No forecast periods found" );
+       logToFile( "[WX] No forecast periods found", errorlogFileName );
 
 #ifdef DEBUG_ENABLED
 
