@@ -575,7 +575,7 @@ void logToFile( const char* text, const char* fileName )
 
   file.print( " - " );  // Add separator
   
-  file.print( text );  // Error message text written to file
+  file.println( text );  // Error message text written to file
 
   file.close();  // Close error log file
 
