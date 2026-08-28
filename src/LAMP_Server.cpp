@@ -303,7 +303,7 @@ void applyDownloadedSettings( JsonDocument &server_doc )
             settings.times[i].sec  = s;
         }
 
-
+    }
     //--------------------------------------------------
     // Copy server timestamp
     //--------------------------------------------------
