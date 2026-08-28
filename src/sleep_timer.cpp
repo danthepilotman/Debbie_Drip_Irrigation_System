@@ -163,6 +163,10 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
 
     esp_sleep_enable_timer_wakeup( sleep_us );  // program the wakeup timer
 
+/*********************************** Send logs before going into deep sleep *****************************************/
+
+    uploadFile( errorlogFileName, postErrorLogServerName ); // Upload error log to LAMP Server
+    uploadFile( debuglogFileName, postDebugLogServerName ); // Upload debug log to LAMP Server
 
 /*********************************** Enter Deep Sleep *****************************************/
 #ifdef DEBUG_ENABLED
@@ -170,9 +174,6 @@ void deep_sleep_function()  // decide whether to sleep, wait, or continue runnin
     DBG( "[STATUS] ===== Entering Deep Sleep =====" );  // final status log
 
 #endif
-
-    uploadFile( errorlogFileName, postErrorLogServerName ); // Upload error log to LAMP Server
-    uploadFile( debuglogFileName, postDebugLogServerName ); // Upload debug log to LAMP Server
 
     display.clearDisplay();
     display.setCursor( 0, 0 );

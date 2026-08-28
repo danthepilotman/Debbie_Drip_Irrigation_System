@@ -108,7 +108,7 @@ bool getServerSettings()
                 server_doc["updated"] | ""
             );
 
-            logToFile( buff, errorlogFileName );
+            logToFile( buff, debuglogFileName );
 
             break;  // break out of loop if everything worked
         }
@@ -164,7 +164,7 @@ bool serverSettingsAreNewer( const char *serverUpdated )
         settings.updated
     );
 
-    logToFile( buff, errorlogFileName );
+    logToFile( buff, debuglogFileName );
     
     
     if ( applyLocalSettings() == false )  // Load local settings to ensure we have the latest timestamp
@@ -192,7 +192,7 @@ bool serverSettingsAreNewer( const char *serverUpdated )
         comparison
     );
 
-    logToFile( buff, errorlogFileName );
+    logToFile( buff, debuglogFileName );
 
     return comparison > 0;
     
@@ -233,9 +233,9 @@ bool applyLocalSettings()
 
     file.close();
 
-    settings.moisture_threshold = local_doc["moisture_threshold"] | 54.5;
-    settings.watering_duration_sec  = local_doc["watering_duration"]  | 3600;
-    settings.min_precip_prob = local_doc["min_precip_prob"]    | 60.0;
+    settings.moisture_threshold = local_doc["moisture_threshold"] | settings.moisture_threshold;
+    settings.watering_duration_sec  = local_doc["watering_duration"]  | settings.watering_duration_sec ;
+    settings.min_precip_prob = local_doc["min_precip_prob"]    | settings.min_precip_prob ;
 
     JsonArray times = local_doc["times"];
 
@@ -250,7 +250,7 @@ bool applyLocalSettings()
         settings.times[i].sec  = s;
     }
 
-    strlcpy( settings.updated, local_doc["updated"] | "", sizeof( settings.updated ) );
+    strlcpy( settings.updated, local_doc["updated"] |  settings.updated, sizeof( settings.updated ) );
 
 #ifdef DEBUG_ENABLED
 
@@ -302,14 +302,13 @@ void applyDownloadedSettings( JsonDocument &server_doc )
             settings.times[i].min  = m;
             settings.times[i].sec  = s;
         }
-    }
 
 
     //--------------------------------------------------
     // Copy server timestamp
     //--------------------------------------------------
 
-    strlcpy( settings.updated, server_doc["updated"] | "", sizeof( settings.updated ) );  // Copy server timestamp to local settings, default to empty string if not present
+    strlcpy( settings.updated, server_doc["updated"] | settings.updated, sizeof( settings.updated ) );  // Copy server timestamp to local settings, default to empty string if not present
 
     logSettings("server");  // Log settings after updating from server file
 
@@ -332,7 +331,7 @@ void applyDownloadedSettings( JsonDocument &server_doc )
     else
     {
 
-       logToFile( "[FS] Saved updated local settings", errorlogFileName );
+       logToFile( "[FS] Saved updated local settings", debuglogFileName );
 
 #ifdef DEBUG_ENABLED
         DBG(F("[SETTINGS] New settings saved locally"));
