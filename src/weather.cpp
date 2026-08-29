@@ -92,37 +92,6 @@ bool getNWSForecast( JsonDocument &doc )
 
     int code = http.GET();  // Fetch data from NWS source
 
-   
-
-    snprintf( buff, sizeof( buff ), "[WX] HTTP 200, content length: %d", size );
-
-    logToFile( buff, debuglogFileName );
-
-    if ( code != HTTP_CODE_OK )  // Check response code
-    {
-
-        http.end();  // End connection if not OK
-
-    }
-
-    snprintf( buff, sizeof( buff ), "[WX] HTTP GET result: %d - %s", code, http.errorToString( code ).c_str() );  // Build message buffer
-
-    display_message( buff );  // Display OLED message
-    
-    if ( code != HTTP_CODE_OK )
-    {
-
-        logToFile( buff, errorlogFileName );  // Log to error file if response is not OK
-
-#ifdef DEBUG_ENABLED
-
-        DBG( F( "[WX] HTTP request failed" ) );
-
-#endif
-
-        return false;  // Return false since http request was NOT successful
-    }
-
     // --------------------------------------------------
     // STREAM DESERIALIZE
     // --------------------------------------------------
@@ -138,6 +107,26 @@ bool getNWSForecast( JsonDocument &doc )
     DBGf( "[WX] HTTP code: %d\r\n", code );
 
 #endif
+
+    char buff[256];
+
+    snprintf( buff, sizeof( buff ), "[WX] HTTP GET result: %d - %s", code, http.errorToString( code ).c_str() );
+
+    display_message( buff );
+
+    if ( code != HTTP_CODE_OK )
+    {
+    
+        logToFile( buff, errorlogFileName );
+
+#ifdef DEBUG_ENABLED
+
+        DBG( F( "[WX] HTTP request failed" ) );
+
+#endif
+
+        return false;  // Return false since http request was NOT successful
+    }
 
     
     if ( err != DeserializationError::Ok )
