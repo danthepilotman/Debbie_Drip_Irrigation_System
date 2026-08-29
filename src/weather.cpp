@@ -29,8 +29,6 @@ uint8_t valid_hourly_PoP_count = 0;
 bool getNWSForecast( JsonDocument &doc )
 {
 
-    char buff[256];
-
 #ifdef DEBUG_ENABLED
 
     DBG( F( "[WX] Getting NWS forecast" ) );
