@@ -29,6 +29,8 @@ uint8_t valid_hourly_PoP_count = 0;
 bool getNWSForecast( JsonDocument &doc )
 {
 
+    char buff[256];
+
 #ifdef DEBUG_ENABLED
 
     DBG( F( "[WX] Getting NWS forecast" ) );
@@ -69,7 +71,7 @@ bool getNWSForecast( JsonDocument &doc )
 
     http.setTimeout( 10000 );
 
-    http.useHTTP10( true );
+    // http.useHTTP10( true );
 
     http.setUserAgent( F("ESP32 Irrigation Controller") );
 
@@ -77,14 +79,49 @@ bool getNWSForecast( JsonDocument &doc )
 
     if ( http.begin( client, url ) == false )
     {
+
        logToFile ( "[WX] HTTP begin failed", errorlogFileName );
+
+       return false;
+
     }
 
     // --------------------------------------------------
     // HTTP GET
     // --------------------------------------------------
 
-    int code = http.GET();
+    int code = http.GET();  // Fetch data from NWS source
+
+    int size = http.getSize();
+
+    snprintf( buff, sizeof( buff ), "[WX] HTTP 200, content length: %d", size );
+
+    logToFile( buff, debuglogFileName );
+
+    if ( code != HTTP_CODE_OK )  // Check response code
+    {
+
+        http.end();  // End connection if not OK
+
+    }
+
+    snprintf( buff, sizeof( buff ), "[WX] HTTP GET result: %d - %s", code, http.errorToString( code ).c_str() );  // Build message buffer
+
+    display_message( buff );  // Display OLED message
+    
+    if ( code != HTTP_CODE_OK )
+    {
+
+        logToFile( buff, errorlogFileName );  // Log to error file if response is not OK
+
+#ifdef DEBUG_ENABLED
+
+        DBG( F( "[WX] HTTP request failed" ) );
+
+#endif
+
+        return false;  // Return false since http request was NOT successful
+    }
 
     // --------------------------------------------------
     // STREAM DESERIALIZE
@@ -102,27 +139,7 @@ bool getNWSForecast( JsonDocument &doc )
 
 #endif
 
-    char buff[256];
-
-    snprintf( buff, sizeof( buff ), "[WX] HTTP GET result: %d - %s", code, http.errorToString( code ).c_str() );
-
-    display_message( buff );
-
-    if ( code != HTTP_CODE_OK )
-    {
     
-        logToFile( buff, errorlogFileName );
-
-#ifdef DEBUG_ENABLED
-
-        DBG( F( "[WX] HTTP request failed" ) );
-
-#endif
-
-        return false;  // Return false since http request was NOT successful
-    }
-
-   
     if ( err != DeserializationError::Ok )
     {
 
