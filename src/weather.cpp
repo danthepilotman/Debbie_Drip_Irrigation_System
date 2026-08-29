@@ -71,7 +71,7 @@ bool getNWSForecast( JsonDocument &doc )
 
     http.setTimeout( 10000 );
 
-    // http.useHTTP10( true );
+    http.useHTTP10( true );
 
     http.setUserAgent( F("ESP32 Irrigation Controller") );
 
@@ -92,7 +92,7 @@ bool getNWSForecast( JsonDocument &doc )
 
     int code = http.GET();  // Fetch data from NWS source
 
-    int size = http.getSize();
+   
 
     snprintf( buff, sizeof( buff ), "[WX] HTTP 200, content length: %d", size );
 
