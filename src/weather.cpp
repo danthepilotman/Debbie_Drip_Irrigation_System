@@ -196,7 +196,6 @@ void processForecastPeriods( JsonArray filteredPeriods, time_t next_target, int 
 }
 
 
-
 // ==================================================
 // ============= WEATHER FORECAST ==================
 // ==================================================

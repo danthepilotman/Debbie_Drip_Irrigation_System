@@ -5,7 +5,7 @@
 #include "setup.h"  // status_str.wattering_needed variable
 
 
-const char* postServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/";
+const char*phpServerName = "http://dldesigns.doesntexist.com:30/LAMP-Server/Irrigation%20System/php/";
 
 const char* errorlogFileName = "/error_log.txt";
 
@@ -29,7 +29,7 @@ bool getServerSettings()
             return false; // Return false on failure
         }
         
-        const String url = String( postServerName ) + String ( "get_settings.php" );
+        const String url = String( phpServerName ) + String ( "get_settings.php" );
         
         http.begin( url );  // Specify destination for HTTP request
 
@@ -427,7 +427,7 @@ void solenoid_state_Update()  // Report solenoid state to server
         // Specify content type
         http.addHeader( F("Content-Type"), F("application/x-www-form-urlencoded" ) );
 
-        const String url = String( postServerName ) + String ( "post-esp-data.php" );
+        const String url = String( phpServerName ) + String ( "post-esp-data.php" );
 
         for ( uint8_t i = 0; i < MAX_TRIES; ++i )
         {
@@ -478,13 +478,11 @@ void sendServerUpdate()
 
         char buff[256];
 
-
         // --------------------------------------------------
         // Get WiFi RSSI
         // --------------------------------------------------
 
         int WiFi_RSSI = WiFi.RSSI();
-
 
         // --------------------------------------------------
         // Prepare HTTP POST data
@@ -516,7 +514,7 @@ void sendServerUpdate()
         // Specify content type
         http.addHeader( F("Content-Type"), F("application/x-www-form-urlencoded") );
 
-        const String url = String( postServerName ) + String ( "post-esp-data.php" );
+        const String url = String( phpServerName ) + String ( "post-esp-data.php" );
 
         for( uint8_t i = 0; i < MAX_TRIES; ++i )
         {
@@ -530,11 +528,8 @@ void sendServerUpdate()
 
             DBGf("DB POST HTTP code: %d\r\n", httpResponseCode );
 
+
 #endif
-
-            sprintf( buff, "[IRRIGATION] DB soil readings POST failed. HTTP code: %d", httpResponseCode );  // Build OLED message
-
-            display_message( buff, 2000 );  // Show OLED message
 
             if ( httpResponseCode == HTTP_CODE_OK )  // Check HTTP post response code
             {
@@ -543,7 +538,11 @@ void sendServerUpdate()
 
             else
             {
-               logToFile( buff, errorlogFileName );
+                sprintf( buff, "[IRRIGATION] DB soil readings POST failed. HTTP code: %d", httpResponseCode );  // Build OLED message
+
+                logToFile( buff, errorlogFileName );
+                
+                display_message( buff, 2000 );  // Show OLED message
             }
 
         }
@@ -552,7 +551,7 @@ void sendServerUpdate()
 
     else
     {
-       logToFile( "[WIFI] Disconnected", errorlogFileName );
+        logToFile( "[WIFI] Disconnected", errorlogFileName );
 
         display_message( "[WIFI] Disconnected", 2000 );
     }
@@ -603,7 +602,7 @@ bool uploadFile( const char* fileName )
     WiFiClient client;
     HTTPClient http;
 
-    const String url = String( postServerName ) + String ( "post-log.php" );
+    const String url = String( phpServerName ) + String ( "post-log.php" );
 
     http.begin( client, url );
     http.addHeader( "X-Log-File", fileName );
@@ -640,7 +639,7 @@ bool uploadFile( const char* fileName )
 
         snprintf ( buff, 
                    sizeof ( buff ), 
-                   "[FS] %s upload failed. HTTP code: %d - %s\r\n",
+                   "[FS] %s upload failed. HTTP code: %d => %s",
                    fileName, httpCode, http.errorToString( httpCode ).c_str() );  // Build message
 
         logToFile ( buff, errorlogFileName );
